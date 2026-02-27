@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { motion, AnimatePresence } from "framer-motion";
 import { useGeneratePlan } from "@/hooks/useYoga";
+import { useProfile } from "@/hooks/useProfile";
 import { useApp } from "@/components/layout/AppProvider";
 import { focusAreaKeys } from "@/lib/i18n";
 import type { GeneratePlanRequest } from "@/types/yoga";
@@ -17,10 +18,18 @@ export default function PlanGeneratorForm() {
   const [step, setStep] = useState(0);
   const router = useRouter();
   const { generatePlan, loading } = useGeneratePlan();
+  const { profile } = useProfile();
   const { t, locale } = useApp();
   const { setValue, watch, getValues } = useForm<GeneratePlanRequest>({
     defaultValues: { level: "", duration: 30, focus_area: "", preferences: "" },
   });
+
+  useEffect(() => {
+    if (profile) {
+      if (profile.fitness_level) setValue("level", profile.fitness_level);
+      if (profile.preferred_duration) setValue("duration", profile.preferred_duration);
+    }
+  }, [profile, setValue]);
 
   const selectedLevel = watch("level");
   const selectedDuration = watch("duration");

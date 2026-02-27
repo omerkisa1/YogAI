@@ -14,6 +14,7 @@ export default function Navbar() {
   const navLinks = [
     { href: "/dashboard", label: t.dashboard },
     { href: "/create-plan", label: t.createPlan },
+    { href: "/profile", label: t.profile },
   ];
 
   return (

@@ -33,7 +33,10 @@ func main() {
 	defer aiService.Close()
 
 	yogaRepo := repository.NewYogaRepository(firebaseApp.Firestore)
-	yogaHandler := handlers.NewYogaHandler(aiService, yogaRepo)
+	profileRepo := repository.NewProfileRepository(firebaseApp.Firestore)
+
+	yogaHandler := handlers.NewYogaHandler(aiService, yogaRepo, profileRepo)
+	profileHandler := handlers.NewProfileHandler(profileRepo)
 
 	router := gin.Default()
 	router.Use(gin.Recovery())
@@ -53,6 +56,9 @@ func main() {
 		authorized.PATCH("/yoga/plans/:id", yogaHandler.UpdatePlanMeta)
 		authorized.DELETE("/yoga/plans/:id", yogaHandler.DeletePlan)
 		authorized.POST("/yoga/analyze", yogaHandler.AnalyzePose)
+
+		authorized.GET("/profile", profileHandler.GetProfile)
+		authorized.PUT("/profile", profileHandler.SaveProfile)
 	}
 
 	log.Printf("YogAI server starting on port %s", cfg.ServerPort)

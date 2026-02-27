@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/gin-gonic/gin"
@@ -14,14 +15,16 @@ import (
 )
 
 type YogaHandler struct {
-	aiService services.AIService
-	repo      repository.YogaRepository
+	aiService   services.AIService
+	repo        repository.YogaRepository
+	profileRepo repository.ProfileRepository
 }
 
-func NewYogaHandler(aiService services.AIService, repo repository.YogaRepository) *YogaHandler {
+func NewYogaHandler(aiService services.AIService, repo repository.YogaRepository, profileRepo repository.ProfileRepository) *YogaHandler {
 	return &YogaHandler{
-		aiService: aiService,
-		repo:      repo,
+		aiService:   aiService,
+		repo:        repo,
+		profileRepo: profileRepo,
 	}
 }
 
@@ -96,13 +99,19 @@ func (h *YogaHandler) GeneratePlan(c *gin.Context) {
 		return
 	}
 
+	var profileInjuries []string
+	profile, _ := h.profileRepo.GetProfile(c.Request.Context(), uid)
+	if profile != nil && len(profile.Injuries) > 0 {
+		profileInjuries = profile.Injuries
+	}
+
 	reqEN := req
 	reqEN.Language = "en"
-	promptEN := buildPlanPrompt(reqEN)
+	promptEN := buildPlanPrompt(reqEN, profileInjuries)
 
 	reqTR := req
 	reqTR.Language = "tr"
-	promptTR := buildPlanPrompt(reqTR)
+	promptTR := buildPlanPrompt(reqTR, profileInjuries)
 
 	var resultEN, resultTR string
 	var errEN, errTR error
@@ -315,7 +324,7 @@ func (h *YogaHandler) HealthCheck(c *gin.Context) {
 	models.SuccessResponse(c, "YogAI API is running", nil)
 }
 
-func buildPlanPrompt(req GeneratePlanRequest) string {
+func buildPlanPrompt(req GeneratePlanRequest, injuries []string) string {
 	lang := req.Language
 	if lang == "" {
 		lang = "en"
@@ -328,6 +337,11 @@ func buildPlanPrompt(req GeneratePlanRequest) string {
 	if req.FocusArea != "" {
 		prompt += " Focus area: " + req.FocusArea + "." +
 			" ALL exercises MUST directly target this focus. If it is a pain condition, use only therapeutic movements and exclude contraindicated poses."
+	}
+
+	if len(injuries) > 0 {
+		prompt += " CRITICAL SAFETY - User has the following medical conditions/injuries: [" + strings.Join(injuries, ", ") + "]. " +
+			"You MUST exclude ALL contraindicated poses for these conditions. Prioritize therapeutic and safe movements."
 	}
 
 	if req.Preferences != "" {

@@ -22,16 +22,27 @@ export default function LoginPage() {
   const { locale, setLocale, theme, toggleTheme, t } = useApp();
   const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>();
 
+  const checkProfileAndRedirect = async () => {
+    try {
+      const response = await (await import("@/lib/axios")).default.get("/api/v1/profile");
+      const data = (response as { data?: unknown }).data;
+      router.push(data ? "/dashboard" : "/onboarding");
+    } catch {
+      router.push("/onboarding");
+    }
+  };
+
   const onSubmit = async (data: LoginForm) => {
     setLoading(true);
     try {
       if (isSignUp) {
         await signUpWithEmail(data.email, data.password);
         toast.success(t.accountCreated);
-      } else {
-        await signInWithEmail(data.email, data.password);
+        router.push("/onboarding");
+        return;
       }
-      router.push("/dashboard");
+      await signInWithEmail(data.email, data.password);
+      await checkProfileAndRedirect();
     } catch {
       toast.error(isSignUp ? t.signupFailed : t.loginFailed);
     } finally {
@@ -42,7 +53,7 @@ export default function LoginPage() {
   const handleGoogleSignIn = async () => {
     try {
       await signInWithGoogle();
-      router.push("/dashboard");
+      await checkProfileAndRedirect();
     } catch {
       toast.error(t.googleFailed);
     }

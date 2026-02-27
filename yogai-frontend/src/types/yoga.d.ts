@@ -66,3 +66,18 @@ export interface PlansListResponse {
   plans: YogaPlan[];
   count: number;
 }
+
+export interface UserProfile {
+  display_name: string;
+  birth_year: number;
+  gender: string;
+  height_cm: number;
+  weight_kg: number;
+  fitness_level: string;
+  injuries: string[];
+  goals: string[];
+  preferred_duration: number;
+  profile_image_url: string;
+  created_at: string;
+  updated_at: string;
+}
