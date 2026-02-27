@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 	"github.com/omerkisa/yogai-backend/internal/models"
@@ -51,14 +52,29 @@ func (h *YogaHandler) getUserID(c *gin.Context) (string, bool) {
 	return uid.(string), true
 }
 
-func planToResponse(p *repository.YogaPlan) gin.H {
-	var parsedPlan interface{}
-	if err := json.Unmarshal([]byte(p.Plan), &parsedPlan); err != nil {
-		parsedPlan = p.Plan
+func parsePlanJSON(raw string) interface{} {
+	if raw == "" {
+		return nil
 	}
+	var parsed interface{}
+	if err := json.Unmarshal([]byte(raw), &parsed); err != nil {
+		return raw
+	}
+	return parsed
+}
+
+func planToResponse(p *repository.YogaPlan) gin.H {
+	planEN := parsePlanJSON(p.PlanEN)
+	planTR := parsePlanJSON(p.PlanTR)
+
+	if planEN == nil && p.Plan != "" {
+		planEN = parsePlanJSON(p.Plan)
+	}
+
 	return gin.H{
 		"id":          p.ID,
-		"plan":        parsedPlan,
+		"plan_en":     planEN,
+		"plan_tr":     planTR,
 		"level":       p.Level,
 		"duration":    p.Duration,
 		"focus_area":  p.FocusArea,
@@ -80,17 +96,46 @@ func (h *YogaHandler) GeneratePlan(c *gin.Context) {
 		return
 	}
 
-	prompt := buildPlanPrompt(req)
+	reqEN := req
+	reqEN.Language = "en"
+	promptEN := buildPlanPrompt(reqEN)
 
-	result, err := h.aiService.GenerateYogaPlan(c.Request.Context(), prompt)
-	if err != nil {
-		log.Printf("[ERROR] gemini GenerateYogaPlan failed: %v", err)
+	reqTR := req
+	reqTR.Language = "tr"
+	promptTR := buildPlanPrompt(reqTR)
+
+	var resultEN, resultTR string
+	var errEN, errTR error
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		resultEN, errEN = h.aiService.GenerateYogaPlan(c.Request.Context(), promptEN)
+	}()
+
+	go func() {
+		defer wg.Done()
+		resultTR, errTR = h.aiService.GenerateYogaPlan(c.Request.Context(), promptTR)
+	}()
+
+	wg.Wait()
+
+	if errEN != nil {
+		log.Printf("[ERROR] gemini GenerateYogaPlan EN failed: %v", errEN)
+		models.ErrorResponse(c, http.StatusInternalServerError, "failed to generate yoga plan")
+		return
+	}
+	if errTR != nil {
+		log.Printf("[ERROR] gemini GenerateYogaPlan TR failed: %v", errTR)
 		models.ErrorResponse(c, http.StatusInternalServerError, "failed to generate yoga plan")
 		return
 	}
 
 	plan := &repository.YogaPlan{
-		Plan:      result,
+		PlanEN:    resultEN,
+		PlanTR:    resultTR,
 		Level:     req.Level,
 		Duration:  req.Duration,
 		FocusArea: req.FocusArea,

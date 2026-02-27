@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import type { YogaPlan } from "@/types/yoga";
-import { useUpdatePlan } from "@/hooks/useYoga";
+import { useUpdatePlan, getLocalizedPlan } from "@/hooks/useYoga";
 import { useApp } from "@/components/layout/AppProvider";
 import toast from "react-hot-toast";
 
@@ -22,6 +22,7 @@ interface PlanCardProps {
 export default function PlanCard({ plan, index, onClick, onUpdated }: PlanCardProps) {
   const { updatePlan, loading: updating } = useUpdatePlan();
   const { t, locale } = useApp();
+  const detail = getLocalizedPlan(plan, locale);
 
   const handleFavorite = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -43,14 +44,14 @@ export default function PlanCard({ plan, index, onClick, onUpdated }: PlanCardPr
     }
   };
 
-  const diffKey = (plan.plan?.difficulty || plan.level || "beginner").toLowerCase();
+  const diffKey = (detail.difficulty || plan.level || "beginner").toLowerCase();
   const badgeClass = difficultyColors[diffKey] || difficultyColors.beginner;
   const createdDate = new Date(plan.created_at).toLocaleDateString(
     locale === "tr" ? "tr-TR" : "en-US",
     { month: "short", day: "numeric", year: "numeric" }
   );
 
-  const exercises = plan.plan?.exercises || [];
+  const exercises = detail.exercises || [];
 
   return (
     <motion.div
@@ -69,15 +70,15 @@ export default function PlanCard({ plan, index, onClick, onUpdated }: PlanCardPr
               </svg>
             )}
             <h3 className="text-base font-semibold text-th-text truncate">
-              {plan.plan?.title || t.yogaPlan}
+              {detail.title || t.yogaPlan}
             </h3>
           </div>
           <p className="text-sm text-th-text-mut line-clamp-2">
-            {plan.plan?.description || t.aiGenerated}
+            {detail.description || t.aiGenerated}
           </p>
         </div>
         <span className={`ml-3 shrink-0 rounded-full px-3 py-1 text-xs font-medium ${badgeClass}`}>
-          {plan.plan?.difficulty || plan.level || t.beginner}
+          {detail.difficulty || plan.level || t.beginner}
         </span>
       </div>
 
@@ -87,11 +88,11 @@ export default function PlanCard({ plan, index, onClick, onUpdated }: PlanCardPr
             <circle cx="12" cy="12" r="10" />
             <polyline points="12 6 12 12 16 14" />
           </svg>
-          {plan.plan?.total_duration_min || plan.duration} {t.min}
+          {detail.total_duration_min || plan.duration} {t.min}
         </span>
-        {(plan.plan?.focus_area || plan.focus_area) && (
+        {(detail.focus_area || plan.focus_area) && (
           <span className="inline-flex items-center rounded-lg bg-clay-50 dark:bg-clay-900/20 px-2.5 py-1 text-xs text-clay-500 dark:text-clay-300">
-            {plan.plan?.focus_area || plan.focus_area}
+            {detail.focus_area || plan.focus_area}
           </span>
         )}
         <span className="inline-flex items-center rounded-lg bg-sage-50 dark:bg-sage-900/20 px-2.5 py-1 text-xs text-sage-600 dark:text-sage-400">

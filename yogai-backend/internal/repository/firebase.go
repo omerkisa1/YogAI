@@ -48,6 +48,8 @@ func (f *FirebaseApp) Close() error {
 type YogaPlan struct {
 	ID         string    `json:"id" firestore:"id"`
 	Plan       string    `json:"plan" firestore:"plan"`
+	PlanEN     string    `json:"plan_en" firestore:"plan_en"`
+	PlanTR     string    `json:"plan_tr" firestore:"plan_tr"`
 	Level      string    `json:"level" firestore:"level"`
 	Duration   int       `json:"duration" firestore:"duration"`
 	FocusArea  string    `json:"focus_area" firestore:"focus_area"`

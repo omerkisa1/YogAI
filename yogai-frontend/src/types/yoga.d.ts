@@ -6,7 +6,8 @@ export interface APIResponse<T = unknown> {
 
 export interface YogaPlan {
   id: string;
-  plan: PlanDetail;
+  plan_en: PlanDetail;
+  plan_tr: PlanDetail;
   level: string;
   duration: number;
   focus_area: string;
@@ -57,7 +58,8 @@ export interface AnalyzePoseRequest {
 
 export interface GeneratePlanResponse {
   plan_id: string;
-  plan: PlanDetail;
+  plan_en: PlanDetail;
+  plan_tr: PlanDetail;
 }
 
 export interface PlansListResponse {

@@ -3,7 +3,7 @@
 import { useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { YogaPlan } from "@/types/yoga";
-import { useUpdatePlan, useDeletePlan } from "@/hooks/useYoga";
+import { useUpdatePlan, useDeletePlan, getLocalizedPlan } from "@/hooks/useYoga";
 import { useApp } from "@/components/layout/AppProvider";
 import toast from "react-hot-toast";
 
@@ -78,9 +78,9 @@ export default function PlanDetailModal({ plan, onClose, onUpdated }: PlanDetail
 
   if (!plan) return null;
 
-  const detail = plan.plan;
-  const exercises = detail?.exercises || [];
-  const diffKey = (detail?.difficulty || plan.level || "beginner").toLowerCase();
+  const detail = getLocalizedPlan(plan, locale);
+  const exercises = detail.exercises || [];
+  const diffKey = (detail.difficulty || plan.level || "beginner").toLowerCase();
   const badgeClass = difficultyColors[diffKey] || difficultyColors.beginner;
   const createdDate = new Date(plan.created_at).toLocaleDateString(
     locale === "tr" ? "tr-TR" : "en-US",
@@ -116,11 +116,11 @@ export default function PlanDetailModal({ plan, onClose, onUpdated }: PlanDetail
                     </span>
                   )}
                   <span className={`rounded-full px-3 py-0.5 text-xs font-medium ${badgeClass}`}>
-                    {detail?.difficulty || plan.level || t.beginner}
+                    {detail.difficulty || plan.level || t.beginner}
                   </span>
                 </div>
                 <h2 className="text-xl font-bold text-th-text leading-tight">
-                  {detail?.title || t.yogaPlan}
+                  {detail.title || t.yogaPlan}
                 </h2>
                 <p className="mt-1 text-sm text-th-text-mut">{createdDate}</p>
               </div>
@@ -183,7 +183,7 @@ export default function PlanDetailModal({ plan, onClose, onUpdated }: PlanDetail
           </div>
 
           <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-            {detail?.description && (
+            {detail.description && (
               <div className="rounded-2xl bg-sage-50/60 dark:bg-sage-900/15 p-4">
                 <p className="text-sm leading-relaxed text-th-text-sec">{detail.description}</p>
               </div>
@@ -196,17 +196,17 @@ export default function PlanDetailModal({ plan, onClose, onUpdated }: PlanDetail
                   <polyline points="12 6 12 12 16 14" />
                 </svg>
                 <span className="text-sm font-medium text-th-text">
-                  {detail?.total_duration_min || plan.duration} {t.minTotal}
+                  {detail.total_duration_min || plan.duration} {t.minTotal}
                 </span>
               </div>
-              {(detail?.focus_area || plan.focus_area) && (
+              {(detail.focus_area || plan.focus_area) && (
                 <div className="flex items-center gap-2 rounded-xl bg-clay-50 dark:bg-clay-900/20 px-3 py-2">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C4956A" strokeWidth="2">
                     <circle cx="12" cy="12" r="10"/>
                     <circle cx="12" cy="12" r="6"/>
                     <circle cx="12" cy="12" r="2"/>
                   </svg>
-                  <span className="text-sm font-medium text-th-text">{detail?.focus_area || plan.focus_area}</span>
+                  <span className="text-sm font-medium text-th-text">{detail.focus_area || plan.focus_area}</span>
                 </div>
               )}
               <div className="flex items-center gap-2 rounded-xl bg-th-subtle px-3 py-2">

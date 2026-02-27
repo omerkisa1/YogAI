@@ -14,6 +14,7 @@ import type {
   PlanDetail,
   APIResponse,
 } from "@/types/yoga";
+import type { Locale } from "@/lib/i18n";
 
 const emptyPlan: PlanDetail = {
   title: "Yoga Plan",
@@ -39,9 +40,17 @@ function safeParsePlan(raw: unknown): PlanDetail {
 }
 
 function mapRawPlan(raw: Record<string, unknown>): YogaPlan {
+  let planEN = safeParsePlan(raw.plan_en);
+  const planTR = safeParsePlan(raw.plan_tr);
+
+  if (planEN.title === emptyPlan.title && raw.plan) {
+    planEN = safeParsePlan(raw.plan);
+  }
+
   return {
     id: (raw.id as string) || "",
-    plan: safeParsePlan(raw.plan),
+    plan_en: planEN,
+    plan_tr: planTR,
     level: (raw.level as string) || "",
     duration: (raw.duration as number) || 0,
     focus_area: (raw.focus_area as string) || "",
@@ -49,6 +58,16 @@ function mapRawPlan(raw: Record<string, unknown>): YogaPlan {
     is_pinned: (raw.is_pinned as boolean) || false,
     created_at: (raw.created_at as string) || new Date().toISOString(),
   };
+}
+
+export function getLocalizedPlan(plan: YogaPlan, locale: Locale): PlanDetail {
+  if (locale === "tr" && plan.plan_tr && plan.plan_tr.title !== emptyPlan.title) {
+    return plan.plan_tr;
+  }
+  if (plan.plan_en && plan.plan_en.title !== emptyPlan.title) {
+    return plan.plan_en;
+  }
+  return plan.plan_tr && plan.plan_tr.title !== emptyPlan.title ? plan.plan_tr : emptyPlan;
 }
 
 export function usePlans() {
@@ -87,9 +106,17 @@ export function usePlans() {
       (snapshot) => {
         const updatedPlans: YogaPlan[] = snapshot.docs.map((doc) => {
           const data = doc.data();
+
+          let planEN = safeParsePlan(data.plan_en);
+          const planTR = safeParsePlan(data.plan_tr);
+          if (planEN.title === emptyPlan.title && data.plan) {
+            planEN = safeParsePlan(data.plan);
+          }
+
           return {
             id: doc.id,
-            plan: safeParsePlan(data.plan),
+            plan_en: planEN,
+            plan_tr: planTR,
             level: data.level || "",
             duration: data.duration || 0,
             focus_area: data.focus_area || "",
