@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuthContext } from "@/components/layout/AuthProvider";
@@ -11,13 +11,55 @@ import type {
   GeneratePlanResponse,
   AnalyzePoseRequest,
   PoseAnalysis,
+  PlanDetail,
   APIResponse,
 } from "@/types/yoga";
+
+function safeParsePlan(raw: unknown): PlanDetail {
+  if (typeof raw === "object" && raw !== null) return raw as PlanDetail;
+  if (typeof raw === "string") {
+    try {
+      return JSON.parse(raw) as PlanDetail;
+    } catch {
+      return { plan_name: "Yoga Plan", total_duration: 0, focus_area: "", exercises: [] };
+    }
+  }
+  return { plan_name: "Yoga Plan", total_duration: 0, focus_area: "", exercises: [] };
+}
 
 export function usePlans() {
   const { user } = useAuthContext();
   const [plans, setPlans] = useState<YogaPlan[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const fetchFromAPI = useCallback(async () => {
+    try {
+      const response = (await api.get("/api/v1/yoga/plans")) as APIResponse<{
+        plans: Array<{
+          id: string;
+          plan: unknown;
+          level: string;
+          duration: number;
+          focus_area: string;
+          created_at: string;
+        }>;
+      }>;
+      const rawPlans = response.data?.plans || [];
+      const mapped: YogaPlan[] = rawPlans.map((p) => ({
+        id: p.id,
+        plan: safeParsePlan(p.plan),
+        level: p.level || "",
+        duration: p.duration || 0,
+        focus_area: p.focus_area || "",
+        created_at: p.created_at || new Date().toISOString(),
+      }));
+      setPlans(mapped);
+    } catch {
+      setPlans([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!user) {
@@ -25,6 +67,8 @@ export function usePlans() {
       setLoading(false);
       return;
     }
+
+    let firestoreFailed = false;
 
     const plansRef = collection(db, "users", user.uid, "plans");
     const q = query(plansRef, orderBy("created_at", "desc"));
@@ -34,33 +78,35 @@ export function usePlans() {
       (snapshot) => {
         const updatedPlans: YogaPlan[] = snapshot.docs.map((doc) => {
           const data = doc.data();
-          let parsedPlan = data.plan;
-          if (typeof parsedPlan === "string") {
-            try {
-              parsedPlan = JSON.parse(parsedPlan);
-            } catch {
-              parsedPlan = { plan_name: "Yoga Plan", total_duration: 0, focus_area: "", exercises: [] };
-            }
-          }
           return {
             id: doc.id,
-            plan: parsedPlan,
+            plan: safeParsePlan(data.plan),
             level: data.level || "",
             duration: data.duration || 0,
             focus_area: data.focus_area || "",
             created_at: data.created_at?.toDate?.()?.toISOString() || new Date().toISOString(),
-          } as YogaPlan;
+          };
         });
         setPlans(updatedPlans);
         setLoading(false);
       },
       () => {
-        setLoading(false);
+        firestoreFailed = true;
+        fetchFromAPI();
       }
     );
 
-    return unsubscribe;
-  }, [user]);
+    const timeout = setTimeout(() => {
+      if (loading && !firestoreFailed) {
+        fetchFromAPI();
+      }
+    }, 3000);
+
+    return () => {
+      unsubscribe();
+      clearTimeout(timeout);
+    };
+  }, [user, fetchFromAPI, loading]);
 
   return { plans, loading };
 }

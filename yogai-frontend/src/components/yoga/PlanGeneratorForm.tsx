@@ -28,7 +28,7 @@ export default function PlanGeneratorForm() {
   const [step, setStep] = useState(0);
   const router = useRouter();
   const { generatePlan, loading } = useGeneratePlan();
-  const { register, handleSubmit, setValue, watch } = useForm<GeneratePlanRequest>({
+  const { setValue, watch, getValues } = useForm<GeneratePlanRequest>({
     defaultValues: { level: "", duration: 30, focus_area: "", preferences: "" },
   });
 
@@ -36,9 +36,10 @@ export default function PlanGeneratorForm() {
   const selectedDuration = watch("duration");
   const selectedFocus = watch("focus_area");
 
-  const onSubmit = async (data: GeneratePlanRequest) => {
+  const handleGenerate = async () => {
+    if (loading) return;
     try {
-      await generatePlan(data);
+      await generatePlan(getValues());
       toast.success("Yoga plan created!");
       router.push("/dashboard");
     } catch {
@@ -53,7 +54,7 @@ export default function PlanGeneratorForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="mx-auto max-w-lg">
+    <div className="mx-auto max-w-lg">
       <div className="mb-8 flex items-center justify-center gap-2">
         {steps.map((s, i) => (
           <div key={s} className="flex items-center gap-2">
@@ -94,20 +95,16 @@ export default function PlanGeneratorForm() {
               <p className="text-sm text-charcoal-lighter">Select the level that best describes your yoga experience.</p>
               <div className="mt-4 space-y-3">
                 {levels.map((lvl) => (
-                  <label
+                  <button
                     key={lvl.value}
-                    className={`flex cursor-pointer items-start gap-3 rounded-xl border-2 p-4 transition-all ${
+                    type="button"
+                    onClick={() => setValue("level", lvl.value)}
+                    className={`flex w-full cursor-pointer items-start gap-3 rounded-xl border-2 p-4 text-left transition-all ${
                       selectedLevel === lvl.value
                         ? "border-sage-400 bg-sage-400/5"
                         : "border-cream-200 hover:border-cream-300"
                     }`}
                   >
-                    <input
-                      type="radio"
-                      value={lvl.value}
-                      {...register("level")}
-                      className="sr-only"
-                    />
                     <div
                       className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-all ${
                         selectedLevel === lvl.value
@@ -123,7 +120,7 @@ export default function PlanGeneratorForm() {
                       <p className="text-sm font-medium text-charcoal">{lvl.label}</p>
                       <p className="text-xs text-charcoal-lighter">{lvl.desc}</p>
                     </div>
-                  </label>
+                  </button>
                 ))}
               </div>
             </motion.div>
@@ -192,7 +189,7 @@ export default function PlanGeneratorForm() {
                   Additional Preferences
                 </label>
                 <textarea
-                  {...register("preferences")}
+                  onChange={(e) => setValue("preferences", e.target.value)}
                   placeholder="Any injuries, specific goals, or preferences..."
                   rows={3}
                   className="input-field mt-2 resize-none"
@@ -224,14 +221,15 @@ export default function PlanGeneratorForm() {
           </button>
         ) : (
           <button
-            type="submit"
+            type="button"
+            onClick={handleGenerate}
             disabled={loading}
-            className="btn-primary min-w-[140px] disabled:opacity-50"
+            className="btn-primary min-w-[160px] disabled:opacity-50"
           >
             {loading ? <LoadingSpinner size="sm" /> : "Generate Plan"}
           </button>
         )}
       </div>
-    </form>
+    </div>
   );
 }
