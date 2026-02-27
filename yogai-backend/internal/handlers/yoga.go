@@ -31,6 +31,11 @@ type GeneratePlanRequest struct {
 	Preferences string `json:"preferences"`
 }
 
+type UpdatePlanMetaRequest struct {
+	IsFavorite *bool `json:"is_favorite"`
+	IsPinned   *bool `json:"is_pinned"`
+}
+
 type AnalyzePoseRequest struct {
 	PoseName    string `json:"pose_name" binding:"required"`
 	Description string `json:"description" binding:"required"`
@@ -43,6 +48,23 @@ func (h *YogaHandler) getUserID(c *gin.Context) (string, bool) {
 		return "", false
 	}
 	return uid.(string), true
+}
+
+func planToResponse(p *repository.YogaPlan) gin.H {
+	var parsedPlan interface{}
+	if err := json.Unmarshal([]byte(p.Plan), &parsedPlan); err != nil {
+		parsedPlan = p.Plan
+	}
+	return gin.H{
+		"id":          p.ID,
+		"plan":        parsedPlan,
+		"level":       p.Level,
+		"duration":    p.Duration,
+		"focus_area":  p.FocusArea,
+		"is_favorite": p.IsFavorite,
+		"is_pinned":   p.IsPinned,
+		"created_at":  p.CreatedAt,
+	}
 }
 
 func (h *YogaHandler) GeneratePlan(c *gin.Context) {
@@ -79,15 +101,7 @@ func (h *YogaHandler) GeneratePlan(c *gin.Context) {
 		return
 	}
 
-	var parsedPlan interface{}
-	if err := json.Unmarshal([]byte(result), &parsedPlan); err != nil {
-		parsedPlan = result
-	}
-
-	models.CreatedResponse(c, "yoga plan generated and saved", gin.H{
-		"plan_id": plan.ID,
-		"plan":    parsedPlan,
-	})
+	models.CreatedResponse(c, "yoga plan generated and saved", planToResponse(plan))
 }
 
 func (h *YogaHandler) GetPlans(c *gin.Context) {
@@ -105,18 +119,7 @@ func (h *YogaHandler) GetPlans(c *gin.Context) {
 
 	var parsedPlans []gin.H
 	for _, p := range plans {
-		var parsedPlan interface{}
-		if err := json.Unmarshal([]byte(p.Plan), &parsedPlan); err != nil {
-			parsedPlan = p.Plan
-		}
-		parsedPlans = append(parsedPlans, gin.H{
-			"id":         p.ID,
-			"plan":       parsedPlan,
-			"level":      p.Level,
-			"duration":   p.Duration,
-			"focus_area": p.FocusArea,
-			"created_at": p.CreatedAt,
-		})
+		parsedPlans = append(parsedPlans, planToResponse(p))
 	}
 
 	models.SuccessResponse(c, "plans retrieved successfully", gin.H{
@@ -149,19 +152,53 @@ func (h *YogaHandler) GetPlanByID(c *gin.Context) {
 		return
 	}
 
-	var parsedPlan interface{}
-	if err := json.Unmarshal([]byte(plan.Plan), &parsedPlan); err != nil {
-		parsedPlan = plan.Plan
+	models.SuccessResponse(c, "plan retrieved successfully", planToResponse(plan))
+}
+
+func (h *YogaHandler) UpdatePlanMeta(c *gin.Context) {
+	uid, ok := h.getUserID(c)
+	if !ok {
+		return
 	}
 
-	models.SuccessResponse(c, "plan retrieved successfully", gin.H{
-		"id":         plan.ID,
-		"plan":       parsedPlan,
-		"level":      plan.Level,
-		"duration":   plan.Duration,
-		"focus_area": plan.FocusArea,
-		"created_at": plan.CreatedAt,
-	})
+	planID := c.Param("id")
+	if planID == "" {
+		models.ErrorResponse(c, http.StatusBadRequest, "plan id is required")
+		return
+	}
+
+	var req UpdatePlanMetaRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		models.ErrorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if req.IsFavorite == nil && req.IsPinned == nil {
+		models.ErrorResponse(c, http.StatusBadRequest, "at least one field (is_favorite or is_pinned) is required")
+		return
+	}
+
+	fields := make(map[string]interface{})
+	if req.IsFavorite != nil {
+		fields["is_favorite"] = *req.IsFavorite
+	}
+	if req.IsPinned != nil {
+		fields["is_pinned"] = *req.IsPinned
+	}
+
+	if err := h.repo.UpdatePlanMeta(c.Request.Context(), uid, planID, fields); err != nil {
+		log.Printf("[ERROR] firestore UpdatePlanMeta failed for uid=%s planID=%s: %v", uid, planID, err)
+		models.ErrorResponse(c, http.StatusInternalServerError, "failed to update plan")
+		return
+	}
+
+	plan, err := h.repo.GetPlanByID(c.Request.Context(), uid, planID)
+	if err != nil || plan == nil {
+		models.SuccessResponse(c, "plan updated successfully", nil)
+		return
+	}
+
+	models.SuccessResponse(c, "plan updated successfully", planToResponse(plan))
 }
 
 func (h *YogaHandler) DeletePlan(c *gin.Context) {

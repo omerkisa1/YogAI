@@ -46,18 +46,21 @@ func (f *FirebaseApp) Close() error {
 }
 
 type YogaPlan struct {
-	ID        string    `json:"id" firestore:"id"`
-	Plan      string    `json:"plan" firestore:"plan"`
-	Level     string    `json:"level" firestore:"level"`
-	Duration  int       `json:"duration" firestore:"duration"`
-	FocusArea string    `json:"focus_area" firestore:"focus_area"`
-	CreatedAt time.Time `json:"created_at" firestore:"created_at"`
+	ID         string    `json:"id" firestore:"id"`
+	Plan       string    `json:"plan" firestore:"plan"`
+	Level      string    `json:"level" firestore:"level"`
+	Duration   int       `json:"duration" firestore:"duration"`
+	FocusArea  string    `json:"focus_area" firestore:"focus_area"`
+	IsFavorite bool      `json:"is_favorite" firestore:"is_favorite"`
+	IsPinned   bool      `json:"is_pinned" firestore:"is_pinned"`
+	CreatedAt  time.Time `json:"created_at" firestore:"created_at"`
 }
 
 type YogaRepository interface {
 	SavePlan(ctx context.Context, uid string, plan *YogaPlan) error
 	GetPlans(ctx context.Context, uid string) ([]*YogaPlan, error)
 	GetPlanByID(ctx context.Context, uid string, planID string) (*YogaPlan, error)
+	UpdatePlanMeta(ctx context.Context, uid string, planID string, fields map[string]interface{}) error
 	DeletePlan(ctx context.Context, uid string, planID string) error
 }
 
@@ -128,6 +131,20 @@ func (r *yogaRepository) GetPlanByID(ctx context.Context, uid string, planID str
 	}
 
 	return &plan, nil
+}
+
+func (r *yogaRepository) UpdatePlanMeta(ctx context.Context, uid string, planID string, fields map[string]interface{}) error {
+	updates := make([]firestore.Update, 0, len(fields))
+	for k, v := range fields {
+		updates = append(updates, firestore.Update{Path: k, Value: v})
+	}
+
+	_, err := r.plansCollection(uid).Doc(planID).Update(ctx, updates)
+	if err != nil {
+		return fmt.Errorf("failed to update plan: %w", err)
+	}
+
+	return nil
 }
 
 func (r *yogaRepository) DeletePlan(ctx context.Context, uid string, planID string) error {

@@ -10,6 +10,8 @@ export interface YogaPlan {
   level: string;
   duration: number;
   focus_area: string;
+  is_favorite: boolean;
+  is_pinned: boolean;
   created_at: string;
 }
 

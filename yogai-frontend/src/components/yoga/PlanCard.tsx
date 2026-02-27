@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import type { YogaPlan } from "@/types/yoga";
-import { useDeletePlan } from "@/hooks/useYoga";
+import { useUpdatePlan } from "@/hooks/useYoga";
 import toast from "react-hot-toast";
 
 const difficultyColors: Record<string, string> = {
@@ -14,17 +14,30 @@ const difficultyColors: Record<string, string> = {
 interface PlanCardProps {
   plan: YogaPlan;
   index: number;
+  onClick: () => void;
+  onUpdated: () => void;
 }
 
-export default function PlanCard({ plan, index }: PlanCardProps) {
-  const { deletePlan, loading: deleting } = useDeletePlan();
+export default function PlanCard({ plan, index, onClick, onUpdated }: PlanCardProps) {
+  const { updatePlan, loading: updating } = useUpdatePlan();
 
-  const handleDelete = async () => {
+  const handleFavorite = async (e: React.MouseEvent) => {
+    e.stopPropagation();
     try {
-      await deletePlan(plan.id);
-      toast.success("Plan deleted");
+      await updatePlan(plan.id, { is_favorite: !plan.is_favorite });
+      onUpdated();
     } catch {
-      toast.error("Failed to delete plan");
+      toast.error("Failed to update");
+    }
+  };
+
+  const handlePin = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await updatePlan(plan.id, { is_pinned: !plan.is_pinned });
+      onUpdated();
+    } catch {
+      toast.error("Failed to update");
     }
   };
 
@@ -43,14 +56,22 @@ export default function PlanCard({ plan, index }: PlanCardProps) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: index * 0.08 }}
-      className="card group"
+      onClick={onClick}
+      className="card group cursor-pointer ring-1 ring-transparent transition-all hover:ring-sage-300/40 hover:shadow-lg"
     >
       <div className="mb-3 flex items-start justify-between">
-        <div className="flex-1">
-          <h3 className="text-base font-semibold text-charcoal">
-            {plan.plan?.title || "Yoga Plan"}
-          </h3>
-          <p className="mt-1 text-sm text-charcoal-lighter line-clamp-2">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 mb-1">
+            {plan.is_pinned && (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="#3B82F6" className="shrink-0">
+                <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/>
+              </svg>
+            )}
+            <h3 className="text-base font-semibold text-charcoal truncate">
+              {plan.plan?.title || "Yoga Plan"}
+            </h3>
+          </div>
+          <p className="text-sm text-charcoal-lighter line-clamp-2">
             {plan.plan?.description || "AI-generated personalized yoga plan"}
           </p>
         </div>
@@ -100,14 +121,36 @@ export default function PlanCard({ plan, index }: PlanCardProps) {
 
       <div className="flex items-center justify-between border-t border-cream-200 pt-3">
         <span className="text-xs text-charcoal-lighter">{createdDate}</span>
-        <button
-          type="button"
-          onClick={handleDelete}
-          disabled={deleting}
-          className="rounded-lg px-3 py-1.5 text-xs font-medium text-red-500/70 transition-all hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
-        >
-          {deleting ? "Deleting..." : "Delete"}
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={handleFavorite}
+            disabled={updating}
+            className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all disabled:opacity-50 ${
+              plan.is_favorite
+                ? "text-red-500 bg-red-50"
+                : "text-charcoal-lighter hover:text-red-400 hover:bg-red-50/50"
+            }`}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill={plan.is_favorite ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+            </svg>
+          </button>
+          <button
+            type="button"
+            onClick={handlePin}
+            disabled={updating}
+            className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all disabled:opacity-50 ${
+              plan.is_pinned
+                ? "text-blue-600 bg-blue-50"
+                : "text-charcoal-lighter hover:text-blue-500 hover:bg-blue-50/50"
+            }`}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill={plan.is_pinned ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
+              <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/>
+            </svg>
+          </button>
+        </div>
       </div>
     </motion.div>
   );

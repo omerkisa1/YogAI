@@ -50,6 +50,7 @@ func main() {
 		authorized.POST("/yoga/plan", yogaHandler.GeneratePlan)
 		authorized.GET("/yoga/plans", yogaHandler.GetPlans)
 		authorized.GET("/yoga/plans/:id", yogaHandler.GetPlanByID)
+		authorized.PATCH("/yoga/plans/:id", yogaHandler.UpdatePlanMeta)
 		authorized.DELETE("/yoga/plans/:id", yogaHandler.DeletePlan)
 		authorized.POST("/yoga/analyze", yogaHandler.AnalyzePose)
 	}

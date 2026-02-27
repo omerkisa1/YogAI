@@ -1,15 +1,27 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { usePlans } from "@/hooks/useYoga";
 import { useAuthContext } from "@/components/layout/AuthProvider";
 import PlanCard from "@/components/yoga/PlanCard";
+import PlanDetailModal from "@/components/yoga/PlanDetailModal";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
+import type { YogaPlan } from "@/types/yoga";
 
 export default function DashboardPage() {
   const { user } = useAuthContext();
-  const { plans, loading } = usePlans();
+  const { plans, loading, refetch } = usePlans();
+  const [selectedPlan, setSelectedPlan] = useState<YogaPlan | null>(null);
+
+  const handlePlanUpdated = () => {
+    refetch();
+    if (selectedPlan) {
+      const fresh = plans.find((p) => p.id === selectedPlan.id);
+      if (fresh) setSelectedPlan(fresh);
+    }
+  };
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
@@ -70,10 +82,22 @@ export default function DashboardPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {plans.map((plan, index) => (
-            <PlanCard key={plan.id} plan={plan} index={index} />
+            <PlanCard
+              key={plan.id}
+              plan={plan}
+              index={index}
+              onClick={() => setSelectedPlan(plan)}
+              onUpdated={handlePlanUpdated}
+            />
           ))}
         </div>
       )}
+
+      <PlanDetailModal
+        plan={selectedPlan}
+        onClose={() => setSelectedPlan(null)}
+        onUpdated={handlePlanUpdated}
+      />
     </div>
   );
 }
