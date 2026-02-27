@@ -27,7 +27,7 @@ func NewGeminiService(apiKey string) (AIService, error) {
 		return nil, fmt.Errorf("failed to create gemini client: %w", err)
 	}
 
-	model := client.GenerativeModel("gemini-2.0-flash")
+	model := client.GenerativeModel("gemini-2.5-flash")
 	model.SetTemperature(0.7)
 	model.ResponseMIMEType = "application/json"
 	model.SystemInstruction = genai.NewUserContent(genai.Text(

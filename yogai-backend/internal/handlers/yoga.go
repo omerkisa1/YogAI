@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -60,6 +61,7 @@ func (h *YogaHandler) GeneratePlan(c *gin.Context) {
 
 	result, err := h.aiService.GenerateYogaPlan(c.Request.Context(), prompt)
 	if err != nil {
+		log.Printf("[ERROR] gemini GenerateYogaPlan failed: %v", err)
 		models.ErrorResponse(c, http.StatusInternalServerError, "failed to generate yoga plan")
 		return
 	}
@@ -72,6 +74,7 @@ func (h *YogaHandler) GeneratePlan(c *gin.Context) {
 	}
 
 	if err := h.repo.SavePlan(c.Request.Context(), uid, plan); err != nil {
+		log.Printf("[ERROR] firestore SavePlan failed for uid=%s: %v", uid, err)
 		models.ErrorResponse(c, http.StatusInternalServerError, "failed to save yoga plan")
 		return
 	}
@@ -95,6 +98,7 @@ func (h *YogaHandler) GetPlans(c *gin.Context) {
 
 	plans, err := h.repo.GetPlans(c.Request.Context(), uid)
 	if err != nil {
+		log.Printf("[ERROR] firestore GetPlans failed for uid=%s: %v", uid, err)
 		models.ErrorResponse(c, http.StatusInternalServerError, "failed to retrieve plans")
 		return
 	}
@@ -135,6 +139,7 @@ func (h *YogaHandler) GetPlanByID(c *gin.Context) {
 
 	plan, err := h.repo.GetPlanByID(c.Request.Context(), uid, planID)
 	if err != nil {
+		log.Printf("[ERROR] firestore GetPlanByID failed for uid=%s planID=%s: %v", uid, planID, err)
 		models.ErrorResponse(c, http.StatusInternalServerError, "failed to retrieve plan")
 		return
 	}
@@ -173,6 +178,7 @@ func (h *YogaHandler) DeletePlan(c *gin.Context) {
 
 	plan, err := h.repo.GetPlanByID(c.Request.Context(), uid, planID)
 	if err != nil {
+		log.Printf("[ERROR] firestore GetPlanByID (delete check) failed for uid=%s planID=%s: %v", uid, planID, err)
 		models.ErrorResponse(c, http.StatusInternalServerError, "failed to retrieve plan")
 		return
 	}
@@ -183,6 +189,7 @@ func (h *YogaHandler) DeletePlan(c *gin.Context) {
 	}
 
 	if err := h.repo.DeletePlan(c.Request.Context(), uid, planID); err != nil {
+		log.Printf("[ERROR] firestore DeletePlan failed for uid=%s planID=%s: %v", uid, planID, err)
 		models.ErrorResponse(c, http.StatusInternalServerError, "failed to delete plan")
 		return
 	}
@@ -206,6 +213,7 @@ func (h *YogaHandler) AnalyzePose(c *gin.Context) {
 
 	result, err := h.aiService.AnalyzePose(c.Request.Context(), prompt)
 	if err != nil {
+		log.Printf("[ERROR] gemini AnalyzePose failed: %v", err)
 		models.ErrorResponse(c, http.StatusInternalServerError, "failed to analyze pose")
 		return
 	}
