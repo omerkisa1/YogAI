@@ -14,7 +14,6 @@ export default function Navbar() {
   const navLinks = [
     { href: "/dashboard", label: t.dashboard },
     { href: "/create-plan", label: t.createPlan },
-    { href: "/profile", label: t.profile },
   ];
 
   return (
@@ -86,9 +85,16 @@ export default function Navbar() {
 
           {user && (
             <div className="flex items-center gap-3 ml-1">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-sage-400/10 text-sm font-medium text-sage-500 dark:text-sage-400">
+              <Link
+                href="/profile"
+                className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition-all ${
+                  pathname === "/profile"
+                    ? "bg-sage-400 text-white ring-2 ring-sage-400/30"
+                    : "bg-sage-400/10 text-sage-500 dark:text-sage-400 hover:bg-sage-400/20"
+                }`}
+              >
                 {user.email?.charAt(0).toUpperCase() || "U"}
-              </div>
+              </Link>
               <button
                 onClick={signOut}
                 className="text-sm font-medium text-th-text-mut transition-colors hover:text-th-text"
