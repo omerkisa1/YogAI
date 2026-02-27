@@ -1,21 +1,25 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/omerkisa/yogai-backend/internal/models"
+	"github.com/omerkisa/yogai-backend/internal/repository"
 	"github.com/omerkisa/yogai-backend/internal/services"
 )
 
 type YogaHandler struct {
 	aiService services.AIService
+	repo      repository.YogaRepository
 }
 
-func NewYogaHandler(aiService services.AIService) *YogaHandler {
+func NewYogaHandler(aiService services.AIService, repo repository.YogaRepository) *YogaHandler {
 	return &YogaHandler{
 		aiService: aiService,
+		repo:      repo,
 	}
 }
 
@@ -32,6 +36,12 @@ type AnalyzePoseRequest struct {
 }
 
 func (h *YogaHandler) GeneratePlan(c *gin.Context) {
+	uid, exists := c.Get("user_id")
+	if !exists {
+		models.ErrorResponse(c, http.StatusUnauthorized, "user not authenticated")
+		return
+	}
+
 	var req GeneratePlanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		models.ErrorResponse(c, http.StatusBadRequest, err.Error())
@@ -46,12 +56,36 @@ func (h *YogaHandler) GeneratePlan(c *gin.Context) {
 		return
 	}
 
-	models.SuccessResponse(c, "yoga plan generated successfully", gin.H{
-		"plan": result,
+	plan := &repository.YogaPlan{
+		Plan:      result,
+		Level:     req.Level,
+		Duration:  req.Duration,
+		FocusArea: req.FocusArea,
+	}
+
+	if err := h.repo.SavePlan(c.Request.Context(), uid.(string), plan); err != nil {
+		models.ErrorResponse(c, http.StatusInternalServerError, "failed to save yoga plan")
+		return
+	}
+
+	var parsedPlan interface{}
+	if err := json.Unmarshal([]byte(result), &parsedPlan); err != nil {
+		parsedPlan = result
+	}
+
+	models.CreatedResponse(c, "yoga plan generated and saved", gin.H{
+		"plan_id": plan.ID,
+		"plan":    parsedPlan,
 	})
 }
 
 func (h *YogaHandler) AnalyzePose(c *gin.Context) {
+	_, exists := c.Get("user_id")
+	if !exists {
+		models.ErrorResponse(c, http.StatusUnauthorized, "user not authenticated")
+		return
+	}
+
 	var req AnalyzePoseRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		models.ErrorResponse(c, http.StatusBadRequest, err.Error())
@@ -66,8 +100,13 @@ func (h *YogaHandler) AnalyzePose(c *gin.Context) {
 		return
 	}
 
+	var parsedAnalysis interface{}
+	if err := json.Unmarshal([]byte(result), &parsedAnalysis); err != nil {
+		parsedAnalysis = result
+	}
+
 	models.SuccessResponse(c, "pose analyzed successfully", gin.H{
-		"analysis": result,
+		"analysis": parsedAnalysis,
 	})
 }
 
@@ -87,7 +126,8 @@ func buildPlanPrompt(req GeneratePlanRequest) string {
 		prompt += ", Preferences: " + req.Preferences
 	}
 
-	prompt += ". Return poses with name, duration, description and difficulty."
+	prompt += ". Return a JSON object with fields: title, description, total_duration, " +
+		"and poses (array of objects with name, duration_seconds, description, difficulty)."
 	return prompt
 }
 
@@ -95,5 +135,6 @@ func buildAnalyzePrompt(req AnalyzePoseRequest) string {
 	return "Analyze the following yoga pose and provide corrections and tips: " +
 		"Pose: " + req.PoseName + ", " +
 		"Description: " + req.Description +
-		". Return alignment tips, common mistakes, and modifications."
+		". Return a JSON object with fields: pose_name, alignment_tips (array), " +
+		"common_mistakes (array), modifications (array), benefits (array)."
 }

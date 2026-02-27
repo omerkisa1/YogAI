@@ -8,34 +8,26 @@ import (
 )
 
 type Config struct {
-	GeminiAPIKey string
-	DBHost       string
-	DBPort       string
-	DBUser       string
-	DBPassword   string
-	DBName       string
-	DBSSLMode    string
-	ServerPort   string
+	GeminiAPIKey           string
+	FirebaseCredentialsFile string
+	ServerPort             string
 }
 
 func Load() (*Config, error) {
-	if err := godotenv.Load(); err != nil {
-		return nil, fmt.Errorf("failed to load .env file: %w", err)
-	}
+	_ = godotenv.Load()
 
 	cfg := &Config{
-		GeminiAPIKey: os.Getenv("GEMINI_API_KEY"),
-		DBHost:       os.Getenv("DB_HOST"),
-		DBPort:       os.Getenv("DB_PORT"),
-		DBUser:       os.Getenv("DB_USER"),
-		DBPassword:   os.Getenv("DB_PASSWORD"),
-		DBName:       os.Getenv("DB_NAME"),
-		DBSSLMode:    os.Getenv("DB_SSLMODE"),
-		ServerPort:   os.Getenv("SERVER_PORT"),
+		GeminiAPIKey:           os.Getenv("GEMINI_API_KEY"),
+		FirebaseCredentialsFile: os.Getenv("FIREBASE_CREDENTIALS_FILE"),
+		ServerPort:             os.Getenv("SERVER_PORT"),
 	}
 
 	if cfg.GeminiAPIKey == "" {
 		return nil, fmt.Errorf("GEMINI_API_KEY is required")
+	}
+
+	if cfg.FirebaseCredentialsFile == "" {
+		return nil, fmt.Errorf("FIREBASE_CREDENTIALS_FILE is required")
 	}
 
 	if cfg.ServerPort == "" {
@@ -43,11 +35,4 @@ func Load() (*Config, error) {
 	}
 
 	return cfg, nil
-}
-
-func (c *Config) DSN() string {
-	return fmt.Sprintf(
-		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
-		c.DBHost, c.DBPort, c.DBUser, c.DBPassword, c.DBName, c.DBSSLMode,
-	)
 }

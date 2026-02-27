@@ -29,10 +29,11 @@ func NewGeminiService(apiKey string) (AIService, error) {
 
 	model := client.GenerativeModel("gemini-2.0-flash")
 	model.SetTemperature(0.7)
+	model.ResponseMIMEType = "application/json"
 	model.SystemInstruction = genai.NewUserContent(genai.Text(
 		"You are YogAI, an expert yoga instructor AI. " +
-			"You provide personalized yoga plans, pose corrections, " +
-			"and wellness advice. Always respond in a structured JSON format.",
+			"You provide personalized yoga plans, pose corrections, and wellness advice. " +
+			"Always respond with valid JSON only. No markdown, no explanation outside JSON.",
 	))
 
 	return &geminiService{
@@ -47,7 +48,12 @@ func (s *geminiService) GenerateYogaPlan(ctx context.Context, prompt string) (st
 		return "", fmt.Errorf("failed to generate yoga plan: %w", err)
 	}
 
-	return extractTextFromResponse(resp), nil
+	text := extractText(resp)
+	if text == "" {
+		return "", fmt.Errorf("empty response from gemini")
+	}
+
+	return text, nil
 }
 
 func (s *geminiService) AnalyzePose(ctx context.Context, prompt string) (string, error) {
@@ -56,7 +62,12 @@ func (s *geminiService) AnalyzePose(ctx context.Context, prompt string) (string,
 		return "", fmt.Errorf("failed to analyze pose: %w", err)
 	}
 
-	return extractTextFromResponse(resp), nil
+	text := extractText(resp)
+	if text == "" {
+		return "", fmt.Errorf("empty response from gemini")
+	}
+
+	return text, nil
 }
 
 func (s *geminiService) Close() error {
@@ -64,7 +75,7 @@ func (s *geminiService) Close() error {
 	return nil
 }
 
-func extractTextFromResponse(resp *genai.GenerateContentResponse) string {
+func extractText(resp *genai.GenerateContentResponse) string {
 	if resp == nil || len(resp.Candidates) == 0 {
 		return ""
 	}

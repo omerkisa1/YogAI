@@ -1,11 +1,12 @@
 package main
 
 import (
+	"context"
 	"log"
 
 	"github.com/gin-gonic/gin"
-	_ "github.com/lib/pq"
 	"github.com/omerkisa/yogai-backend/internal/handlers"
+	"github.com/omerkisa/yogai-backend/internal/middleware"
 	"github.com/omerkisa/yogai-backend/internal/repository"
 	"github.com/omerkisa/yogai-backend/internal/services"
 	"github.com/omerkisa/yogai-backend/pkg/config"
@@ -17,11 +18,13 @@ func main() {
 		log.Fatalf("failed to load config: %v", err)
 	}
 
-	db, err := repository.ConnectDB(cfg.DSN())
+	ctx := context.Background()
+
+	firebaseApp, err := repository.NewFirebaseApp(ctx, cfg.FirebaseCredentialsFile)
 	if err != nil {
-		log.Fatalf("failed to connect database: %v", err)
+		log.Fatalf("failed to initialize firebase: %v", err)
 	}
-	defer db.Close()
+	defer firebaseApp.Close()
 
 	aiService, err := services.NewGeminiService(cfg.GeminiAPIKey)
 	if err != nil {
@@ -29,19 +32,22 @@ func main() {
 	}
 	defer aiService.Close()
 
-	_ = repository.NewYogaRepository(db)
-
-	yogaHandler := handlers.NewYogaHandler(aiService)
+	yogaRepo := repository.NewYogaRepository(firebaseApp.Firestore)
+	yogaHandler := handlers.NewYogaHandler(aiService, yogaRepo)
 
 	router := gin.Default()
-
 	router.Use(gin.Recovery())
 
 	api := router.Group("/api/v1")
 	{
 		api.GET("/health", yogaHandler.HealthCheck)
-		api.POST("/yoga/plan", yogaHandler.GeneratePlan)
-		api.POST("/yoga/analyze", yogaHandler.AnalyzePose)
+	}
+
+	authorized := api.Group("")
+	authorized.Use(middleware.FirebaseAuth(firebaseApp.Auth))
+	{
+		authorized.POST("/yoga/plan", yogaHandler.GeneratePlan)
+		authorized.POST("/yoga/analyze", yogaHandler.AnalyzePose)
 	}
 
 	log.Printf("YogAI server starting on port %s", cfg.ServerPort)
