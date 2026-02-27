@@ -37,6 +37,7 @@ func main() {
 
 	router := gin.Default()
 	router.Use(gin.Recovery())
+	router.Use(middleware.CORS())
 
 	api := router.Group("/api/v1")
 	{
