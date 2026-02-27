@@ -14,17 +14,17 @@ export interface YogaPlan {
 }
 
 export interface PlanDetail {
-  title: string;
-  description: string;
+  plan_name: string;
   total_duration: number;
-  poses: PoseItem[];
+  focus_area: string;
+  exercises: ExerciseItem[];
 }
 
-export interface PoseItem {
+export interface ExerciseItem {
   name: string;
-  duration_seconds: number;
+  duration: string;
   description: string;
-  difficulty: string;
+  benefit: string;
 }
 
 export interface PoseAnalysis {

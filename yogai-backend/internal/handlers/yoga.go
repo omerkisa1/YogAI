@@ -233,26 +233,34 @@ func (h *YogaHandler) HealthCheck(c *gin.Context) {
 }
 
 func buildPlanPrompt(req GeneratePlanRequest) string {
-	prompt := "Create a personalized yoga plan with the following criteria: " +
-		"Level: " + req.Level + ", " +
-		"Duration: " + fmt.Sprintf("%d", req.Duration) + " minutes"
+	prompt := "Create a personalized yoga and wellness plan. " +
+		"Level: " + req.Level + ". " +
+		"Duration: " + fmt.Sprintf("%d", req.Duration) + " minutes."
 
 	if req.FocusArea != "" {
-		prompt += ", Focus Area: " + req.FocusArea
-	}
-	if req.Preferences != "" {
-		prompt += ", Preferences: " + req.Preferences
+		prompt += " Focus Area: " + req.FocusArea + "." +
+			" ALL exercises must directly target this focus area."
 	}
 
-	prompt += ". Return a JSON object with fields: title, description, total_duration, " +
-		"and poses (array of objects with name, duration_seconds, description, difficulty)."
+	if req.Preferences != "" {
+		prompt += " User's personal notes (MUST be respected): \"" + req.Preferences + "\"." +
+			" Adapt every exercise to these constraints. Do not ignore any user note."
+	}
+
+	prompt += " Return a JSON object with: " +
+		"plan_name (string), " +
+		"total_duration (number in minutes), " +
+		"focus_area (string), " +
+		"exercises (array of objects with: name, duration (string e.g. '60 seconds' or '5 breaths'), description, benefit)."
 	return prompt
 }
 
 func buildAnalyzePrompt(req AnalyzePoseRequest) string {
-	return "Analyze the following yoga pose and provide corrections and tips: " +
-		"Pose: " + req.PoseName + ", " +
-		"Description: " + req.Description +
-		". Return a JSON object with fields: pose_name, alignment_tips (array), " +
-		"common_mistakes (array), modifications (array), benefits (array)."
+	return "As a professional yoga instructor, analyze this pose: " +
+		"Pose: " + req.PoseName + ". " +
+		"User's description of their experience: \"" + req.Description + "\". " +
+		"If the user mentions any pain or limitation, tailor your advice to that. " +
+		"Return a JSON object with: pose_name, alignment_tips (array of strings), " +
+		"common_mistakes (array of strings), modifications (array of strings for easier/harder variants), " +
+		"benefits (array of strings)."
 }

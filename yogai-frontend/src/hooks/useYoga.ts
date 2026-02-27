@@ -39,7 +39,7 @@ export function usePlans() {
             try {
               parsedPlan = JSON.parse(parsedPlan);
             } catch {
-              parsedPlan = { title: "Yoga Plan", description: parsedPlan, total_duration: 0, poses: [] };
+              parsedPlan = { plan_name: "Yoga Plan", total_duration: 0, focus_area: "", exercises: [] };
             }
           }
           return {

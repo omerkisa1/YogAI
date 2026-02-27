@@ -36,6 +36,8 @@ export default function PlanCard({ plan, index }: PlanCardProps) {
     year: "numeric",
   });
 
+  const exercises = plan.plan?.exercises || [];
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -46,10 +48,10 @@ export default function PlanCard({ plan, index }: PlanCardProps) {
       <div className="mb-4 flex items-start justify-between">
         <div className="flex-1">
           <h3 className="text-base font-semibold text-charcoal">
-            {plan.plan?.title || "Yoga Plan"}
+            {plan.plan?.plan_name || "Yoga Plan"}
           </h3>
           <p className="mt-1 text-sm text-charcoal-lighter line-clamp-2">
-            {plan.plan?.description || "AI-generated yoga plan"}
+            {plan.plan?.focus_area || plan.focus_area || "Personalized yoga session"}
           </p>
         </div>
         <span className={`ml-3 shrink-0 rounded-full px-3 py-1 text-xs font-medium ${badgeClass}`}>
@@ -63,7 +65,7 @@ export default function PlanCard({ plan, index }: PlanCardProps) {
             <circle cx="12" cy="12" r="10" />
             <polyline points="12 6 12 12 16 14" />
           </svg>
-          {plan.duration} min
+          {plan.plan?.total_duration || plan.duration} min
         </span>
         {plan.focus_area && (
           <span className="inline-flex items-center rounded-lg bg-clay-50 px-2.5 py-1 text-xs text-clay-500">
@@ -71,21 +73,24 @@ export default function PlanCard({ plan, index }: PlanCardProps) {
           </span>
         )}
         <span className="inline-flex items-center rounded-lg bg-sage-50 px-2.5 py-1 text-xs text-sage-600">
-          {plan.plan?.poses?.length || 0} poses
+          {exercises.length} exercises
         </span>
       </div>
 
-      {plan.plan?.poses && plan.plan.poses.length > 0 && (
+      {exercises.length > 0 && (
         <div className="mb-4 space-y-1.5">
-          {plan.plan.poses.slice(0, 3).map((pose, i) => (
+          {exercises.slice(0, 3).map((ex, i) => (
             <div key={i} className="flex items-center justify-between rounded-lg bg-cream-50 px-3 py-2">
-              <span className="text-xs font-medium text-charcoal">{pose.name}</span>
-              <span className="text-xs text-charcoal-lighter">{pose.duration_seconds}s</span>
+              <div className="flex-1 min-w-0">
+                <span className="text-xs font-medium text-charcoal">{ex.name}</span>
+                <p className="text-[10px] text-charcoal-lighter truncate">{ex.benefit}</p>
+              </div>
+              <span className="ml-2 shrink-0 text-xs text-charcoal-lighter">{ex.duration}</span>
             </div>
           ))}
-          {plan.plan.poses.length > 3 && (
+          {exercises.length > 3 && (
             <p className="px-3 text-xs text-charcoal-lighter">
-              +{plan.plan.poses.length - 3} more poses
+              +{exercises.length - 3} more exercises
             </p>
           )}
         </div>
