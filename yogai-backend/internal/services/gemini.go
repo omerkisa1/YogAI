@@ -1,0 +1,85 @@
+package services
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/google/generative-ai-go/genai"
+	"google.golang.org/api/option"
+)
+
+type AIService interface {
+	GenerateYogaPlan(ctx context.Context, prompt string) (string, error)
+	AnalyzePose(ctx context.Context, prompt string) (string, error)
+	Close() error
+}
+
+type geminiService struct {
+	client *genai.Client
+	model  *genai.GenerativeModel
+}
+
+func NewGeminiService(apiKey string) (AIService, error) {
+	ctx := context.Background()
+
+	client, err := genai.NewClient(ctx, option.WithAPIKey(apiKey))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create gemini client: %w", err)
+	}
+
+	model := client.GenerativeModel("gemini-2.0-flash")
+	model.SetTemperature(0.7)
+	model.SystemInstruction = genai.NewUserContent(genai.Text(
+		"You are YogAI, an expert yoga instructor AI. " +
+			"You provide personalized yoga plans, pose corrections, " +
+			"and wellness advice. Always respond in a structured JSON format.",
+	))
+
+	return &geminiService{
+		client: client,
+		model:  model,
+	}, nil
+}
+
+func (s *geminiService) GenerateYogaPlan(ctx context.Context, prompt string) (string, error) {
+	resp, err := s.model.GenerateContent(ctx, genai.Text(prompt))
+	if err != nil {
+		return "", fmt.Errorf("failed to generate yoga plan: %w", err)
+	}
+
+	return extractTextFromResponse(resp), nil
+}
+
+func (s *geminiService) AnalyzePose(ctx context.Context, prompt string) (string, error) {
+	resp, err := s.model.GenerateContent(ctx, genai.Text(prompt))
+	if err != nil {
+		return "", fmt.Errorf("failed to analyze pose: %w", err)
+	}
+
+	return extractTextFromResponse(resp), nil
+}
+
+func (s *geminiService) Close() error {
+	s.client.Close()
+	return nil
+}
+
+func extractTextFromResponse(resp *genai.GenerateContentResponse) string {
+	if resp == nil || len(resp.Candidates) == 0 {
+		return ""
+	}
+
+	candidate := resp.Candidates[0]
+	if candidate.Content == nil || len(candidate.Content.Parts) == 0 {
+		return ""
+	}
+
+	var result string
+	for _, part := range candidate.Content.Parts {
+		if text, ok := part.(genai.Text); ok {
+			result += string(text)
+		}
+	}
+
+	return result
+}
