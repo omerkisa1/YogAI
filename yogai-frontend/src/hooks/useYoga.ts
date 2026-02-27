@@ -1,8 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import { useAuthContext } from "@/components/layout/AuthProvider";
 import api from "@/lib/axios";
 import type {
@@ -75,7 +73,12 @@ export function usePlans() {
   const [plans, setPlans] = useState<YogaPlan[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchFromAPI = useCallback(async () => {
+  const fetchPlans = useCallback(async () => {
+    if (!user) {
+      setPlans([]);
+      setLoading(false);
+      return;
+    }
     try {
       const response = (await api.get("/api/v1/yoga/plans")) as APIResponse<{
         plans: Array<Record<string, unknown>>;
@@ -87,64 +90,11 @@ export function usePlans() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
-    if (!user) {
-      setPlans([]);
-      setLoading(false);
-      return;
-    }
-
-    let firestoreFailed = false;
-
-    const plansRef = collection(db, "users", user.uid, "plans");
-    const q = query(plansRef, orderBy("created_at", "desc"));
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const updatedPlans: YogaPlan[] = snapshot.docs.map((doc) => {
-          const data = doc.data();
-
-          let planEN = safeParsePlan(data.plan_en);
-          const planTR = safeParsePlan(data.plan_tr);
-          if (planEN.title === emptyPlan.title && data.plan) {
-            planEN = safeParsePlan(data.plan);
-          }
-
-          return {
-            id: doc.id,
-            plan_en: planEN,
-            plan_tr: planTR,
-            level: data.level || "",
-            duration: data.duration || 0,
-            focus_area: data.focus_area || "",
-            is_favorite: data.is_favorite || false,
-            is_pinned: data.is_pinned || false,
-            created_at: data.created_at?.toDate?.()?.toISOString() || new Date().toISOString(),
-          };
-        });
-        setPlans(updatedPlans);
-        setLoading(false);
-      },
-      () => {
-        firestoreFailed = true;
-        fetchFromAPI();
-      }
-    );
-
-    const timeout = setTimeout(() => {
-      if (loading && !firestoreFailed) {
-        fetchFromAPI();
-      }
-    }, 3000);
-
-    return () => {
-      unsubscribe();
-      clearTimeout(timeout);
-    };
-  }, [user, fetchFromAPI, loading]);
+    fetchPlans();
+  }, [fetchPlans]);
 
   const sortedPlans = [...plans].sort((a, b) => {
     if (a.is_pinned && !b.is_pinned) return -1;
@@ -152,7 +102,7 @@ export function usePlans() {
     return 0;
   });
 
-  return { plans: sortedPlans, loading, refetch: fetchFromAPI };
+  return { plans: sortedPlans, loading, refetch: fetchPlans };
 }
 
 export function useGeneratePlan() {
