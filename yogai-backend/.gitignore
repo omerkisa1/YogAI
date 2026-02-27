@@ -34,3 +34,5 @@ logs/
 
 debug
 __debug_bin*
+
+serviceAccountKey.json
