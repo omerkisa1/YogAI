@@ -35,10 +35,18 @@ type AnalyzePoseRequest struct {
 	Description string `json:"description" binding:"required"`
 }
 
-func (h *YogaHandler) GeneratePlan(c *gin.Context) {
+func (h *YogaHandler) getUserID(c *gin.Context) (string, bool) {
 	uid, exists := c.Get("user_id")
 	if !exists {
 		models.ErrorResponse(c, http.StatusUnauthorized, "user not authenticated")
+		return "", false
+	}
+	return uid.(string), true
+}
+
+func (h *YogaHandler) GeneratePlan(c *gin.Context) {
+	uid, ok := h.getUserID(c)
+	if !ok {
 		return
 	}
 
@@ -63,7 +71,7 @@ func (h *YogaHandler) GeneratePlan(c *gin.Context) {
 		FocusArea: req.FocusArea,
 	}
 
-	if err := h.repo.SavePlan(c.Request.Context(), uid.(string), plan); err != nil {
+	if err := h.repo.SavePlan(c.Request.Context(), uid, plan); err != nil {
 		models.ErrorResponse(c, http.StatusInternalServerError, "failed to save yoga plan")
 		return
 	}
@@ -79,10 +87,112 @@ func (h *YogaHandler) GeneratePlan(c *gin.Context) {
 	})
 }
 
+func (h *YogaHandler) GetPlans(c *gin.Context) {
+	uid, ok := h.getUserID(c)
+	if !ok {
+		return
+	}
+
+	plans, err := h.repo.GetPlans(c.Request.Context(), uid)
+	if err != nil {
+		models.ErrorResponse(c, http.StatusInternalServerError, "failed to retrieve plans")
+		return
+	}
+
+	var parsedPlans []gin.H
+	for _, p := range plans {
+		var parsedPlan interface{}
+		if err := json.Unmarshal([]byte(p.Plan), &parsedPlan); err != nil {
+			parsedPlan = p.Plan
+		}
+		parsedPlans = append(parsedPlans, gin.H{
+			"id":         p.ID,
+			"plan":       parsedPlan,
+			"level":      p.Level,
+			"duration":   p.Duration,
+			"focus_area": p.FocusArea,
+			"created_at": p.CreatedAt,
+		})
+	}
+
+	models.SuccessResponse(c, "plans retrieved successfully", gin.H{
+		"plans": parsedPlans,
+		"count": len(parsedPlans),
+	})
+}
+
+func (h *YogaHandler) GetPlanByID(c *gin.Context) {
+	uid, ok := h.getUserID(c)
+	if !ok {
+		return
+	}
+
+	planID := c.Param("id")
+	if planID == "" {
+		models.ErrorResponse(c, http.StatusBadRequest, "plan id is required")
+		return
+	}
+
+	plan, err := h.repo.GetPlanByID(c.Request.Context(), uid, planID)
+	if err != nil {
+		models.ErrorResponse(c, http.StatusInternalServerError, "failed to retrieve plan")
+		return
+	}
+
+	if plan == nil {
+		models.ErrorResponse(c, http.StatusNotFound, "plan not found")
+		return
+	}
+
+	var parsedPlan interface{}
+	if err := json.Unmarshal([]byte(plan.Plan), &parsedPlan); err != nil {
+		parsedPlan = plan.Plan
+	}
+
+	models.SuccessResponse(c, "plan retrieved successfully", gin.H{
+		"id":         plan.ID,
+		"plan":       parsedPlan,
+		"level":      plan.Level,
+		"duration":   plan.Duration,
+		"focus_area": plan.FocusArea,
+		"created_at": plan.CreatedAt,
+	})
+}
+
+func (h *YogaHandler) DeletePlan(c *gin.Context) {
+	uid, ok := h.getUserID(c)
+	if !ok {
+		return
+	}
+
+	planID := c.Param("id")
+	if planID == "" {
+		models.ErrorResponse(c, http.StatusBadRequest, "plan id is required")
+		return
+	}
+
+	plan, err := h.repo.GetPlanByID(c.Request.Context(), uid, planID)
+	if err != nil {
+		models.ErrorResponse(c, http.StatusInternalServerError, "failed to retrieve plan")
+		return
+	}
+
+	if plan == nil {
+		models.ErrorResponse(c, http.StatusNotFound, "plan not found")
+		return
+	}
+
+	if err := h.repo.DeletePlan(c.Request.Context(), uid, planID); err != nil {
+		models.ErrorResponse(c, http.StatusInternalServerError, "failed to delete plan")
+		return
+	}
+
+	models.SuccessResponse(c, "plan deleted successfully", nil)
+}
+
 func (h *YogaHandler) AnalyzePose(c *gin.Context) {
-	_, exists := c.Get("user_id")
-	if !exists {
-		models.ErrorResponse(c, http.StatusUnauthorized, "user not authenticated")
+	_, ok := h.getUserID(c)
+	if !ok {
 		return
 	}
 

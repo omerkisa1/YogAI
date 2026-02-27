@@ -10,6 +10,8 @@ import (
 	"firebase.google.com/go/v4/auth"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type FirebaseApp struct {
@@ -55,6 +57,8 @@ type YogaPlan struct {
 type YogaRepository interface {
 	SavePlan(ctx context.Context, uid string, plan *YogaPlan) error
 	GetPlans(ctx context.Context, uid string) ([]*YogaPlan, error)
+	GetPlanByID(ctx context.Context, uid string, planID string) (*YogaPlan, error)
+	DeletePlan(ctx context.Context, uid string, planID string) error
 }
 
 type yogaRepository struct {
@@ -65,10 +69,14 @@ func NewYogaRepository(firestoreClient *firestore.Client) YogaRepository {
 	return &yogaRepository{firestore: firestoreClient}
 }
 
+func (r *yogaRepository) plansCollection(uid string) *firestore.CollectionRef {
+	return r.firestore.Collection("users").Doc(uid).Collection("plans")
+}
+
 func (r *yogaRepository) SavePlan(ctx context.Context, uid string, plan *YogaPlan) error {
 	plan.CreatedAt = time.Now()
 
-	ref := r.firestore.Collection("users").Doc(uid).Collection("plans").NewDoc()
+	ref := r.plansCollection(uid).NewDoc()
 	plan.ID = ref.ID
 
 	_, err := ref.Set(ctx, plan)
@@ -80,7 +88,7 @@ func (r *yogaRepository) SavePlan(ctx context.Context, uid string, plan *YogaPla
 }
 
 func (r *yogaRepository) GetPlans(ctx context.Context, uid string) ([]*YogaPlan, error) {
-	iter := r.firestore.Collection("users").Doc(uid).Collection("plans").
+	iter := r.plansCollection(uid).
 		OrderBy("created_at", firestore.Desc).
 		Documents(ctx)
 	defer iter.Stop()
@@ -103,4 +111,30 @@ func (r *yogaRepository) GetPlans(ctx context.Context, uid string) ([]*YogaPlan,
 	}
 
 	return plans, nil
+}
+
+func (r *yogaRepository) GetPlanByID(ctx context.Context, uid string, planID string) (*YogaPlan, error) {
+	doc, err := r.plansCollection(uid).Doc(planID).Get(ctx)
+	if err != nil {
+		if status.Code(err) == codes.NotFound {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get plan: %w", err)
+	}
+
+	var plan YogaPlan
+	if err := doc.DataTo(&plan); err != nil {
+		return nil, fmt.Errorf("failed to decode plan: %w", err)
+	}
+
+	return &plan, nil
+}
+
+func (r *yogaRepository) DeletePlan(ctx context.Context, uid string, planID string) error {
+	_, err := r.plansCollection(uid).Doc(planID).Delete(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to delete plan: %w", err)
+	}
+
+	return nil
 }
