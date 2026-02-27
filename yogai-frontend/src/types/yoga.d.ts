@@ -14,16 +14,21 @@ export interface YogaPlan {
 }
 
 export interface PlanDetail {
-  plan_name: string;
-  total_duration: number;
+  title: string;
   focus_area: string;
+  difficulty: string;
+  total_duration_min: number;
+  is_favorite: boolean;
+  is_pinned: boolean;
+  description: string;
   exercises: ExerciseItem[];
 }
 
 export interface ExerciseItem {
   name: string;
-  duration: string;
-  description: string;
+  duration_min: number;
+  instructions: string;
+  focus_point: string;
   benefit: string;
 }
 

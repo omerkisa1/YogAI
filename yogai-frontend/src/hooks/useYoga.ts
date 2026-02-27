@@ -15,16 +15,27 @@ import type {
   APIResponse,
 } from "@/types/yoga";
 
+const emptyPlan: PlanDetail = {
+  title: "Yoga Plan",
+  focus_area: "",
+  difficulty: "Beginner",
+  total_duration_min: 0,
+  is_favorite: false,
+  is_pinned: false,
+  description: "",
+  exercises: [],
+};
+
 function safeParsePlan(raw: unknown): PlanDetail {
-  if (typeof raw === "object" && raw !== null) return raw as PlanDetail;
+  if (typeof raw === "object" && raw !== null) return { ...emptyPlan, ...(raw as Record<string, unknown>) } as PlanDetail;
   if (typeof raw === "string") {
     try {
-      return JSON.parse(raw) as PlanDetail;
+      return { ...emptyPlan, ...JSON.parse(raw) } as PlanDetail;
     } catch {
-      return { plan_name: "Yoga Plan", total_duration: 0, focus_area: "", exercises: [] };
+      return emptyPlan;
     }
   }
-  return { plan_name: "Yoga Plan", total_duration: 0, focus_area: "", exercises: [] };
+  return emptyPlan;
 }
 
 export function usePlans() {

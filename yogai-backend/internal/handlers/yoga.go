@@ -233,34 +233,44 @@ func (h *YogaHandler) HealthCheck(c *gin.Context) {
 }
 
 func buildPlanPrompt(req GeneratePlanRequest) string {
-	prompt := "Create a personalized yoga and wellness plan. " +
+	prompt := "Generate a yoga plan with these parameters: " +
 		"Level: " + req.Level + ". " +
-		"Duration: " + fmt.Sprintf("%d", req.Duration) + " minutes."
+		"Total duration: exactly " + fmt.Sprintf("%d", req.Duration) + " minutes."
 
 	if req.FocusArea != "" {
-		prompt += " Focus Area: " + req.FocusArea + "." +
-			" ALL exercises must directly target this focus area."
+		prompt += " Focus area: " + req.FocusArea + "." +
+			" ALL exercises MUST directly target this focus. If it is a pain condition, use only therapeutic movements and exclude contraindicated poses."
 	}
 
 	if req.Preferences != "" {
-		prompt += " User's personal notes (MUST be respected): \"" + req.Preferences + "\"." +
-			" Adapt every exercise to these constraints. Do not ignore any user note."
+		prompt += " User notes (ABSOLUTE COMMANDS - must be reflected in every exercise): \"" + req.Preferences + "\"."
 	}
 
-	prompt += " Return a JSON object with: " +
-		"plan_name (string), " +
-		"total_duration (number in minutes), " +
-		"focus_area (string), " +
-		"exercises (array of objects with: name, duration (string e.g. '60 seconds' or '5 breaths'), description, benefit)."
+	prompt += " Return JSON with this exact schema: " +
+		"{" +
+		"\"title\": \"motivating title based on focus\"," +
+		"\"focus_area\": \"primary focus addressed\"," +
+		"\"difficulty\": \"Beginner/Intermediate/Advanced\"," +
+		"\"total_duration_min\": integer (must equal sum of all exercise duration_min)," +
+		"\"is_favorite\": false," +
+		"\"is_pinned\": false," +
+		"\"description\": \"2-sentence explanation of how this plan addresses user's goals\"," +
+		"\"exercises\": [{" +
+		"\"name\": \"pose name\"," +
+		"\"duration_min\": integer," +
+		"\"instructions\": \"clear step-by-step guidance\"," +
+		"\"focus_point\": \"specific alignment or mental focus cue\"," +
+		"\"benefit\": \"why this pose is crucial for user's specific condition\"" +
+		"}]" +
+		"}"
 	return prompt
 }
 
 func buildAnalyzePrompt(req AnalyzePoseRequest) string {
-	return "As a professional yoga instructor, analyze this pose: " +
+	return "As an elite yoga instructor, analyze this pose: " +
 		"Pose: " + req.PoseName + ". " +
-		"User's description of their experience: \"" + req.Description + "\". " +
-		"If the user mentions any pain or limitation, tailor your advice to that. " +
-		"Return a JSON object with: pose_name, alignment_tips (array of strings), " +
-		"common_mistakes (array of strings), modifications (array of strings for easier/harder variants), " +
-		"benefits (array of strings)."
+		"User's description: \"" + req.Description + "\". " +
+		"If the user mentions any pain or limitation, tailor advice accordingly. " +
+		"Return JSON: {\"pose_name\": string, \"alignment_tips\": [strings], " +
+		"\"common_mistakes\": [strings], \"modifications\": [strings], \"benefits\": [strings]}."
 }
