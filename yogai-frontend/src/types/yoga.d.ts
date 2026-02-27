@@ -47,6 +47,7 @@ export interface GeneratePlanRequest {
   duration: number;
   focus_area?: string;
   preferences?: string;
+  language?: string;
 }
 
 export interface AnalyzePoseRequest {

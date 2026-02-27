@@ -3,13 +3,37 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --c-bg: 249 247 242;
+    --c-surface: 253 252 250;
+    --c-card: 255 255 255;
+    --c-subtle: 243 239 231;
+    --c-muted: 234 228 216;
+    --c-border: 234 228 216;
+    --c-text: 45 45 45;
+    --c-text-sec: 74 74 74;
+    --c-text-mut: 107 107 107;
+  }
+
+  .dark {
+    --c-bg: 18 21 19;
+    --c-surface: 26 30 28;
+    --c-card: 32 36 34;
+    --c-subtle: 40 44 42;
+    --c-muted: 50 55 50;
+    --c-border: 50 55 50;
+    --c-text: 232 232 228;
+    --c-text-sec: 176 176 170;
+    --c-text-mut: 120 120 114;
+  }
+
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
   body {
-    @apply bg-cream-100 text-charcoal;
+    @apply bg-th-bg text-th-text;
   }
 
   ::selection {
@@ -19,22 +43,22 @@
 
 @layer components {
   .btn-primary {
-    @apply inline-flex items-center justify-center rounded-full bg-sage-400 px-8 py-3 text-sm font-medium text-white transition-all duration-200 hover:bg-sage-500 hover:shadow-md active:scale-[0.98];
+    @apply inline-flex items-center justify-center rounded-full bg-sage-400 px-8 py-3 text-sm font-medium text-white transition-all duration-200 hover:bg-sage-500 hover:shadow-md active:scale-[0.98] dark:bg-sage-500 dark:hover:bg-sage-400;
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center rounded-full border border-sage-400/30 bg-white px-8 py-3 text-sm font-medium text-sage-500 transition-all duration-200 hover:bg-sage-50 hover:border-sage-400/50 active:scale-[0.98];
+    @apply inline-flex items-center justify-center rounded-full border border-th-border bg-th-card px-8 py-3 text-sm font-medium text-sage-500 transition-all duration-200 hover:bg-th-subtle active:scale-[0.98] dark:text-sage-400;
   }
 
   .btn-danger {
-    @apply inline-flex items-center justify-center rounded-full bg-red-500/10 px-6 py-2 text-sm font-medium text-red-600 transition-all duration-200 hover:bg-red-500/20 active:scale-[0.98];
+    @apply inline-flex items-center justify-center rounded-full bg-red-500/10 px-6 py-2 text-sm font-medium text-red-600 transition-all duration-200 hover:bg-red-500/20 active:scale-[0.98] dark:bg-red-500/15 dark:text-red-400;
   }
 
   .card {
-    @apply rounded-2xl bg-white p-6 shadow-sm transition-shadow duration-200 hover:shadow-md;
+    @apply rounded-2xl bg-th-card p-6 shadow-sm transition-all duration-200 hover:shadow-md dark:shadow-[0_1px_3px_rgba(0,0,0,0.4)] dark:hover:shadow-[0_4px_12px_rgba(0,0,0,0.5)];
   }
 
   .input-field {
-    @apply w-full rounded-xl border border-cream-300 bg-white px-4 py-3 text-sm text-charcoal placeholder:text-charcoal-lighter transition-all duration-200 focus:border-sage-400 focus:outline-none focus:ring-2 focus:ring-sage-400/20;
+    @apply w-full rounded-xl border border-th-border bg-th-card px-4 py-3 text-sm text-th-text placeholder:text-th-text-mut transition-all duration-200 focus:border-sage-400 focus:outline-none focus:ring-2 focus:ring-sage-400/20;
   }
 }

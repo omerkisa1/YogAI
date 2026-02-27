@@ -5,6 +5,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { usePlans } from "@/hooks/useYoga";
 import { useAuthContext } from "@/components/layout/AuthProvider";
+import { useApp } from "@/components/layout/AppProvider";
 import PlanCard from "@/components/yoga/PlanCard";
 import PlanDetailModal from "@/components/yoga/PlanDetailModal";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
@@ -12,6 +13,7 @@ import type { YogaPlan } from "@/types/yoga";
 
 export default function DashboardPage() {
   const { user } = useAuthContext();
+  const { t } = useApp();
   const { plans, loading, refetch } = usePlans();
   const [selectedPlan, setSelectedPlan] = useState<YogaPlan | null>(null);
 
@@ -30,19 +32,17 @@ export default function DashboardPage() {
         animate={{ opacity: 1, y: 0 }}
         className="mb-10"
       >
-        <h1 className="text-2xl font-bold text-charcoal">
-          Welcome back{user?.displayName ? `, ${user.displayName}` : ""}
+        <h1 className="text-2xl font-bold text-th-text">
+          {t.welcomeBackUser}{user?.displayName ? `, ${user.displayName}` : ""}
         </h1>
-        <p className="mt-1 text-sm text-charcoal-lighter">
-          Here are your personalized yoga plans
-        </p>
+        <p className="mt-1 text-sm text-th-text-mut">{t.personalizedPlans}</p>
       </motion.div>
 
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-charcoal">Your Plans</h2>
-          <p className="text-sm text-charcoal-lighter">
-            {plans.length} plan{plans.length !== 1 ? "s" : ""} created
+          <h2 className="text-lg font-semibold text-th-text">{t.yourPlans}</h2>
+          <p className="text-sm text-th-text-mut">
+            {plans.length} {plans.length !== 1 ? t.plans : t.plan} {t.planCreatedCount}
           </p>
         </div>
         <Link href="/create-plan" className="btn-primary">
@@ -50,7 +50,7 @@ export default function DashboardPage() {
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
-          New Plan
+          {t.newPlan}
         </Link>
       </div>
 
@@ -62,7 +62,7 @@ export default function DashboardPage() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-cream-300 py-20"
+          className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-th-border py-20"
         >
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-sage-400/10">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#889E81" strokeWidth="2">
@@ -71,12 +71,10 @@ export default function DashboardPage() {
               <path d="M8 12h8" />
             </svg>
           </div>
-          <h3 className="text-base font-semibold text-charcoal">No plans yet</h3>
-          <p className="mt-1 text-sm text-charcoal-lighter">
-            Create your first AI-powered yoga plan
-          </p>
+          <h3 className="text-base font-semibold text-th-text">{t.noPlanYet}</h3>
+          <p className="mt-1 text-sm text-th-text-mut">{t.createFirstDesc}</p>
           <Link href="/create-plan" className="btn-primary mt-6">
-            Create Your First Plan
+            {t.createFirstBtn}
           </Link>
         </motion.div>
       ) : (

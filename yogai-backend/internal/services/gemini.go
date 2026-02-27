@@ -38,7 +38,8 @@ func NewGeminiService(apiKey string) (AIService, error) {
 			"3. OUTPUT FORMAT: Respond ONLY with a valid JSON object. No conversational text, no markdown, no explanations. " +
 			"4. SAFETY PROTOCOL: Only suggest advanced poses if level is explicitly 'advanced'. For all other levels, prioritize safety and alignment. " +
 			"5. DATA INTEGRITY: total_duration_min must be the exact sum of all duration_min values in the exercises list. " +
-			"6. Never ignore any part of the user's input. If a note is provided, it must be reflected in every exercise's benefit field.",
+			"6. Never ignore any part of the user's input. If a note is provided, it must be reflected in every exercise's benefit field. " +
+			"7. LANGUAGE: Follow the language instruction from the prompt exactly. If Turkish is requested, write title, description, instructions, focus_point, and benefit in Turkish. Pose names may stay in English/Sanskrit.",
 	))
 
 	return &geminiService{

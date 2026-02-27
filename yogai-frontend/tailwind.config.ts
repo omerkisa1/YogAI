@@ -2,6 +2,7 @@ import type { Config } from "tailwindcss";
 
 const config: Config = {
   content: ["./src/**/*.{js,ts,jsx,tsx,mdx}"],
+  darkMode: "class",
   theme: {
     extend: {
       colors: {
@@ -39,6 +40,17 @@ const config: Config = {
           700: "#5e3c2e",
           800: "#432b21",
           900: "#2a1b15",
+        },
+        th: {
+          bg: "rgb(var(--c-bg) / <alpha-value>)",
+          surface: "rgb(var(--c-surface) / <alpha-value>)",
+          card: "rgb(var(--c-card) / <alpha-value>)",
+          subtle: "rgb(var(--c-subtle) / <alpha-value>)",
+          muted: "rgb(var(--c-muted) / <alpha-value>)",
+          border: "rgb(var(--c-border) / <alpha-value>)",
+          text: "rgb(var(--c-text) / <alpha-value>)",
+          "text-sec": "rgb(var(--c-text-sec) / <alpha-value>)",
+          "text-mut": "rgb(var(--c-text-mut) / <alpha-value>)",
         },
       },
       borderRadius: {

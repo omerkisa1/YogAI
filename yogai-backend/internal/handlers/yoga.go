@@ -29,6 +29,7 @@ type GeneratePlanRequest struct {
 	Duration    int    `json:"duration" binding:"required"`
 	FocusArea   string `json:"focus_area"`
 	Preferences string `json:"preferences"`
+	Language    string `json:"language"`
 }
 
 type UpdatePlanMetaRequest struct {
@@ -270,6 +271,11 @@ func (h *YogaHandler) HealthCheck(c *gin.Context) {
 }
 
 func buildPlanPrompt(req GeneratePlanRequest) string {
+	lang := req.Language
+	if lang == "" {
+		lang = "en"
+	}
+
 	prompt := "Generate a yoga plan with these parameters: " +
 		"Level: " + req.Level + ". " +
 		"Total duration: exactly " + fmt.Sprintf("%d", req.Duration) + " minutes."
@@ -281,6 +287,13 @@ func buildPlanPrompt(req GeneratePlanRequest) string {
 
 	if req.Preferences != "" {
 		prompt += " User notes (ABSOLUTE COMMANDS - must be reflected in every exercise): \"" + req.Preferences + "\"."
+	}
+
+	if lang == "tr" {
+		prompt += " LANGUAGE RULE: The title, description, instructions, focus_point, and benefit fields MUST be written in Turkish. " +
+			"Pose names (e.g. 'Cat-Cow', 'Downward Dog') may remain in their original English/Sanskrit form, but all explanatory text MUST be in Turkish."
+	} else {
+		prompt += " Write all text fields in English."
 	}
 
 	prompt += " Return JSON with this exact schema: " +
