@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/gin-gonic/gin"
+	"github.com/omerkisa/yogai-backend/internal/catalog"
 	"github.com/omerkisa/yogai-backend/internal/models"
 	"github.com/omerkisa/yogai-backend/internal/repository"
 	"github.com/omerkisa/yogai-backend/internal/services"
@@ -46,6 +47,27 @@ type AnalyzePoseRequest struct {
 	Description string `json:"description" binding:"required"`
 }
 
+type ValidatedExercise struct {
+	PoseID       string `json:"pose_id"`
+	Name         string `json:"name"`
+	DurationMin  int    `json:"duration_min"`
+	Instructions string `json:"instructions"`
+	FocusPoint   string `json:"focus_point"`
+	Benefit      string `json:"benefit"`
+	TargetArea   string `json:"target_area"`
+}
+
+type ValidatedPlan struct {
+	Title            string              `json:"title"`
+	FocusArea        string              `json:"focus_area"`
+	Difficulty       string              `json:"difficulty"`
+	TotalDurationMin int                 `json:"total_duration_min"`
+	IsFavorite       bool                `json:"is_favorite"`
+	IsPinned         bool                `json:"is_pinned"`
+	Description      string              `json:"description"`
+	Exercises        []ValidatedExercise `json:"exercises"`
+}
+
 func (h *YogaHandler) getUserID(c *gin.Context) (string, bool) {
 	uid, exists := c.Get("user_id")
 	if !exists {
@@ -53,6 +75,56 @@ func (h *YogaHandler) getUserID(c *gin.Context) (string, bool) {
 		return "", false
 	}
 	return uid.(string), true
+}
+
+func validateAndEnrich(raw string, lang string) (*ValidatedPlan, error) {
+	var llmResp services.LLMPlanResponse
+	if err := json.Unmarshal([]byte(raw), &llmResp); err != nil {
+		return nil, fmt.Errorf("invalid JSON from LLM: %w", err)
+	}
+
+	if llmResp.Title == "" {
+		return nil, fmt.Errorf("LLM response missing title")
+	}
+
+	if len(llmResp.Exercises) == 0 {
+		return nil, fmt.Errorf("LLM response has no exercises")
+	}
+
+	validated := &ValidatedPlan{
+		Title:            llmResp.Title,
+		FocusArea:        llmResp.FocusArea,
+		Difficulty:       llmResp.Difficulty,
+		TotalDurationMin: llmResp.TotalDurationMin,
+		IsFavorite:       false,
+		IsPinned:         false,
+		Description:      llmResp.Description,
+		Exercises:        make([]ValidatedExercise, 0, len(llmResp.Exercises)),
+	}
+
+	for i, ex := range llmResp.Exercises {
+		pose, exists := catalog.GetPoseByID(ex.PoseID)
+		if !exists {
+			return nil, fmt.Errorf("exercise %d has invalid pose_id: %q (not in catalog)", i, ex.PoseID)
+		}
+
+		name := pose.NameEN
+		if lang == "tr" {
+			name = pose.NameTR
+		}
+
+		validated.Exercises = append(validated.Exercises, ValidatedExercise{
+			PoseID:       ex.PoseID,
+			Name:         name,
+			DurationMin:  ex.DurationMin,
+			Instructions: ex.Instructions,
+			FocusPoint:   ex.FocusPoint,
+			Benefit:      ex.Benefit,
+			TargetArea:   pose.TargetArea,
+		})
+	}
+
+	return validated, nil
 }
 
 func parsePlanJSON(raw string) interface{} {
@@ -105,13 +177,16 @@ func (h *YogaHandler) GeneratePlan(c *gin.Context) {
 		profileInjuries = profile.Injuries
 	}
 
+	safePoseIDs := catalog.GetSafePoseIDs(profileInjuries)
+	poseIDList := strings.Join(safePoseIDs, ", ")
+
 	reqEN := req
 	reqEN.Language = "en"
-	promptEN := buildPlanPrompt(reqEN, profileInjuries)
+	promptEN := buildPlanPrompt(reqEN, profileInjuries, poseIDList)
 
 	reqTR := req
 	reqTR.Language = "tr"
-	promptTR := buildPlanPrompt(reqTR, profileInjuries)
+	promptTR := buildPlanPrompt(reqTR, profileInjuries, poseIDList)
 
 	var resultEN, resultTR string
 	var errEN, errTR error
@@ -142,9 +217,26 @@ func (h *YogaHandler) GeneratePlan(c *gin.Context) {
 		return
 	}
 
+	validatedEN, err := validateAndEnrich(resultEN, "en")
+	if err != nil {
+		log.Printf("[ERROR] EN plan validation failed: %v", err)
+		models.ErrorResponse(c, http.StatusInternalServerError, "AI produced invalid plan data")
+		return
+	}
+
+	validatedTR, err := validateAndEnrich(resultTR, "tr")
+	if err != nil {
+		log.Printf("[ERROR] TR plan validation failed: %v", err)
+		models.ErrorResponse(c, http.StatusInternalServerError, "AI produced invalid plan data")
+		return
+	}
+
+	planENBytes, _ := json.Marshal(validatedEN)
+	planTRBytes, _ := json.Marshal(validatedTR)
+
 	plan := &repository.YogaPlan{
-		PlanEN:    resultEN,
-		PlanTR:    resultTR,
+		PlanEN:    string(planENBytes),
+		PlanTR:    string(planTRBytes),
 		Level:     req.Level,
 		Duration:  req.Duration,
 		FocusArea: req.FocusArea,
@@ -324,7 +416,7 @@ func (h *YogaHandler) HealthCheck(c *gin.Context) {
 	models.SuccessResponse(c, "YogAI API is running", nil)
 }
 
-func buildPlanPrompt(req GeneratePlanRequest, injuries []string) string {
+func buildPlanPrompt(req GeneratePlanRequest, injuries []string, poseIDList string) string {
 	lang := req.Language
 	if lang == "" {
 		lang = "en"
@@ -334,6 +426,8 @@ func buildPlanPrompt(req GeneratePlanRequest, injuries []string) string {
 		"Level: " + req.Level + ". " +
 		"Total duration: exactly " + fmt.Sprintf("%d", req.Duration) + " minutes."
 
+	prompt += " ALLOWED POSE IDS (you MUST only pick from this list): [" + poseIDList + "]."
+
 	if req.FocusArea != "" {
 		prompt += " Focus area: " + req.FocusArea + "." +
 			" ALL exercises MUST directly target this focus. If it is a pain condition, use only therapeutic movements and exclude contraindicated poses."
@@ -341,7 +435,7 @@ func buildPlanPrompt(req GeneratePlanRequest, injuries []string) string {
 
 	if len(injuries) > 0 {
 		prompt += " CRITICAL SAFETY - User has the following medical conditions/injuries: [" + strings.Join(injuries, ", ") + "]. " +
-			"You MUST exclude ALL contraindicated poses for these conditions. Prioritize therapeutic and safe movements."
+			"The allowed_pose_ids list has already been pre-filtered to exclude contraindicated poses. Only pick from the allowed list."
 	}
 
 	if req.Preferences != "" {
@@ -350,7 +444,7 @@ func buildPlanPrompt(req GeneratePlanRequest, injuries []string) string {
 
 	if lang == "tr" {
 		prompt += " LANGUAGE RULE: The title, description, instructions, focus_point, and benefit fields MUST be written in Turkish. " +
-			"Pose names (e.g. 'Cat-Cow', 'Downward Dog') may remain in their original English/Sanskrit form, but all explanatory text MUST be in Turkish."
+			"pose_id values MUST remain exactly as given in the allowed list (English identifiers)."
 	} else {
 		prompt += " Write all text fields in English."
 	}
@@ -365,7 +459,7 @@ func buildPlanPrompt(req GeneratePlanRequest, injuries []string) string {
 		"\"is_pinned\": false," +
 		"\"description\": \"2-sentence explanation of how this plan addresses user's goals\"," +
 		"\"exercises\": [{" +
-		"\"name\": \"pose name\"," +
+		"\"pose_id\": \"exact pose_id from the allowed list\"," +
 		"\"duration_min\": integer," +
 		"\"instructions\": \"clear step-by-step guidance\"," +
 		"\"focus_point\": \"specific alignment or mental focus cue\"," +
