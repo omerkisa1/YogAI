@@ -1,3 +1,10 @@
 serviceAccountKey.json
 *.json.bak
 .DS_Store
+
+# Python / test
+test/venv/
+test/__pycache__/
+test/*.task
+*.pyc
+__pycache__/
