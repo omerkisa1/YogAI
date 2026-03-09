@@ -16,21 +16,20 @@ const (
 )
 
 type LLMExercise struct {
-	PoseID       string `json:"pose_id"`
-	DurationMin  int    `json:"duration_min"`
-	Instructions string `json:"instructions"`
-	FocusPoint   string `json:"focus_point"`
-	Benefit      string `json:"benefit"`
+	PoseID    string `json:"pose_id"`
+	Duration  int    `json:"duration_min"`
+	BenefitEN string `json:"benefit_en"`
+	BenefitTR string `json:"benefit_tr"`
 }
 
 type LLMPlanResponse struct {
-	Title            string        `json:"title"`
+	TitleEN          string        `json:"title_en"`
+	TitleTR          string        `json:"title_tr"`
 	FocusArea        string        `json:"focus_area"`
 	Difficulty       string        `json:"difficulty"`
 	TotalDurationMin int           `json:"total_duration_min"`
-	IsFavorite       bool          `json:"is_favorite"`
-	IsPinned         bool          `json:"is_pinned"`
-	Description      string        `json:"description"`
+	DescriptionEN    string        `json:"description_en"`
+	DescriptionTR    string        `json:"description_tr"`
 	Exercises        []LLMExercise `json:"exercises"`
 }
 
@@ -57,16 +56,15 @@ func NewGeminiService(apiKey string) (AIService, error) {
 	model.SetTemperature(0.7)
 	model.ResponseMIMEType = "application/json"
 	model.SystemInstruction = genai.NewUserContent(genai.Text(
-		"You are an elite Yoga & Wellness Architect. Your sole purpose is to generate highly personalized, safe, and effective yoga plans based on specific user inputs. " +
+		"You are an elite Yoga & Wellness Architect. You generate bilingual (English + Turkish) yoga plans in a SINGLE JSON response. " +
 			"ABSOLUTE RULES: " +
-			"1. POSE SELECTION: You may ONLY use pose_id values from the allowed_pose_ids list provided in the prompt. You MUST NOT invent, fabricate, or use any pose_id that is not in that list. Every exercise in your response MUST have a pose_id field that exactly matches one from the allowed list. " +
-			"2. INPUT PRIORITY: If user_notes contains specific physical conditions like 'back pain', 'neck tension', or 'knee injury', the allowed_pose_ids list has already been pre-filtered for safety. Only use poses from that list. " +
-			"3. TIME ADAPTATION: Adjust the number of exercises and their individual durations so total_duration_min exactly matches the requested duration. " +
-			"4. OUTPUT FORMAT: Respond ONLY with a valid JSON object matching the exact schema given. No conversational text, no markdown, no explanations. " +
-			"5. SAFETY PROTOCOL: Only suggest advanced poses if level is explicitly 'advanced'. For all other levels, prioritize safety and alignment. " +
-			"6. DATA INTEGRITY: total_duration_min must be the exact sum of all duration_min values in the exercises list. " +
-			"7. Never ignore any part of the user's input. If a note is provided, it must be reflected in every exercise's benefit field. " +
-			"8. LANGUAGE: Follow the language instruction from the prompt exactly. If Turkish is requested, write title, description, instructions, focus_point, and benefit in Turkish. pose_id values MUST remain exactly as given in the allowed list.",
+			"1. POSE SELECTION: You may ONLY use pose_id values from the allowed_pose_ids list provided in the prompt. You MUST NOT invent or fabricate any pose_id. " +
+			"2. BILINGUAL OUTPUT: Every text field has both _en and _tr variants. Write English text in _en fields and Turkish text in _tr fields. pose_id values are always English identifiers. " +
+			"3. MINIMAL EXERCISE DATA: For each exercise, return ONLY pose_id, duration_min, benefit_en, and benefit_tr. Do NOT include instructions, name, or focus_point — those are provided by our catalog. " +
+			"4. TIME ADAPTATION: Adjust exercises and durations so total_duration_min exactly matches the requested duration. total_duration_min must equal the sum of all exercise duration_min values. " +
+			"5. SAFETY: The allowed_pose_ids list has already been pre-filtered for user injuries. Only pick from that list. Only suggest advanced poses if level is explicitly 'advanced'. " +
+			"6. PERSONALIZATION: benefit_en and benefit_tr must explain why this specific pose helps this specific user's condition and goals. If user notes are provided, reflect them in every benefit. " +
+			"7. OUTPUT FORMAT: Respond ONLY with a valid JSON object. No conversational text, no markdown, no explanations.",
 	))
 
 	return &geminiService{

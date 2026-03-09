@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"strings"
-	"sync"
 
 	"github.com/gin-gonic/gin"
 	"github.com/omerkisa/yogai-backend/internal/catalog"
@@ -34,7 +33,6 @@ type GeneratePlanRequest struct {
 	Duration    int    `json:"duration" binding:"required"`
 	FocusArea   string `json:"focus_area"`
 	Preferences string `json:"preferences"`
-	Language    string `json:"language"`
 }
 
 type UpdatePlanMetaRequest struct {
@@ -47,25 +45,30 @@ type AnalyzePoseRequest struct {
 	Description string `json:"description" binding:"required"`
 }
 
-type ValidatedExercise struct {
-	PoseID       string `json:"pose_id"`
-	Name         string `json:"name"`
-	DurationMin  int    `json:"duration_min"`
-	Instructions string `json:"instructions"`
-	FocusPoint   string `json:"focus_point"`
-	Benefit      string `json:"benefit"`
-	TargetArea   string `json:"target_area"`
+type BilingualExercise struct {
+	PoseID         string `json:"pose_id"`
+	NameEN         string `json:"name_en"`
+	NameTR         string `json:"name_tr"`
+	DurationMin    int    `json:"duration_min"`
+	InstructionsEN string `json:"instructions_en"`
+	InstructionsTR string `json:"instructions_tr"`
+	BenefitEN      string `json:"benefit_en"`
+	BenefitTR      string `json:"benefit_tr"`
+	TargetArea     string `json:"target_area"`
+	Category       string `json:"category"`
 }
 
-type ValidatedPlan struct {
-	Title            string              `json:"title"`
+type BilingualPlan struct {
+	TitleEN          string              `json:"title_en"`
+	TitleTR          string              `json:"title_tr"`
 	FocusArea        string              `json:"focus_area"`
 	Difficulty       string              `json:"difficulty"`
 	TotalDurationMin int                 `json:"total_duration_min"`
+	DescriptionEN    string              `json:"description_en"`
+	DescriptionTR    string              `json:"description_tr"`
 	IsFavorite       bool                `json:"is_favorite"`
 	IsPinned         bool                `json:"is_pinned"`
-	Description      string              `json:"description"`
-	Exercises        []ValidatedExercise `json:"exercises"`
+	Exercises        []BilingualExercise `json:"exercises"`
 }
 
 func (h *YogaHandler) getUserID(c *gin.Context) (string, bool) {
@@ -77,13 +80,13 @@ func (h *YogaHandler) getUserID(c *gin.Context) (string, bool) {
 	return uid.(string), true
 }
 
-func validateAndEnrich(raw string, lang string) (*ValidatedPlan, error) {
+func validateAndEnrich(raw string) (*BilingualPlan, error) {
 	var llmResp services.LLMPlanResponse
 	if err := json.Unmarshal([]byte(raw), &llmResp); err != nil {
 		return nil, fmt.Errorf("invalid JSON from LLM: %w", err)
 	}
 
-	if llmResp.Title == "" {
+	if llmResp.TitleEN == "" && llmResp.TitleTR == "" {
 		return nil, fmt.Errorf("LLM response missing title")
 	}
 
@@ -91,15 +94,17 @@ func validateAndEnrich(raw string, lang string) (*ValidatedPlan, error) {
 		return nil, fmt.Errorf("LLM response has no exercises")
 	}
 
-	validated := &ValidatedPlan{
-		Title:            llmResp.Title,
+	plan := &BilingualPlan{
+		TitleEN:          llmResp.TitleEN,
+		TitleTR:          llmResp.TitleTR,
 		FocusArea:        llmResp.FocusArea,
 		Difficulty:       llmResp.Difficulty,
 		TotalDurationMin: llmResp.TotalDurationMin,
+		DescriptionEN:    llmResp.DescriptionEN,
+		DescriptionTR:    llmResp.DescriptionTR,
 		IsFavorite:       false,
 		IsPinned:         false,
-		Description:      llmResp.Description,
-		Exercises:        make([]ValidatedExercise, 0, len(llmResp.Exercises)),
+		Exercises:        make([]BilingualExercise, 0, len(llmResp.Exercises)),
 	}
 
 	for i, ex := range llmResp.Exercises {
@@ -108,23 +113,25 @@ func validateAndEnrich(raw string, lang string) (*ValidatedPlan, error) {
 			return nil, fmt.Errorf("exercise %d has invalid pose_id: %q (not in catalog)", i, ex.PoseID)
 		}
 
-		name := pose.NameEN
-		if lang == "tr" {
-			name = pose.NameTR
+		if ex.Duration <= 0 {
+			return nil, fmt.Errorf("exercise %d (%s) has invalid duration: %d", i, ex.PoseID, ex.Duration)
 		}
 
-		validated.Exercises = append(validated.Exercises, ValidatedExercise{
-			PoseID:       ex.PoseID,
-			Name:         name,
-			DurationMin:  ex.DurationMin,
-			Instructions: ex.Instructions,
-			FocusPoint:   ex.FocusPoint,
-			Benefit:      ex.Benefit,
-			TargetArea:   pose.TargetArea,
+		plan.Exercises = append(plan.Exercises, BilingualExercise{
+			PoseID:         ex.PoseID,
+			NameEN:         pose.NameEN,
+			NameTR:         pose.NameTR,
+			DurationMin:    ex.Duration,
+			InstructionsEN: pose.InstructionsEN,
+			InstructionsTR: pose.InstructionsTR,
+			BenefitEN:      ex.BenefitEN,
+			BenefitTR:      ex.BenefitTR,
+			TargetArea:     pose.TargetArea,
+			Category:       string(pose.Category),
 		})
 	}
 
-	return validated, nil
+	return plan, nil
 }
 
 func parsePlanJSON(raw string) interface{} {
@@ -159,6 +166,19 @@ func planToResponse(p *repository.YogaPlan) gin.H {
 	}
 }
 
+func bilingualPlanToResponse(p *repository.YogaPlan, bilingual *BilingualPlan) gin.H {
+	return gin.H{
+		"id":          p.ID,
+		"plan":        bilingual,
+		"level":       p.Level,
+		"duration":    p.Duration,
+		"focus_area":  p.FocusArea,
+		"is_favorite": p.IsFavorite,
+		"is_pinned":   p.IsPinned,
+		"created_at":  p.CreatedAt,
+	}
+}
+
 func (h *YogaHandler) GeneratePlan(c *gin.Context) {
 	uid, ok := h.getUserID(c)
 	if !ok {
@@ -180,63 +200,28 @@ func (h *YogaHandler) GeneratePlan(c *gin.Context) {
 	safePoseIDs := catalog.GetSafePoseIDs(profileInjuries)
 	poseIDList := strings.Join(safePoseIDs, ", ")
 
-	reqEN := req
-	reqEN.Language = "en"
-	promptEN := buildPlanPrompt(reqEN, profileInjuries, poseIDList)
+	prompt := buildBilingualPlanPrompt(req, profileInjuries, poseIDList)
 
-	reqTR := req
-	reqTR.Language = "tr"
-	promptTR := buildPlanPrompt(reqTR, profileInjuries, poseIDList)
-
-	var resultEN, resultTR string
-	var errEN, errTR error
-
-	var wg sync.WaitGroup
-	wg.Add(2)
-
-	go func() {
-		defer wg.Done()
-		resultEN, errEN = h.aiService.GenerateYogaPlan(c.Request.Context(), promptEN)
-	}()
-
-	go func() {
-		defer wg.Done()
-		resultTR, errTR = h.aiService.GenerateYogaPlan(c.Request.Context(), promptTR)
-	}()
-
-	wg.Wait()
-
-	if errEN != nil {
-		log.Printf("[ERROR] gemini GenerateYogaPlan EN failed: %v", errEN)
-		models.ErrorResponse(c, http.StatusInternalServerError, "failed to generate yoga plan")
-		return
-	}
-	if errTR != nil {
-		log.Printf("[ERROR] gemini GenerateYogaPlan TR failed: %v", errTR)
+	result, err := h.aiService.GenerateYogaPlan(c.Request.Context(), prompt)
+	if err != nil {
+		log.Printf("[ERROR] gemini GenerateYogaPlan failed for uid=%s: %v", uid, err)
 		models.ErrorResponse(c, http.StatusInternalServerError, "failed to generate yoga plan")
 		return
 	}
 
-	validatedEN, err := validateAndEnrich(resultEN, "en")
+	bilingual, err := validateAndEnrich(result)
 	if err != nil {
-		log.Printf("[ERROR] EN plan validation failed: %v", err)
-		models.ErrorResponse(c, http.StatusInternalServerError, "AI produced invalid plan data")
+		log.Printf("[ERROR] plan validation/enrichment failed for uid=%s: %v | raw_response_length=%d", uid, err, len(result))
+		models.ErrorResponse(c, http.StatusInternalServerError, "AI produced invalid plan data: "+err.Error())
 		return
 	}
 
-	validatedTR, err := validateAndEnrich(resultTR, "tr")
-	if err != nil {
-		log.Printf("[ERROR] TR plan validation failed: %v", err)
-		models.ErrorResponse(c, http.StatusInternalServerError, "AI produced invalid plan data")
-		return
-	}
-
-	planENBytes, _ := json.Marshal(validatedEN)
-	planTRBytes, _ := json.Marshal(validatedTR)
+	planBytes, _ := json.Marshal(bilingual)
+	planJSON := string(planBytes)
 
 	plan := &repository.YogaPlan{
-		PlanEN:    string(planENBytes),
-		PlanTR:    string(planTRBytes),
+		PlanEN:    planJSON,
+		PlanTR:    planJSON,
 		Level:     req.Level,
 		Duration:  req.Duration,
 		FocusArea: req.FocusArea,
@@ -248,7 +233,7 @@ func (h *YogaHandler) GeneratePlan(c *gin.Context) {
 		return
 	}
 
-	models.CreatedResponse(c, "yoga plan generated and saved", planToResponse(plan))
+	models.CreatedResponse(c, "yoga plan generated and saved", bilingualPlanToResponse(plan, bilingual))
 }
 
 func (h *YogaHandler) GetPlans(c *gin.Context) {
@@ -413,16 +398,25 @@ func (h *YogaHandler) AnalyzePose(c *gin.Context) {
 }
 
 func (h *YogaHandler) HealthCheck(c *gin.Context) {
-	models.SuccessResponse(c, "YogAI API is running", nil)
-}
+	catalogCount := catalog.TotalPoseCount()
+	categories := catalog.CategoriesWithCounts()
 
-func buildPlanPrompt(req GeneratePlanRequest, injuries []string, poseIDList string) string {
-	lang := req.Language
-	if lang == "" {
-		lang = "en"
+	catReport := make(gin.H, len(categories))
+	for cat, count := range categories {
+		catReport[string(cat)] = count
 	}
 
-	prompt := "Generate a yoga plan with these parameters: " +
+	models.SuccessResponse(c, "YogAI API is running", gin.H{
+		"catalog_loaded":     catalogCount > 0,
+		"total_poses":        catalogCount,
+		"categories":         catReport,
+		"gemini_configured":  true,
+		"firestore_configured": true,
+	})
+}
+
+func buildBilingualPlanPrompt(req GeneratePlanRequest, injuries []string, poseIDList string) string {
+	prompt := "Generate a bilingual yoga plan with these parameters: " +
 		"Level: " + req.Level + ". " +
 		"Total duration: exactly " + fmt.Sprintf("%d", req.Duration) + " minutes."
 
@@ -430,7 +424,7 @@ func buildPlanPrompt(req GeneratePlanRequest, injuries []string, poseIDList stri
 
 	if req.FocusArea != "" {
 		prompt += " Focus area: " + req.FocusArea + "." +
-			" ALL exercises MUST directly target this focus. If it is a pain condition, use only therapeutic movements and exclude contraindicated poses."
+			" ALL exercises MUST directly target this focus. If it is a pain condition, use only therapeutic movements."
 	}
 
 	if len(injuries) > 0 {
@@ -439,31 +433,23 @@ func buildPlanPrompt(req GeneratePlanRequest, injuries []string, poseIDList stri
 	}
 
 	if req.Preferences != "" {
-		prompt += " User notes (ABSOLUTE COMMANDS - must be reflected in every exercise): \"" + req.Preferences + "\"."
+		prompt += " User notes (ABSOLUTE COMMANDS - must be reflected in every exercise benefit): \"" + req.Preferences + "\"."
 	}
 
-	if lang == "tr" {
-		prompt += " LANGUAGE RULE: The title, description, instructions, focus_point, and benefit fields MUST be written in Turkish. " +
-			"pose_id values MUST remain exactly as given in the allowed list (English identifiers)."
-	} else {
-		prompt += " Write all text fields in English."
-	}
-
-	prompt += " Return JSON with this exact schema: " +
+	prompt += " Return a SINGLE JSON with BOTH English and Turkish text. Exact schema: " +
 		"{" +
-		"\"title\": \"motivating title based on focus\"," +
+		"\"title_en\": \"motivating English title\"," +
+		"\"title_tr\": \"motivating Turkish title\"," +
 		"\"focus_area\": \"primary focus addressed\"," +
 		"\"difficulty\": \"Beginner/Intermediate/Advanced\"," +
 		"\"total_duration_min\": integer (must equal sum of all exercise duration_min)," +
-		"\"is_favorite\": false," +
-		"\"is_pinned\": false," +
-		"\"description\": \"2-sentence explanation of how this plan addresses user's goals\"," +
+		"\"description_en\": \"2-sentence English explanation of how this plan addresses user goals\"," +
+		"\"description_tr\": \"2-sentence Turkish explanation of how this plan addresses user goals\"," +
 		"\"exercises\": [{" +
 		"\"pose_id\": \"exact pose_id from the allowed list\"," +
 		"\"duration_min\": integer," +
-		"\"instructions\": \"clear step-by-step guidance\"," +
-		"\"focus_point\": \"specific alignment or mental focus cue\"," +
-		"\"benefit\": \"why this pose is crucial for user's specific condition\"" +
+		"\"benefit_en\": \"English explanation of why this pose helps this user\"," +
+		"\"benefit_tr\": \"Turkish explanation of why this pose helps this user\"" +
 		"}]" +
 		"}"
 	return prompt
