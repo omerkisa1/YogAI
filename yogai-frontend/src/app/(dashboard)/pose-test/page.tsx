@@ -232,19 +232,25 @@ export default function PoseTestPage() {
 
               <div className="space-y-4">
                 <h3 className="font-medium border-b pb-2">Rule Breakdown</h3>
-                {result.rules.map((r, idx) => (
-                  <div key={idx} className="flex flex-col text-sm border p-3 rounded bg-slate-50 dark:bg-slate-800/50">
-                    <div className="flex justify-between font-medium">
-                      <span className="capitalize">{r.joint.replace("_", " ")}</span>
-                      <span className={r.score >= 90 ? "text-green-600" : (r.score >= 60 ? "text-amber-600" : "text-red-600")}>
-                        {r.score.toFixed(1)}% ({r.status})
-                      </span>
+                {result.rules && result.rules.length > 0 ? (
+                  result.rules.map((r, idx) => (
+                    <div key={idx} className="flex flex-col text-sm border p-3 rounded bg-slate-50 dark:bg-slate-800/50">
+                      <div className="flex justify-between font-medium">
+                        <span className="capitalize">{r.joint.replace("_", " ")}</span>
+                        <span className={r.score >= 90 ? "text-green-600" : (r.score >= 60 ? "text-amber-600" : "text-red-600")}>
+                          {r.score.toFixed(1)}% ({r.status})
+                        </span>
+                      </div>
+                      <div className="text-slate-500 mt-1">
+                        Angle: {r.actual_angle.toFixed(1)}° (Expected: {r.expected_range[0]}-{r.expected_range[1]}°)
+                      </div>
                     </div>
-                    <div className="text-slate-500 mt-1">
-                      Angle: {r.actual_angle.toFixed(1)}° (Expected: {r.expected_range[0]}-{r.expected_range[1]}°)
-                    </div>
+                  ))
+                ) : (
+                  <div className="text-slate-500 italic text-sm">
+                    No specific rules defined for this pose yet, or landmarks are not fully visible.
                   </div>
-                ))}
+                )}
               </div>
             </div>
           )}
