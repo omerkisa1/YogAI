@@ -107,7 +107,7 @@ func validateAndEnrich(raw string) (*BilingualPlan, error) {
         var validExercises []BilingualExercise
         actualDuration := 0
 
-        for i, ex := range llmResp.Exercises {
+        for _, ex := range llmResp.Exercises {
                 pose, exists := catalog.GetPoseByID(ex.PoseID)
                 if !exists {
                         log.Printf("[WARN] LLM returned invalid pose_id %q (not in catalog), skipping...", ex.PoseID)
@@ -140,6 +140,9 @@ func validateAndEnrich(raw string) (*BilingualPlan, error) {
 
         plan.Exercises = validExercises
         plan.TotalDurationMin = actualDuration
+
+        return plan, nil
+}
 
 func parsePlanJSON(raw string) interface{} {
 	if raw == "" {
@@ -393,6 +396,17 @@ func (h *YogaHandler) AnalyzePose(c *gin.Context) {
         }
 
         models.SuccessResponse(c, "pose analyzed successfully", analysis)
+}
+
+func (h *YogaHandler) HealthCheck(c *gin.Context) {
+	poses := catalog.GetAllPoses()
+	catalogCount := len(poses)
+
+	categories := make(map[catalog.Category]int)
+	for _, p := range poses {
+		categories[p.Category]++
+	}
+	
 	catReport := make(gin.H, len(categories))
 	for cat, count := range categories {
 		catReport[string(cat)] = count
