@@ -40,10 +40,7 @@ type UpdatePlanMetaRequest struct {
 	IsPinned   *bool `json:"is_pinned"`
 }
 
-type AnalyzePoseRequest struct {
-	PoseName    string `json:"pose_name" binding:"required"`
-	Description string `json:"description" binding:"required"`
-}
+// type removed
 
 type BilingualExercise struct {
 	PoseID         string `json:"pose_id"`
@@ -83,56 +80,66 @@ func (h *YogaHandler) getUserID(c *gin.Context) (string, bool) {
 func validateAndEnrich(raw string) (*BilingualPlan, error) {
 	var llmResp services.LLMPlanResponse
 	if err := json.Unmarshal([]byte(raw), &llmResp); err != nil {
-		return nil, fmt.Errorf("invalid JSON from LLM: %w", err)
-	}
+                return nil, fmt.Errorf("invalid JSON from LLM: %w", err)
+        }
 
-	if llmResp.TitleEN == "" && llmResp.TitleTR == "" {
-		return nil, fmt.Errorf("LLM response missing title")
-	}
+        if llmResp.TitleEN == "" && llmResp.TitleTR == "" {
+                return nil, fmt.Errorf("LLM response missing title")
+        }
 
-	if len(llmResp.Exercises) == 0 {
-		return nil, fmt.Errorf("LLM response has no exercises")
-	}
+        if len(llmResp.Exercises) == 0 {
+                return nil, fmt.Errorf("LLM response has no exercises")
+        }
 
-	plan := &BilingualPlan{
-		TitleEN:          llmResp.TitleEN,
-		TitleTR:          llmResp.TitleTR,
-		FocusArea:        llmResp.FocusArea,
-		Difficulty:       llmResp.Difficulty,
-		TotalDurationMin: llmResp.TotalDurationMin,
-		DescriptionEN:    llmResp.DescriptionEN,
-		DescriptionTR:    llmResp.DescriptionTR,
-		IsFavorite:       false,
-		IsPinned:         false,
-		Exercises:        make([]BilingualExercise, 0, len(llmResp.Exercises)),
-	}
+        plan := &BilingualPlan{
+                TitleEN:          llmResp.TitleEN,
+                TitleTR:          llmResp.TitleTR,
+                FocusArea:        llmResp.FocusArea,
+                Difficulty:       llmResp.Difficulty,
+                TotalDurationMin: 0,
+                DescriptionEN:    llmResp.DescriptionEN,
+                DescriptionTR:    llmResp.DescriptionTR,
+                IsFavorite:       false,
+                IsPinned:         false,
+                Exercises:        make([]BilingualExercise, 0),
+        }
 
-	for i, ex := range llmResp.Exercises {
-		pose, exists := catalog.GetPoseByID(ex.PoseID)
-		if !exists {
-			return nil, fmt.Errorf("exercise %d has invalid pose_id: %q (not in catalog)", i, ex.PoseID)
-		}
+        var validExercises []BilingualExercise
+        actualDuration := 0
 
-		if ex.Duration <= 0 {
-			return nil, fmt.Errorf("exercise %d (%s) has invalid duration: %d", i, ex.PoseID, ex.Duration)
-		}
+        for i, ex := range llmResp.Exercises {
+                pose, exists := catalog.GetPoseByID(ex.PoseID)
+                if !exists {
+                        log.Printf("[WARN] LLM returned invalid pose_id %q (not in catalog), skipping...", ex.PoseID)
+                        continue
+                }
 
-		plan.Exercises = append(plan.Exercises, BilingualExercise{
-			PoseID:         ex.PoseID,
-			NameEN:         pose.NameEN,
-			NameTR:         pose.NameTR,
-			DurationMin:    ex.Duration,
-			InstructionsEN: pose.InstructionsEN,
-			InstructionsTR: pose.InstructionsTR,
-			BenefitEN:      ex.BenefitEN,
-			BenefitTR:      ex.BenefitTR,
-			TargetArea:     pose.TargetArea,
-			Category:       string(pose.Category),
-		})
-	}
+                if ex.Duration <= 0 {
+                        log.Printf("[WARN] LLM returned invalid duration %d for pose %q, skipping...", ex.Duration, ex.PoseID)
+                        continue
+                }
 
-	return plan, nil
-}
+                validExercises = append(validExercises, BilingualExercise{
+                        PoseID:         ex.PoseID,
+                        NameEN:         pose.NameEN,
+                        NameTR:         pose.NameTR,
+                        DurationMin:    ex.Duration,
+                        InstructionsEN: pose.InstructionsEN,
+                        InstructionsTR: pose.InstructionsTR,
+                        BenefitEN:      ex.BenefitEN,
+                        BenefitTR:      ex.BenefitTR,
+                        TargetArea:     pose.TargetArea,
+                        Category:       string(pose.Category),
+                })
+                actualDuration += ex.Duration
+        }
+
+        if len(validExercises) == 0 {
+                return nil, fmt.Errorf("no valid exercises returned by LLM after filtering")
+        }
+
+        plan.Exercises = validExercises
+        plan.TotalDurationMin = actualDuration
 
 func parsePlanJSON(raw string) interface{} {
 	if raw == "" {
@@ -372,35 +379,20 @@ func (h *YogaHandler) AnalyzePose(c *gin.Context) {
 		return
 	}
 
-	var req AnalyzePoseRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		models.ErrorResponse(c, http.StatusBadRequest, err.Error())
-		return
-	}
+        var req services.AnalyzeRequest
+        if err := c.ShouldBindJSON(&req); err != nil {
+                models.ErrorResponse(c, http.StatusBadRequest, err.Error())
+                return
+        }
 
-	prompt := buildAnalyzePrompt(req)
+        analysis, err := services.AnalyzePoseLandmarks(req)
+        if err != nil {
+                log.Printf("[ERROR] AnalyzePoseLandmarks failed: %v", err)
+                models.ErrorResponse(c, http.StatusInternalServerError, "failed to analyze pose: "+err.Error())
+                return
+        }
 
-	result, err := h.aiService.AnalyzePose(c.Request.Context(), prompt)
-	if err != nil {
-		log.Printf("[ERROR] gemini AnalyzePose failed: %v", err)
-		models.ErrorResponse(c, http.StatusInternalServerError, "failed to analyze pose")
-		return
-	}
-
-	var parsedAnalysis interface{}
-	if err := json.Unmarshal([]byte(result), &parsedAnalysis); err != nil {
-		parsedAnalysis = result
-	}
-
-	models.SuccessResponse(c, "pose analyzed successfully", gin.H{
-		"analysis": parsedAnalysis,
-	})
-}
-
-func (h *YogaHandler) HealthCheck(c *gin.Context) {
-	catalogCount := catalog.TotalPoseCount()
-	categories := catalog.CategoriesWithCounts()
-
+        models.SuccessResponse(c, "pose analyzed successfully", analysis)
 	catReport := make(gin.H, len(categories))
 	for cat, count := range categories {
 		catReport[string(cat)] = count
@@ -455,11 +447,4 @@ func buildBilingualPlanPrompt(req GeneratePlanRequest, injuries []string, poseID
 	return prompt
 }
 
-func buildAnalyzePrompt(req AnalyzePoseRequest) string {
-	return "As an elite yoga instructor, analyze this pose: " +
-		"Pose: " + req.PoseName + ". " +
-		"User's description: \"" + req.Description + "\". " +
-		"If the user mentions any pain or limitation, tailor advice accordingly. " +
-		"Return JSON: {\"pose_name\": string, \"alignment_tips\": [strings], " +
-		"\"common_mistakes\": [strings], \"modifications\": [strings], \"benefits\": [strings]}."
-}
+// buildAnalyzePrompt removed
