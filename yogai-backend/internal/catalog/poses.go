@@ -18,6 +18,7 @@ type LandmarkRule struct {
         AngleMin   float64 `json:"angle_min"`
         AngleMax   float64 `json:"angle_max"`
         Weight     float64 `json:"weight"`
+        RuleType   string  `json:"rule_type"`
         FeedbackEN string  `json:"feedback_en"`
         FeedbackTR string  `json:"feedback_tr"`
 }
@@ -40,24 +41,25 @@ var AllPoses = []Pose{
 	{PoseID: "test_right_arm_up", NameEN: "[TEST] Right Arm Up", NameTR: "[TEST] Sağ Kol Yukarı", Category: CategoryStanding, Difficulty: 1, TargetArea: "arms", 
 		InstructionsEN: "Raise your right arm straight up.", InstructionsTR: "Sağ kolunuzu dümdüz yukarı kaldırın.", Contraindications: []string{},
 		LandmarkRules: []LandmarkRule{
-			{Joint: "right_shoulder", PointA: 24, PointB: 12, PointC: 14, AngleMin: 150, AngleMax: 180, Weight: 0.50, FeedbackEN: "Raise your right arm higher.", FeedbackTR: "Sağ kolunuzu daha yukarı kaldırın."},
-			{Joint: "right_elbow", PointA: 12, PointB: 14, PointC: 16, AngleMin: 160, AngleMax: 180, Weight: 0.50, FeedbackEN: "Keep your right elbow straight.", FeedbackTR: "Sağ dirseğinizi bükmeyin, dümdüz tutun."},
+			{Joint: "right_shoulder", PointA: 24, PointB: 12, PointC: 14, AngleMin: 150, AngleMax: 180, Weight: 0.50, RuleType: "target", FeedbackEN: "Raise your right arm higher.", FeedbackTR: "Sağ kolunuzu daha yukarı kaldırın."},
+			{Joint: "right_elbow", PointA: 12, PointB: 14, PointC: 16, AngleMin: 160, AngleMax: 180, Weight: 0.50, RuleType: "target", FeedbackEN: "Keep your right elbow straight.", FeedbackTR: "Sağ dirseğinizi bükmeyin, dümdüz tutun."},
+			{Joint: "torso_lean", PointA: 12, PointB: 24, PointC: 26, AngleMin: 0, AngleMax: 160, Weight: 0.15, RuleType: "fault", FeedbackEN: "Don't lean your torso, stand straight.", FeedbackTR: "Gövdenizi yana eğmeyin, dik durun."},
 		},
 	},
 	{PoseID: "test_bend_elbows", NameEN: "[TEST] Bend Elbows", NameTR: "[TEST] İki Dirseği Bük", Category: CategoryStanding, Difficulty: 1, TargetArea: "arms", 
 		InstructionsEN: "Bend both of your elbows tightly.", InstructionsTR: "İki dirseğinizi de kendinize doğru iyice bükün.", Contraindications: []string{},
 		LandmarkRules: []LandmarkRule{
-			{Joint: "left_elbow", PointA: 11, PointB: 13, PointC: 15, AngleMin: 10, AngleMax: 60, Weight: 0.50, FeedbackEN: "Bend your left elbow more.", FeedbackTR: "Sol dirseğinizi daha fazla bükün."},
-			{Joint: "right_elbow", PointA: 12, PointB: 14, PointC: 16, AngleMin: 10, AngleMax: 60, Weight: 0.50, FeedbackEN: "Bend your right elbow more.", FeedbackTR: "Sağ dirseğinizi daha fazla bükün."},
+			{Joint: "left_elbow", PointA: 11, PointB: 13, PointC: 15, AngleMin: 10, AngleMax: 60, Weight: 0.50, RuleType: "target", FeedbackEN: "Bend your left elbow more.", FeedbackTR: "Sol dirseğinizi daha fazla bükün."},
+			{Joint: "right_elbow", PointA: 12, PointB: 14, PointC: 16, AngleMin: 10, AngleMax: 60, Weight: 0.50, RuleType: "target", FeedbackEN: "Bend your right elbow more.", FeedbackTR: "Sağ dirseğinizi daha fazla bükün."},
 		},
 	},
 	{PoseID: "test_t_pose", NameEN: "[TEST] T-Pose", NameTR: "[TEST] Kolları Yana Aç (T)", Category: CategoryStanding, Difficulty: 1, TargetArea: "arms", 
 		InstructionsEN: "Raise both arms to the sides parallel to the floor.", InstructionsTR: "İki kolunuzu da yere paralel olacak şekilde yana açın.", Contraindications: []string{},
 		LandmarkRules: []LandmarkRule{
-			{Joint: "left_shoulder_raise", PointA: 23, PointB: 11, PointC: 13, AngleMin: 75, AngleMax: 105, Weight: 0.25, FeedbackEN: "Keep left arm parallel to floor.", FeedbackTR: "Sol kolunuzu yere paralel hizaya getirin."},
-			{Joint: "right_shoulder_raise", PointA: 24, PointB: 12, PointC: 14, AngleMin: 75, AngleMax: 105, Weight: 0.25, FeedbackEN: "Keep right arm parallel to floor.", FeedbackTR: "Sağ kolunuzu yere paralel hizaya getirin."},
-			{Joint: "left_elbow_straight", PointA: 11, PointB: 13, PointC: 15, AngleMin: 160, AngleMax: 180, Weight: 0.25, FeedbackEN: "Straighten left arm.", FeedbackTR: "Sol kolunuzu tamamen düzeltin."},
-			{Joint: "right_elbow_straight", PointA: 12, PointB: 14, PointC: 16, AngleMin: 160, AngleMax: 180, Weight: 0.25, FeedbackEN: "Straighten right arm.", FeedbackTR: "Sağ kolunuzu tamamen düzeltin."},
+			{Joint: "left_shoulder_raise", PointA: 23, PointB: 11, PointC: 13, AngleMin: 75, AngleMax: 105, Weight: 0.25, RuleType: "target", FeedbackEN: "Keep left arm parallel to floor.", FeedbackTR: "Sol kolunuzu yere paralel hizaya getirin."},
+			{Joint: "right_shoulder_raise", PointA: 24, PointB: 12, PointC: 14, AngleMin: 75, AngleMax: 105, Weight: 0.25, RuleType: "target", FeedbackEN: "Keep right arm parallel to floor.", FeedbackTR: "Sağ kolunuzu yere paralel hizaya getirin."},
+			{Joint: "left_elbow_straight", PointA: 11, PointB: 13, PointC: 15, AngleMin: 160, AngleMax: 180, Weight: 0.25, RuleType: "target", FeedbackEN: "Straighten left arm.", FeedbackTR: "Sol kolunuzu tamamen düzeltin."},
+			{Joint: "right_elbow_straight", PointA: 12, PointB: 14, PointC: 16, AngleMin: 160, AngleMax: 180, Weight: 0.25, RuleType: "target", FeedbackEN: "Straighten right arm.", FeedbackTR: "Sağ kolunuzu tamamen düzeltin."},
 		},
 	},
 	{PoseID: "mountain", NameEN: "Mountain Pose", NameTR: "Dağ Duruşu", Category: CategoryStanding, Difficulty: 1, TargetArea: "full_body", InstructionsEN: "Stand tall with feet together, arms at sides. Distribute weight evenly, engage thighs, lengthen spine. Relax shoulders down and breathe deeply.", InstructionsTR: "Ayaklar bitişik, kollar yanlarda dik durun. Ağırlığı eşit dağıtın, baldırları sıkın, omurgayı uzatın. Omuzları gevşetin ve derin nefes alın.", Contraindications: []string{},
@@ -144,9 +146,15 @@ var AllPoses = []Pose{
 	{PoseID: "bow", NameEN: "Bow Pose", NameTR: "Yay Duruşu", Category: CategoryProne, Difficulty: 3, TargetArea: "back", InstructionsEN: "Lie face down, bend knees and reach back to hold ankles. Kick feet into hands to lift chest and thighs. Open chest and look forward.", InstructionsTR: "Yüzüstü uzanın, dizleri bükün ve bilekleri tutmak için geriye uzanın. Ayakları ellere doğru iterek göğsü ve uylukları kaldırın. Göğsü açın ve öne bakın.", Contraindications: []string{"herniated_disc", "pregnancy", "low_back_pain"}},
 	{PoseID: "plank", NameEN: "Plank Pose", NameTR: "Plank Duruşu", Category: CategoryProne, Difficulty: 2, TargetArea: "core", InstructionsEN: "Place hands under shoulders, extend legs back. Body forms a straight line from head to heels. Engage core, hold steady and breathe.", InstructionsTR: "Elleri omuzların altına koyun, bacakları geriye uzatın. Vücut baştan topuklara düz bir çizgi oluşturur. Karnı sıkın, sabit tutun ve nefes alın.", Contraindications: []string{"wrist_injury"},
 		LandmarkRules: []LandmarkRule{
-			{Joint: "body_straight", PointA: 11, PointB: 23, PointC: 25, AngleMin: 165, AngleMax: 180, Weight: 0.40, FeedbackEN: "Keep your body in a straight line.", FeedbackTR: "Vücudunuzu düz bir çizgide tutun."},
-			{Joint: "legs_straight", PointA: 23, PointB: 25, PointC: 27, AngleMin: 165, AngleMax: 180, Weight: 0.30, FeedbackEN: "Keep your legs straight.", FeedbackTR: "Bacaklarınızı düz tutun."},
-			{Joint: "arms_straight", PointA: 11, PointB: 13, PointC: 15, AngleMin: 165, AngleMax: 180, Weight: 0.30, FeedbackEN: "Keep your arms straight under your shoulders.", FeedbackTR: "Kollarınızı omuzlarınızın altında düz tutun."},
+			// TARGET: bunları tuttur
+			{Joint: "body_line", PointA: 11, PointB: 23, PointC: 27, AngleMin: 165, AngleMax: 180, Weight: 0.35, RuleType: "target", FeedbackEN: "Keep your body in a straight line.", FeedbackTR: "Vücudunuzu düz bir çizgide tutun."},
+			{Joint: "arms_straight", PointA: 12, PointB: 14, PointC: 16, AngleMin: 160, AngleMax: 180, Weight: 0.35, RuleType: "target", FeedbackEN: "Keep your arms straight.", FeedbackTR: "Kollarınızı düz tutun."},
+			{Joint: "core_engage", PointA: 12, PointB: 24, PointC: 26, AngleMin: 165, AngleMax: 180, Weight: 0.30, RuleType: "target", FeedbackEN: "Engage your core, keep hips aligned.", FeedbackTR: "Karnınızı sıkın, kalçanızı hizada tutun."},
+
+			// FAULT: bunları yaparsan hata
+			{Joint: "hip_drop", PointA: 11, PointB: 23, PointC: 25, AngleMin: 120, AngleMax: 155, Weight: 0.20, RuleType: "fault", FeedbackEN: "Your hips are dropping, lift them up.", FeedbackTR: "Kalçanız düşüyor, yukarı kaldırın."},
+			{Joint: "hip_pike", PointA: 11, PointB: 23, PointC: 25, AngleMin: 190, AngleMax: 220, Weight: 0.15, RuleType: "fault", FeedbackEN: "Your hips are too high, lower them.", FeedbackTR: "Kalçanız çok yukarıda, aşağı indirin."},
+			{Joint: "head_drop", PointA: 0, PointB: 11, PointC: 23, AngleMin: 0, AngleMax: 130, Weight: 0.15, RuleType: "fault", FeedbackEN: "Don't drop your head, keep it aligned with spine.", FeedbackTR: "Kafanızı öne eğmeyin, omurga hizasında tutun."},
 		},
 	},
 	{PoseID: "side_plank", NameEN: "Side Plank", NameTR: "Yan Plank", Category: CategoryProne, Difficulty: 3, TargetArea: "core", InstructionsEN: "From Plank, shift weight to one hand and stack feet. Raise opposite arm to ceiling. Keep body in a straight line, engage obliques.", InstructionsTR: "Plank'tan ağırlığı bir ele kaydırın ve ayakları üst üste koyun. Karşı kolu tavana kaldırın. Vücudu düz çizgide tutun, yan karın kaslarını çalıştırın.", Contraindications: []string{"wrist_injury", "shoulder_injury"}},

@@ -24,7 +24,10 @@ type RuleResult struct {
 	Joint         string    `json:"joint"`
 	ExpectedRange []float64 `json:"expected_range"`
 	ActualAngle   float64   `json:"actual_angle"`
-	Score         float64   `json:"score"`
+	RuleType      string    `json:"rule_type,omitempty"`
+	Score         float64   `json:"score,omitempty"`
+	Penalty       float64   `json:"penalty,omitempty"`
+	Triggered     bool      `json:"triggered,omitempty"`
 	Status        string    `json:"status"`
 	FeedbackEN    string    `json:"feedback_en,omitempty"`
 	FeedbackTR    string    `json:"feedback_tr,omitempty"`
@@ -33,6 +36,8 @@ type RuleResult struct {
 type AnalyzeResponse struct {
 	PoseID          string       `json:"pose_id"`
 	OverallAccuracy float64      `json:"overall_accuracy"`
+	TargetScore     float64      `json:"target_score"`
+	FaultPenalty    float64      `json:"fault_penalty"`
 	Rules           []RuleResult `json:"rules"`
 	FeedbackEN      string       `json:"feedback_en,omitempty"`
 	FeedbackTR      string       `json:"feedback_tr,omitempty"`
@@ -62,8 +67,9 @@ func AnalyzePoseLandmarks(req AnalyzeRequest) (*AnalyzeResponse, error) {
 	}
 
 	var results []RuleResult
-	totalScore := 0.0
-	totalWeight := 0.0
+	targetScoreSum := 0.0
+	targetWeightTotal := 0.0
+	faultPenaltySum := 0.0
 
 	var globalFeedbackEN, globalFeedbackTR string
 
@@ -78,62 +84,121 @@ func AnalyzePoseLandmarks(req AnalyzeRequest) (*AnalyzeResponse, error) {
 
 		angle := calculateAngle(a, b, c)
 
-		score := 100.0
-		if angle < rule.AngleMin {
-			diff := rule.AngleMin - angle
-			if diff > 15 {
-				score = 0
-			} else {
-				score = 100 - (diff / 15 * 100)
-			}
-		} else if angle > rule.AngleMax {
-			diff := angle - rule.AngleMax
-			if diff > 15 {
-				score = 0
-			} else {
-				score = 100 - (diff / 15 * 100)
-			}
+		ruleType := rule.RuleType
+		if ruleType == "" {
+			ruleType = "target"
 		}
 
-		status := "good"
-		fEN := ""
-		fTR := ""
-		if score < 60 {
-			status = "poor"
-			fEN = rule.FeedbackEN
-			fTR = rule.FeedbackTR
-			if globalFeedbackEN == "" {
-				globalFeedbackEN = fEN
-				globalFeedbackTR = fTR
+		if ruleType == "target" {
+			score := 100.0
+			diff := 0.0
+			if angle < rule.AngleMin {
+				diff = rule.AngleMin - angle
+			} else if angle > rule.AngleMax {
+				diff = angle - rule.AngleMax
 			}
-		} else if score < 90 {
-			status = "needs_improvement"
-			fEN = rule.FeedbackEN
-			fTR = rule.FeedbackTR
+
+			if diff > 0 {
+				if diff > 15.0 {
+					score = 0.0
+				} else {
+					score = 100.0 - (diff / 15.0 * 100.0)
+				}
+			}
+
+			status := "good"
+			fEN := ""
+			fTR := ""
+			if score < 60 {
+				status = "poor"
+				fEN = rule.FeedbackEN
+				fTR = rule.FeedbackTR
+				if globalFeedbackEN == "" {
+					globalFeedbackEN = fEN
+					globalFeedbackTR = fTR
+				}
+			} else if score < 90 {
+				status = "needs_improvement"
+				fEN = rule.FeedbackEN
+				fTR = rule.FeedbackTR
+			}
+
+			results = append(results, RuleResult{
+				Joint:         rule.Joint,
+				RuleType:      "target",
+				ExpectedRange: []float64{rule.AngleMin, rule.AngleMax},
+				ActualAngle:   angle,
+				Score:         score,
+				Status:        status,
+				FeedbackEN:    fEN,
+				FeedbackTR:    fTR,
+			})
+
+			targetScoreSum += score * rule.Weight
+			targetWeightTotal += rule.Weight
+
+		} else if ruleType == "fault" {
+			isTriggered := false
+			diff := 0.0
+
+			if angle < rule.AngleMin {
+				diff = rule.AngleMin - angle
+			} else if angle > rule.AngleMax {
+				diff = angle - rule.AngleMax
+			}
+
+			if diff == 0 {
+				isTriggered = true
+			}
+
+			status := "good"
+			penalty := 0.0
+			fEN := ""
+			fTR := ""
+
+			if isTriggered {
+				penalty = rule.Weight * 100.0
+				status = "fault_detected"
+				fEN = rule.FeedbackEN
+				fTR = rule.FeedbackTR
+				if globalFeedbackEN == "" {
+					globalFeedbackEN = fEN
+					globalFeedbackTR = fTR
+				}
+				faultPenaltySum += penalty
+			}
+
+			results = append(results, RuleResult{
+				Joint:         rule.Joint,
+				RuleType:      "fault",
+				ExpectedRange: []float64{rule.AngleMin, rule.AngleMax},
+				ActualAngle:   angle,
+				Penalty:       penalty,
+				Triggered:     isTriggered,
+				Status:        status,
+				FeedbackEN:    fEN,
+				FeedbackTR:    fTR,
+			})
 		}
-
-		results = append(results, RuleResult{
-			Joint:         rule.Joint,
-			ExpectedRange: []float64{rule.AngleMin, rule.AngleMax},
-			ActualAngle:   angle,
-			Score:         score,
-			Status:        status,
-			FeedbackEN:    fEN,
-			FeedbackTR:    fTR,
-		})
-
-		totalScore += score * rule.Weight
-		totalWeight += rule.Weight
 	}
 
-	overallAcc := 0.0
-	if totalWeight > 0 {
-		overallAcc = totalScore / totalWeight
+	finalTargetScore := 0.0
+	if targetWeightTotal > 0 {
+		finalTargetScore = targetScoreSum / targetWeightTotal
+	} else {
+		finalTargetScore = 100.0 // no target rules
+	}
+
+	overallAcc := finalTargetScore - faultPenaltySum
+	if overallAcc < 0 {
+		overallAcc = 0
 	}
 
 	return &AnalyzeResponse{
 		PoseID:          req.PoseID,
 		OverallAccuracy: overallAcc,
+		TargetScore:     finalTargetScore,
+		FaultPenalty:    faultPenaltySum,
 		Rules:           results,
 		FeedbackEN:      globalFeedbackEN,
 		FeedbackTR:      globalFeedbackTR,

@@ -14,7 +14,10 @@ type RuleResult = {
   joint: string;
   expected_range: number[];
   actual_angle: number;
-  score: number;
+  rule_type?: string;
+  score?: number;
+  penalty?: number;
+  triggered?: boolean;
   status: string;
   feedback_en?: string;
   feedback_tr?: string;
@@ -23,6 +26,8 @@ type RuleResult = {
 type AnalysisResponse = {
   pose_id: string;
   overall_accuracy: number;
+  target_score: number;
+  fault_penalty: number;
   rules: RuleResult[];
   feedback_en?: string;
   feedback_tr?: string;
@@ -236,6 +241,8 @@ export default function PoseTestPage() {
                 <div className="text-4xl font-bold">
                   {result.overall_accuracy.toFixed(1)}%
                 </div>
+                <div className="text-sm text-slate-500 mt-2">Target Score: {result.target_score?.toFixed(1) || "100.0"}%</div>
+                <div className="text-sm text-slate-500">Fault Penalty: -{result.fault_penalty?.toFixed(1) || "0.0"}%</div>
                 {result.feedback_en && (
                   <div className="mt-2 p-3 bg-amber-50 text-amber-800 rounded border border-amber-200">
                     💬 {result.feedback_en}
@@ -246,19 +253,27 @@ export default function PoseTestPage() {
               <div className="space-y-4">
                 <h3 className="font-medium border-b pb-2">Rule Breakdown</h3>
                 {result.rules && result.rules.length > 0 ? (
-                  result.rules.map((r, idx) => (
-                    <div key={idx} className="flex flex-col text-sm border p-3 rounded bg-slate-50 dark:bg-slate-800/50">
+                  result.rules.map((r, idx) => {
+                    const isFault = r.rule_type === "fault";
+                    return (
+                    <div key={idx} className={`flex flex-col text-sm border p-3 rounded ${isFault && r.triggered ? "bg-red-50 border-red-200 dark:bg-red-900/20" : "bg-slate-50 dark:bg-slate-800/50"}`}>
                       <div className="flex justify-between font-medium">
-                        <span className="capitalize">{r.joint.replace("_", " ")}</span>
-                        <span className={r.score >= 90 ? "text-green-600" : (r.score >= 60 ? "text-amber-600" : "text-red-600")}>
-                          {r.score.toFixed(1)}% ({r.status})
-                        </span>
+                        <span className="capitalize">{r.joint.replace("_", " ")} {isFault ? "(Fault)" : "(Target)"}</span>
+                        {!isFault ? (
+                          <span className={(r.score ?? 0) >= 90 ? "text-green-600" : ((r.score ?? 0) >= 60 ? "text-amber-600" : "text-red-600")}>
+                            {r.score?.toFixed(1)}% ({r.status})
+                          </span>
+                        ) : (
+                          <span className={r.triggered ? "text-red-600 font-bold" : "text-slate-500"}>
+                            {r.triggered ? `-% PENALTY` : "OK (No Fault)"}
+                          </span>
+                        )}
                       </div>
                       <div className="text-slate-500 mt-1">
-                        Angle: {r.actual_angle.toFixed(1)}° (Expected: {r.expected_range[0]}-{r.expected_range[1]}°)
+                        Angle: {r.actual_angle?.toFixed(1)}° (Expected: {r.expected_range[0]}-{r.expected_range[1]}°)
                       </div>
                     </div>
-                  ))
+                  )})
                 ) : (
                   <div className="text-slate-500 italic text-sm">
                     No specific rules defined for this pose yet, or landmarks are not fully visible.
@@ -272,3 +287,6 @@ export default function PoseTestPage() {
     </div>
   );
 }
+
+
+
