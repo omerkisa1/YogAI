@@ -133,8 +133,12 @@ export default function PoseTestPage() {
       if (videoRef.current) {
         camera = new Camera(videoRef.current, {
           onFrame: async () => {
-            if (videoRef.current) {
-              await pose.send({ image: videoRef.current });
+            if (videoRef.current && isMounted) {
+              try {
+                await pose.send({ image: videoRef.current });
+              } catch (e) {
+                console.warn("Pose send bypassed (likely unmounted)", e);
+              }
             }
           },
           width: 640,
@@ -148,8 +152,17 @@ export default function PoseTestPage() {
 
     return () => {
       isMounted = false;
-      if (camera) camera.stop();
-      if (pose) pose.close();
+      if (camera) {
+        camera.stop();
+      }
+      if (pose) {
+        // give camera a tiny moment to stop before destroying pose
+        setTimeout(() => {
+          try {
+            pose.close();
+          } catch(e) {}
+        }, 100);
+      }
     };
   }, [isAnalyzing, selectedPose]);
 
