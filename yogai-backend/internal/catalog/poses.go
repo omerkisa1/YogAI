@@ -37,6 +37,29 @@ type Pose struct {
 }
 
 var AllPoses = []Pose{
+	{PoseID: "test_right_arm_up", NameEN: "[TEST] Right Arm Up", NameTR: "[TEST] Sağ Kol Yukarı", Category: CategoryStanding, Difficulty: 1, TargetArea: "arms", 
+		InstructionsEN: "Raise your right arm straight up.", InstructionsTR: "Sağ kolunuzu dümdüz yukarı kaldırın.", Contraindications: []string{},
+		LandmarkRules: []LandmarkRule{
+			{Joint: "right_shoulder", PointA: 24, PointB: 12, PointC: 14, AngleMin: 150, AngleMax: 180, Weight: 0.50, FeedbackEN: "Raise your right arm higher.", FeedbackTR: "Sağ kolunuzu daha yukarı kaldırın."},
+			{Joint: "right_elbow", PointA: 12, PointB: 14, PointC: 16, AngleMin: 160, AngleMax: 180, Weight: 0.50, FeedbackEN: "Keep your right elbow straight.", FeedbackTR: "Sağ dirseğinizi bükmeyin, dümdüz tutun."},
+		},
+	},
+	{PoseID: "test_bend_elbows", NameEN: "[TEST] Bend Elbows", NameTR: "[TEST] İki Dirseği Bük", Category: CategoryStanding, Difficulty: 1, TargetArea: "arms", 
+		InstructionsEN: "Bend both of your elbows tightly.", InstructionsTR: "İki dirseğinizi de kendinize doğru iyice bükün.", Contraindications: []string{},
+		LandmarkRules: []LandmarkRule{
+			{Joint: "left_elbow", PointA: 11, PointB: 13, PointC: 15, AngleMin: 10, AngleMax: 60, Weight: 0.50, FeedbackEN: "Bend your left elbow more.", FeedbackTR: "Sol dirseğinizi daha fazla bükün."},
+			{Joint: "right_elbow", PointA: 12, PointB: 14, PointC: 16, AngleMin: 10, AngleMax: 60, Weight: 0.50, FeedbackEN: "Bend your right elbow more.", FeedbackTR: "Sağ dirseğinizi daha fazla bükün."},
+		},
+	},
+	{PoseID: "test_t_pose", NameEN: "[TEST] T-Pose", NameTR: "[TEST] Kolları Yana Aç (T)", Category: CategoryStanding, Difficulty: 1, TargetArea: "arms", 
+		InstructionsEN: "Raise both arms to the sides parallel to the floor.", InstructionsTR: "İki kolunuzu da yere paralel olacak şekilde yana açın.", Contraindications: []string{},
+		LandmarkRules: []LandmarkRule{
+			{Joint: "left_shoulder_raise", PointA: 23, PointB: 11, PointC: 13, AngleMin: 75, AngleMax: 105, Weight: 0.25, FeedbackEN: "Keep left arm parallel to floor.", FeedbackTR: "Sol kolunuzu yere paralel hizaya getirin."},
+			{Joint: "right_shoulder_raise", PointA: 24, PointB: 12, PointC: 14, AngleMin: 75, AngleMax: 105, Weight: 0.25, FeedbackEN: "Keep right arm parallel to floor.", FeedbackTR: "Sağ kolunuzu yere paralel hizaya getirin."},
+			{Joint: "left_elbow_straight", PointA: 11, PointB: 13, PointC: 15, AngleMin: 160, AngleMax: 180, Weight: 0.25, FeedbackEN: "Straighten left arm.", FeedbackTR: "Sol kolunuzu tamamen düzeltin."},
+			{Joint: "right_elbow_straight", PointA: 12, PointB: 14, PointC: 16, AngleMin: 160, AngleMax: 180, Weight: 0.25, FeedbackEN: "Straighten right arm.", FeedbackTR: "Sağ kolunuzu tamamen düzeltin."},
+		},
+	},
 	{PoseID: "mountain", NameEN: "Mountain Pose", NameTR: "Dağ Duruşu", Category: CategoryStanding, Difficulty: 1, TargetArea: "full_body", InstructionsEN: "Stand tall with feet together, arms at sides. Distribute weight evenly, engage thighs, lengthen spine. Relax shoulders down and breathe deeply.", InstructionsTR: "Ayaklar bitişik, kollar yanlarda dik durun. Ağırlığı eşit dağıtın, baldırları sıkın, omurgayı uzatın. Omuzları gevşetin ve derin nefes alın.", Contraindications: []string{},
 		LandmarkRules: []LandmarkRule{
 			{Joint: "left_leg", PointA: 23, PointB: 25, PointC: 27, AngleMin: 170, AngleMax: 180, Weight: 0.25, FeedbackEN: "Keep your left leg straight.", FeedbackTR: "Sol bacağınızı düz tutun."},
