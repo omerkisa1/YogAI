@@ -11,10 +11,14 @@ const api = axios.create({
 });
 
 api.interceptors.request.use(async (config) => {
+  await auth.authStateReady(); 
+  
   const user = auth.currentUser;
   if (user) {
     const token = await user.getIdToken();
     config.headers.Authorization = `Bearer ${token}`;
+  } else {
+    console.warn("DİKKAT: Kullanıcı girişi bulunamadı, yetkisiz istek atılıyor!");
   }
   return config;
 });
