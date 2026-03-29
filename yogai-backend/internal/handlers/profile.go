@@ -17,16 +17,19 @@ func NewProfileHandler(repo repository.ProfileRepository) *ProfileHandler {
 }
 
 type SaveProfileRequest struct {
-	DisplayName       string   `json:"display_name" binding:"required"`
-	BirthYear         int      `json:"birth_year"`
-	Gender            string   `json:"gender"`
-	HeightCM          int      `json:"height_cm"`
-	WeightKG          int      `json:"weight_kg"`
-	FitnessLevel      string   `json:"fitness_level"`
-	Injuries          []string `json:"injuries"`
-	Goals             []string `json:"goals"`
-	PreferredDuration int      `json:"preferred_duration"`
-	ProfileImageURL   string   `json:"profile_image_url"`
+	DisplayName       *string   `json:"display_name"`
+	BirthYear         *int      `json:"birth_year"`
+	Gender            *string   `json:"gender"`
+	HeightCM          *int      `json:"height_cm"`
+	WeightKG          *int      `json:"weight_kg"`
+	FitnessLevel      *string   `json:"fitness_level"`
+	Injuries          *[]string `json:"injuries"`
+	Goals             *[]string `json:"goals"`
+	PreferredDuration *int      `json:"preferred_duration"`
+	ProfileImageURL   *string   `json:"profile_image_url"`
+	Platform          *string   `json:"platform"`
+	LastLoginAt       *string   `json:"last_login_at"`
+	AuthProvider      *string   `json:"auth_provider"`
 }
 
 func (h *ProfileHandler) GetProfile(c *gin.Context) {
@@ -58,6 +61,9 @@ func (h *ProfileHandler) GetProfile(c *gin.Context) {
 		"goals":              profile.Goals,
 		"preferred_duration": profile.PreferredDuration,
 		"profile_image_url":  profile.ProfileImageURL,
+		"platform":           profile.Platform,
+		"last_login_at":      profile.LastLoginAt,
+		"auth_provider":      profile.AuthProvider,
 		"created_at":         profile.CreatedAt,
 		"updated_at":         profile.UpdatedAt,
 	})
@@ -76,24 +82,62 @@ func (h *ProfileHandler) SaveProfile(c *gin.Context) {
 		return
 	}
 
-	if req.Injuries == nil {
-		req.Injuries = []string{}
-	}
-	if req.Goals == nil {
-		req.Goals = []string{}
+	existingProfile, err := h.repo.GetProfile(c.Request.Context(), uid.(string))
+	if err != nil {
+		models.ErrorResponse(c, http.StatusInternalServerError, "failed to get profile")
+		return
 	}
 
-	profile := &repository.UserProfile{
-		DisplayName:       req.DisplayName,
-		BirthYear:         req.BirthYear,
-		Gender:            req.Gender,
-		HeightCM:          req.HeightCM,
-		WeightKG:          req.WeightKG,
-		FitnessLevel:      req.FitnessLevel,
-		Injuries:          req.Injuries,
-		Goals:             req.Goals,
-		PreferredDuration: req.PreferredDuration,
-		ProfileImageURL:   req.ProfileImageURL,
+	profile := &repository.UserProfile{}
+	if existingProfile != nil {
+		profile = existingProfile
+	}
+
+	if req.DisplayName != nil {
+		profile.DisplayName = *req.DisplayName
+	}
+	if req.BirthYear != nil {
+		profile.BirthYear = *req.BirthYear
+	}
+	if req.Gender != nil {
+		profile.Gender = *req.Gender
+	}
+	if req.HeightCM != nil {
+		profile.HeightCM = *req.HeightCM
+	}
+	if req.WeightKG != nil {
+		profile.WeightKG = *req.WeightKG
+	}
+	if req.FitnessLevel != nil {
+		profile.FitnessLevel = *req.FitnessLevel
+	}
+	if req.Injuries != nil {
+		profile.Injuries = *req.Injuries
+	}
+	if req.Goals != nil {
+		profile.Goals = *req.Goals
+	}
+	if req.PreferredDuration != nil {
+		profile.PreferredDuration = *req.PreferredDuration
+	}
+	if req.ProfileImageURL != nil {
+		profile.ProfileImageURL = *req.ProfileImageURL
+	}
+	if req.Platform != nil {
+		profile.Platform = *req.Platform
+	}
+	if req.LastLoginAt != nil {
+		profile.LastLoginAt = *req.LastLoginAt
+	}
+	if req.AuthProvider != nil {
+		profile.AuthProvider = *req.AuthProvider
+	}
+
+	if profile.Injuries == nil {
+		profile.Injuries = []string{}
+	}
+	if profile.Goals == nil {
+		profile.Goals = []string{}
 	}
 
 	if err := h.repo.SaveProfile(c.Request.Context(), uid.(string), profile); err != nil {
@@ -112,6 +156,9 @@ func (h *ProfileHandler) SaveProfile(c *gin.Context) {
 		"goals":              profile.Goals,
 		"preferred_duration": profile.PreferredDuration,
 		"profile_image_url":  profile.ProfileImageURL,
+		"platform":           profile.Platform,
+		"last_login_at":      profile.LastLoginAt,
+		"auth_provider":      profile.AuthProvider,
 		"created_at":         profile.CreatedAt,
 		"updated_at":         profile.UpdatedAt,
 	})

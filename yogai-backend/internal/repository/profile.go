@@ -21,6 +21,9 @@ type UserProfile struct {
 	Goals             []string  `json:"goals" firestore:"goals"`
 	PreferredDuration int       `json:"preferred_duration" firestore:"preferred_duration"`
 	ProfileImageURL   string    `json:"profile_image_url" firestore:"profile_image_url"`
+	Platform          string    `json:"platform" firestore:"platform"`
+	LastLoginAt       string    `json:"last_login_at" firestore:"last_login_at"`
+	AuthProvider      string    `json:"auth_provider" firestore:"auth_provider"`
 	CreatedAt         time.Time `json:"created_at" firestore:"created_at"`
 	UpdatedAt         time.Time `json:"updated_at" firestore:"updated_at"`
 }

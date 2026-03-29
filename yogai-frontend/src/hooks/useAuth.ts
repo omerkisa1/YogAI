@@ -6,43 +6,73 @@ import {
   signInWithPopup,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
+  updateProfile as updateFirebaseProfile,
   signOut as firebaseSignOut,
   User,
 } from "firebase/auth";
-import { auth, googleProvider } from "@/lib/firebase";
+import api from "@/lib/axios";
+import { auth as firebaseAuth, googleProvider } from "@/lib/firebase";
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(firebaseAuth, (firebaseUser) => {
       setUser(firebaseUser);
       setLoading(false);
     });
     return unsubscribe;
   }, []);
 
-  const signInWithGoogle = useCallback(async () => {
-    await signInWithPopup(auth, googleProvider);
+  const updatePlatformInfo = useCallback(async (provider: "google" | "email") => {
+    try {
+      await api.put("/api/v1/profile", {
+        platform: "web",
+        auth_provider: provider,
+        last_login_at: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.warn("Failed to update platform info:", error);
+    }
   }, []);
+
+  const signInWithGoogle = useCallback(async () => {
+    await signInWithPopup(firebaseAuth, googleProvider);
+    await updatePlatformInfo("google");
+  }, [updatePlatformInfo]);
 
   const signInWithEmail = useCallback(
     async (email: string, password: string) => {
-      await signInWithEmailAndPassword(auth, email, password);
+      await signInWithEmailAndPassword(firebaseAuth, email, password);
+      await updatePlatformInfo("email");
     },
-    []
+    [updatePlatformInfo]
   );
+
+  const registerWithEmail = useCallback(
+    async (email: string, password: string, displayName: string) => {
+      const userCredential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
+      await updateFirebaseProfile(userCredential.user, { displayName });
+      await updatePlatformInfo("email");
+    },
+    [updatePlatformInfo]
+  );
+
+  const resetPassword = useCallback(async (email: string) => {
+    await sendPasswordResetEmail(firebaseAuth, email);
+  }, []);
 
   const signUpWithEmail = useCallback(
     async (email: string, password: string) => {
-      await createUserWithEmailAndPassword(auth, email, password);
+      await registerWithEmail(email, password, "");
     },
-    []
+    [registerWithEmail]
   );
 
   const signOut = useCallback(async () => {
-    await firebaseSignOut(auth);
+    await firebaseSignOut(firebaseAuth);
   }, []);
 
   return {
@@ -50,6 +80,8 @@ export function useAuth() {
     loading,
     signInWithGoogle,
     signInWithEmail,
+    registerWithEmail,
+    resetPassword,
     signUpWithEmail,
     signOut,
   };

@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { FirebaseError } from "firebase/app";
 import { motion } from "framer-motion";
 import { useAuthContext } from "@/components/layout/AuthProvider";
 import { useApp } from "@/components/layout/AppProvider";
@@ -15,12 +17,38 @@ interface LoginForm {
 }
 
 export default function LoginPage() {
-  const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const { signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuthContext();
+  const { signInWithGoogle, signInWithEmail, resetPassword } = useAuthContext();
   const { locale, setLocale, theme, toggleTheme, t } = useApp();
-  const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>();
+  const {
+    register,
+    handleSubmit,
+    watch,
+    formState: { errors },
+  } = useForm<LoginForm>();
+
+  const getFirebaseErrorMessage = (error: unknown) => {
+    if (!(error instanceof FirebaseError)) {
+      return "Giriş işlemi başarısız oldu";
+    }
+
+    switch (error.code) {
+      case "auth/user-not-found":
+        return "Bu email ile kayıtlı kullanıcı bulunamadı";
+      case "auth/wrong-password":
+      case "auth/invalid-credential":
+        return "Şifre hatalı";
+      case "auth/invalid-email":
+        return "Geçersiz email adresi";
+      case "auth/too-many-requests":
+        return "Çok fazla deneme yapıldı, lütfen bekleyin";
+      case "auth/network-request-failed":
+        return "İnternet bağlantınızı kontrol edin";
+      default:
+        return "Giriş işlemi başarısız oldu";
+    }
+  };
 
   const checkProfileAndRedirect = async () => {
     try {
@@ -35,27 +63,42 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginForm) => {
     setLoading(true);
     try {
-      if (isSignUp) {
-        await signUpWithEmail(data.email, data.password);
-        toast.success(t.accountCreated);
-        router.push("/onboarding");
-        return;
-      }
       await signInWithEmail(data.email, data.password);
       await checkProfileAndRedirect();
-    } catch {
-      toast.error(isSignUp ? t.signupFailed : t.loginFailed);
+    } catch (error) {
+      toast.error(getFirebaseErrorMessage(error));
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleSignIn = async () => {
+    setLoading(true);
     try {
       await signInWithGoogle();
       await checkProfileAndRedirect();
     } catch {
       toast.error(t.googleFailed);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    const email = watch("email")?.trim();
+    if (!email) {
+      toast.error("Şifre sıfırlama için email girin");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await resetPassword(email);
+      toast.success("Şifre sıfırlama linki gönderildi");
+    } catch (error) {
+      toast.error(getFirebaseErrorMessage(error));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -142,15 +185,15 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <h2 className="text-2xl font-bold text-th-text">
-            {isSignUp ? t.createAccountTitle : t.welcomeBack}
-          </h2>
+          <h2 className="text-2xl font-bold text-th-text">{t.welcomeBack}</h2>
           <p className="mt-2 text-sm text-th-text-mut">
-            {isSignUp ? t.signupSubtitle : t.loginSubtitle}
+            {t.loginSubtitle}
           </p>
 
           <button
             onClick={handleGoogleSignIn}
+            type="button"
+            disabled={loading}
             className="mt-6 flex w-full items-center justify-center gap-3 rounded-xl border border-th-border bg-th-card px-4 py-3 text-sm font-medium text-th-text transition-all hover:bg-th-subtle hover:shadow-sm"
           >
             <svg width="18" height="18" viewBox="0 0 24 24">
@@ -175,12 +218,19 @@ export default function LoginPage() {
               </label>
               <input
                 type="email"
-                {...register("email", { required: true })}
+                {...register("email", {
+                  required: "Email zorunludur",
+                  pattern: {
+                    value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                    message: "Geçersiz email adresi",
+                  },
+                })}
                 placeholder="you@example.com"
                 className="input-field"
+                disabled={loading}
               />
               {errors.email && (
-                <p className="mt-1 text-xs text-red-500">{t.email}</p>
+                <p className="mt-1 text-xs text-red-500">{errors.email.message}</p>
               )}
             </div>
 
@@ -193,6 +243,7 @@ export default function LoginPage() {
                 {...register("password", { required: true, minLength: 6 })}
                 placeholder="••••••••"
                 className="input-field"
+                disabled={loading}
               />
               {errors.password && (
                 <p className="mt-1 text-xs text-red-500">Min 6</p>
@@ -200,18 +251,27 @@ export default function LoginPage() {
             </div>
 
             <button type="submit" disabled={loading} className="btn-primary w-full">
-              {loading ? <LoadingSpinner size="sm" /> : isSignUp ? t.signUp : t.signIn}
+              {loading ? <LoadingSpinner size="sm" /> : t.signIn}
             </button>
           </form>
 
+          <button
+            type="button"
+            onClick={handleResetPassword}
+            disabled={loading}
+            className="mt-3 text-sm font-medium text-sage-500 hover:text-sage-600 disabled:opacity-50"
+          >
+            Şifremi unuttum
+          </button>
+
           <p className="mt-6 text-center text-sm text-th-text-mut">
-            {isSignUp ? t.alreadyHaveAccount : t.noAccount}{" "}
-            <button
-              onClick={() => setIsSignUp(!isSignUp)}
+            Hesabın yok mu?{" "}
+            <Link
+              href="/register"
               className="font-medium text-sage-500 hover:text-sage-600 dark:text-sage-400 dark:hover:text-sage-300"
             >
-              {isSignUp ? t.signIn : t.signUp}
-            </button>
+              Kayıt ol
+            </Link>
           </p>
         </motion.div>
       </div>

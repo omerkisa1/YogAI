@@ -78,6 +78,9 @@ export interface UserProfile {
   goals: string[];
   preferred_duration: number;
   profile_image_url: string;
+  platform?: string;
+  last_login_at?: string;
+  auth_provider?: string;
   created_at: string;
   updated_at: string;
 }
