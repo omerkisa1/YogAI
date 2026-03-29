@@ -275,3 +275,27 @@ func GetPoseRules(id string) ([]LandmarkRule, bool) {
         }
         return p.LandmarkRules, true
 }
+
+// GetPosesByTargetArea filters the given poseIDs to only those whose TargetArea matches focusArea.
+func GetPosesByTargetArea(poseIDs []string, focusArea string) []string {
+	var filtered []string
+	for _, id := range poseIDs {
+		pose, ok := GetPoseByID(id)
+		if ok && pose.TargetArea == focusArea {
+			filtered = append(filtered, id)
+		}
+	}
+	return filtered
+}
+
+// GetPosesByMaxDifficulty filters the given poseIDs to only those with difficulty <= maxDifficulty.
+func GetPosesByMaxDifficulty(poseIDs []string, maxDifficulty int) []string {
+	var filtered []string
+	for _, id := range poseIDs {
+		pose, ok := GetPoseByID(id)
+		if ok && pose.Difficulty <= maxDifficulty {
+			filtered = append(filtered, id)
+		}
+	}
+	return filtered
+}

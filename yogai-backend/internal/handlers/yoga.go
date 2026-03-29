@@ -53,19 +53,22 @@ type BilingualExercise struct {
 	BenefitTR      string `json:"benefit_tr"`
 	TargetArea     string `json:"target_area"`
 	Category       string `json:"category"`
+	IsAnalyzable   bool   `json:"is_analyzable"`
 }
 
 type BilingualPlan struct {
-	TitleEN          string              `json:"title_en"`
-	TitleTR          string              `json:"title_tr"`
-	FocusArea        string              `json:"focus_area"`
-	Difficulty       string              `json:"difficulty"`
-	TotalDurationMin int                 `json:"total_duration_min"`
-	DescriptionEN    string              `json:"description_en"`
-	DescriptionTR    string              `json:"description_tr"`
-	IsFavorite       bool                `json:"is_favorite"`
-	IsPinned         bool                `json:"is_pinned"`
-	Exercises        []BilingualExercise `json:"exercises"`
+	TitleEN             string              `json:"title_en"`
+	TitleTR             string              `json:"title_tr"`
+	FocusArea           string              `json:"focus_area"`
+	Difficulty          string              `json:"difficulty"`
+	TotalDurationMin    int                 `json:"total_duration_min"`
+	DescriptionEN       string              `json:"description_en"`
+	DescriptionTR       string              `json:"description_tr"`
+	IsFavorite          bool                `json:"is_favorite"`
+	IsPinned            bool                `json:"is_pinned"`
+	Exercises           []BilingualExercise `json:"exercises"`
+	AnalyzablePoseCount int                 `json:"analyzable_pose_count"`
+	TotalPoseCount      int                 `json:"total_pose_count"`
 }
 
 func (h *YogaHandler) getUserID(c *gin.Context) (string, bool) {
@@ -77,7 +80,7 @@ func (h *YogaHandler) getUserID(c *gin.Context) (string, bool) {
 	return uid.(string), true
 }
 
-func validateAndEnrich(raw string) (*BilingualPlan, error) {
+func validateAndEnrich(raw string, userInjuries []string) (*BilingualPlan, error) {
 	var llmResp services.LLMPlanResponse
 	if err := json.Unmarshal([]byte(raw), &llmResp); err != nil {
                 return nil, fmt.Errorf("invalid JSON from LLM: %w", err)
@@ -106,6 +109,8 @@ func validateAndEnrich(raw string) (*BilingualPlan, error) {
 
         var validExercises []BilingualExercise
         actualDuration := 0
+        poseCount := make(map[string]int)    // duplicate tracking
+        analyzableCount := 0
 
         for _, ex := range llmResp.Exercises {
                 pose, exists := catalog.GetPoseByID(ex.PoseID)
@@ -114,32 +119,65 @@ func validateAndEnrich(raw string) (*BilingualPlan, error) {
                         continue
                 }
 
+                // Contraindication double-check: even though Gemini gets a pre-filtered list,
+                // it can still hallucinate contraindicated poses. This is the safety net.
+                if isContraindicated(pose, userInjuries) {
+                        log.Printf("[WARN] LLM returned contraindicated pose_id %q for injuries %v — skipping", ex.PoseID, userInjuries)
+                        continue
+                }
+
+                // Duplicate limit: same pose max 2 times in a plan
+                poseCount[ex.PoseID]++
+                if poseCount[ex.PoseID] > 2 {
+                        log.Printf("[WARN] Duplicate pose_id %q appeared %d times — skipping", ex.PoseID, poseCount[ex.PoseID])
+                        continue
+                }
+
                 if ex.Duration <= 0 {
                         log.Printf("[WARN] LLM returned invalid duration %d for pose %q, skipping...", ex.Duration, ex.PoseID)
                         continue
                 }
 
-                validExercises = append(validExercises, BilingualExercise{
+                // Duration capping: enforce 1-5 minute range per pose
+                duration := ex.Duration
+                if duration < 1 {
+                        duration = 1
+                }
+                if duration > 5 {
+                        log.Printf("[WARN] Pose %q duration capped at 5 minutes (was %d)", ex.PoseID, duration)
+                        duration = 5
+                }
+
+                exercise := BilingualExercise{
                         PoseID:         ex.PoseID,
                         NameEN:         pose.NameEN,
                         NameTR:         pose.NameTR,
-                        DurationMin:    ex.Duration,
+                        DurationMin:    duration,
                         InstructionsEN: pose.InstructionsEN,
                         InstructionsTR: pose.InstructionsTR,
                         BenefitEN:      ex.BenefitEN,
                         BenefitTR:      ex.BenefitTR,
                         TargetArea:     pose.TargetArea,
                         Category:       string(pose.Category),
-                })
-                actualDuration += ex.Duration
+                        IsAnalyzable:   pose.IsAnalyzable,
+                }
+
+                validExercises = append(validExercises, exercise)
+                actualDuration += duration
+                if pose.IsAnalyzable {
+                        analyzableCount++
+                }
         }
 
-        if len(validExercises) == 0 {
-                return nil, fmt.Errorf("no valid exercises returned by LLM after filtering")
+        // Minimum valid exercise check (post-filtering safety net)
+        if len(validExercises) < 3 {
+                return nil, fmt.Errorf("plan validation failed: only %d valid exercises remaining after filtering (minimum 3 required)", len(validExercises))
         }
 
         plan.Exercises = validExercises
         plan.TotalDurationMin = actualDuration
+        plan.AnalyzablePoseCount = analyzableCount
+        plan.TotalPoseCount = len(validExercises)
 
         return plan, nil
 }
@@ -208,6 +246,20 @@ func (h *YogaHandler) GeneratePlan(c *gin.Context) {
 	}
 
 	safePoseIDs := catalog.GetSafePoseIDs(profileInjuries)
+
+	// PRE-VALIDATION: check if enough poses exist for the requested filters
+	// before wasting a Gemini API call that would timeout or produce garbage.
+	availableCount, maxDur, err := preValidatePlanRequest(req.Level, req.Duration, req.FocusArea, profileInjuries)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":           err.Error(),
+			"available_poses": availableCount,
+			"max_duration":    maxDur,
+			"suggestion":      "Odak alanını 'full_body' olarak değiştirmeyi veya süreyi kısaltmayı deneyin.",
+		})
+		return
+	}
+
 	poseIDList := strings.Join(safePoseIDs, ", ")
 
 	prompt := buildBilingualPlanPrompt(req, profileInjuries, poseIDList)
@@ -219,7 +271,7 @@ func (h *YogaHandler) GeneratePlan(c *gin.Context) {
 		return
 	}
 
-	bilingual, err := validateAndEnrich(result)
+	bilingual, err := validateAndEnrich(result, profileInjuries)
 	if err != nil {
 		log.Printf("[ERROR] plan validation/enrichment failed for uid=%s: %v | raw_response_length=%d", uid, err, len(result))
 		models.ErrorResponse(c, http.StatusInternalServerError, "AI produced invalid plan data: "+err.Error())
@@ -421,6 +473,76 @@ func (h *YogaHandler) HealthCheck(c *gin.Context) {
 	})
 }
 
+// preValidatePlanRequest checks if a valid plan can be generated with the given filters
+// before wasting a Gemini API call. Returns available pose count, max achievable duration,
+// and an error with a user-friendly message if validation fails.
+func preValidatePlanRequest(level string, duration int, focusArea string, injuries []string) (availablePoseCount int, maxDuration int, err error) {
+	// Start with injury-safe poses
+	filteredIDs := catalog.GetSafePoseIDs(injuries)
+
+	// Filter by focus area if specified
+	if focusArea != "" && focusArea != "full_body" {
+		filteredIDs = catalog.GetPosesByTargetArea(filteredIDs, focusArea)
+	}
+
+	// Filter by difficulty based on level
+	switch level {
+	case "beginner":
+		filteredIDs = catalog.GetPosesByMaxDifficulty(filteredIDs, 2)
+	case "intermediate":
+		filteredIDs = catalog.GetPosesByMaxDifficulty(filteredIDs, 3)
+	// "advanced" uses all difficulties, no filter needed
+	}
+
+	availablePoseCount = len(filteredIDs)
+
+	// Minimum pose count check
+	if availablePoseCount < 3 {
+		return availablePoseCount, 0, fmt.Errorf(
+			"Seçtiğiniz filtrelerle yeterli hareket bulunamadı (%d poz mevcut, minimum 3 gerekli). Odak alanını genişletin veya sakatlık bilgilerinizi güncelleyin.",
+			availablePoseCount,
+		)
+	}
+
+	// Duration feasibility check
+	minDuration := availablePoseCount * 1 // 1 min per pose minimum
+	maxDuration = availablePoseCount * 5   // 5 min per pose maximum
+
+	if duration > maxDuration {
+		return availablePoseCount, maxDuration, fmt.Errorf(
+			"Bu filtrelerle maksimum %d dakikalık plan oluşturulabilir (%d poz mevcut). Süreyi kısaltın veya odak alanını genişletin.",
+			maxDuration, availablePoseCount,
+		)
+	}
+
+	if duration < minDuration {
+		return availablePoseCount, maxDuration, fmt.Errorf(
+			"Minimum %d dakikalık plan oluşturulabilir (%d poz mevcut).",
+			minDuration, availablePoseCount,
+		)
+	}
+
+	return availablePoseCount, maxDuration, nil
+}
+
+// isContraindicated returns true if any of the user's injuries match
+// the pose's contraindications list.
+func isContraindicated(pose *catalog.Pose, injuries []string) bool {
+	if len(injuries) == 0 {
+		return false
+	}
+	injurySet := make(map[string]bool, len(injuries))
+	for _, inj := range injuries {
+		injurySet[inj] = true
+	}
+	for _, c := range pose.Contraindications {
+		if injurySet[c] {
+			return true
+		}
+	}
+	return false
+}
+
 func buildBilingualPlanPrompt(req GeneratePlanRequest, injuries []string, poseIDList string) string {
 	prompt := "Generate a bilingual yoga plan with these parameters: " +
 		"Level: " + req.Level + ". " +
@@ -458,6 +580,18 @@ func buildBilingualPlanPrompt(req GeneratePlanRequest, injuries []string, poseID
 		"\"benefit_tr\": \"Turkish explanation of why this pose helps this user\"" +
 		"}]" +
 		"}"
+
+	// Strict rules to reduce post-validation filtering
+	prompt += " STRICT RULES:" +
+		" - ONLY use pose_id values from the ALLOWED POSE IDS list above. Any pose_id not in this list will be REJECTED." +
+		" - Each pose duration_min MUST be between 1 and 5 minutes. Never exceed 5 minutes for a single pose." +
+		" - Do NOT repeat the same pose_id more than 2 times in a plan." +
+		" - The total plan duration MUST be close to the requested duration (±2 minutes tolerance)." +
+		" - For 'beginner' level: only use poses with difficulty 1-2." +
+		" - For 'intermediate' level: only use poses with difficulty 1-3." +
+		" - For 'advanced' level: you may use any difficulty." +
+		" - If you cannot fill the requested duration with the available poses, use fewer poses with longer durations (max 5 min each) rather than inventing new pose_ids."
+
 	return prompt
 }
 

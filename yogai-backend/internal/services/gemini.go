@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	geminiTimeout  = 15 * time.Second
+	geminiTimeout  = 30 * time.Second
 	maxRetries     = 3
 	baseRetryDelay = 1 * time.Second
 )
