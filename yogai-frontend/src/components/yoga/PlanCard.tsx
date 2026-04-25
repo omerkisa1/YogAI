@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import type { YogaPlan } from "@/types/yoga";
-import { useUpdatePlan, getLocalizedPlan } from "@/hooks/useYoga";
+import { useUpdatePlan, getLocalizedPlan, type LocalizedPlan } from "@/hooks/useYoga";
 import { useApp } from "@/components/layout/AppProvider";
 import toast from "react-hot-toast";
 
@@ -103,14 +103,11 @@ export default function PlanCard({ plan, index, onClick, onUpdated }: PlanCardPr
       {exercises.length > 0 && (
         <div className="mb-4 space-y-1.5">
           {exercises.slice(0, 3).map((ex, i) => (
-            <div key={i} className="rounded-lg bg-th-surface px-3 py-2">
+              <div key={i} className="rounded-lg bg-th-surface px-3 py-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium text-th-text">{ex.name}</span>
                 <span className="ml-2 shrink-0 text-xs text-th-text-mut">{ex.duration_min} {t.min}</span>
               </div>
-              {ex.focus_point && (
-                <p className="mt-0.5 text-[10px] text-sage-500 dark:text-sage-400">{ex.focus_point}</p>
-              )}
             </div>
           ))}
           {exercises.length > 3 && (

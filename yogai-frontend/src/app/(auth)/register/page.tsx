@@ -8,6 +8,7 @@ import { motion } from "framer-motion";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
 import { useAuthContext } from "@/components/layout/AuthProvider";
+import { useApp } from "@/components/layout/AppProvider";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 
 interface RegisterForm {
@@ -20,6 +21,7 @@ interface RegisterForm {
 export default function RegisterPage() {
   const router = useRouter();
   const { registerWithEmail, signInWithGoogle } = useAuthContext();
+  const { t } = useApp();
   const [loading, setLoading] = useState(false);
 
   const {
@@ -28,32 +30,19 @@ export default function RegisterPage() {
     watch,
     formState: { errors },
   } = useForm<RegisterForm>({
-    defaultValues: {
-      displayName: "",
-      email: "",
-      password: "",
-      confirmPassword: "",
-    },
+    defaultValues: { displayName: "", email: "", password: "", confirmPassword: "" },
   });
 
   const password = watch("password");
 
-  const getFirebaseErrorMessage = (error: unknown) => {
-    if (!(error instanceof FirebaseError)) {
-      return "Kayıt işlemi başarısız oldu";
-    }
-
+  const getFirebaseErrorMessage = (error: unknown): string => {
+    if (!(error instanceof FirebaseError)) return t.registerFailed;
     switch (error.code) {
-      case "auth/email-already-in-use":
-        return "Bu email zaten kullanılıyor";
-      case "auth/weak-password":
-        return "Şifre en az 6 karakter olmalıdır";
-      case "auth/invalid-email":
-        return "Geçersiz email adresi";
-      case "auth/network-request-failed":
-        return "İnternet bağlantınızı kontrol edin";
-      default:
-        return "Kayıt işlemi başarısız oldu";
+      case "auth/email-already-in-use": return t.emailAlreadyUsed;
+      case "auth/weak-password": return t.weakPassword;
+      case "auth/invalid-email": return t.invalidEmail;
+      case "auth/network-request-failed": return t.networkError;
+      default: return t.registerFailed;
     }
   };
 
@@ -61,7 +50,7 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await registerWithEmail(data.email.trim(), data.password, data.displayName.trim());
-      toast.success("Hesabınız oluşturuldu");
+      toast.success(t.accountCreated);
       router.push("/onboarding");
     } catch (error) {
       toast.error(getFirebaseErrorMessage(error));
@@ -91,36 +80,34 @@ export default function RegisterPage() {
         className="w-full max-w-md rounded-2xl border border-th-border bg-th-card p-6 shadow-sm"
       >
         <div className="mb-6">
-          <p className="text-sm text-th-text-mut">🧘 YogAI</p>
-          <h1 className="mt-1 text-2xl font-bold text-th-text">Hesap Oluştur</h1>
+          <p className="text-sm text-th-text-mut">YogAI</p>
+          <h1 className="mt-1 text-2xl font-bold text-th-text">{t.registerTitle}</h1>
+          <p className="mt-1 text-sm text-th-text-mut">{t.registerSubtitle}</p>
         </div>
 
         <form onSubmit={onSubmit} className="space-y-4">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-th-text">Ad Soyad</label>
+            <label className="mb-1.5 block text-sm font-medium text-th-text">{t.displayNameLabel}</label>
             <input
               type="text"
               {...register("displayName", {
-                required: "Ad Soyad zorunludur",
-                minLength: { value: 2, message: "Ad Soyad en az 2 karakter olmalı" },
+                required: t.displayNameLabel,
+                minLength: { value: 2, message: t.displayNameLabel },
               })}
               className="input-field"
-              placeholder="Ad Soyad"
+              placeholder={t.displayNamePlaceholder}
               disabled={loading}
             />
             {errors.displayName && <p className="mt-1 text-xs text-red-500">{errors.displayName.message}</p>}
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-th-text">Email</label>
+            <label className="mb-1.5 block text-sm font-medium text-th-text">{t.email}</label>
             <input
               type="email"
               {...register("email", {
-                required: "Email zorunludur",
-                pattern: {
-                  value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                  message: "Geçersiz email adresi",
-                },
+                required: t.email,
+                pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: t.invalidEmail },
               })}
               className="input-field"
               placeholder="you@example.com"
@@ -130,12 +117,12 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-th-text">Şifre</label>
+            <label className="mb-1.5 block text-sm font-medium text-th-text">{t.password}</label>
             <input
               type="password"
               {...register("password", {
-                required: "Şifre zorunludur",
-                minLength: { value: 6, message: "Şifre en az 6 karakter olmalıdır" },
+                required: t.password,
+                minLength: { value: 6, message: t.weakPassword },
               })}
               className="input-field"
               placeholder="••••••••"
@@ -145,15 +132,15 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-th-text">Şifre Tekrar</label>
+            <label className="mb-1.5 block text-sm font-medium text-th-text">{t.confirmPassword}</label>
             <input
               type="password"
               {...register("confirmPassword", {
-                required: "Şifre tekrarı zorunludur",
-                validate: (value) => value === password || "Şifreler eşleşmiyor",
+                required: t.confirmPassword,
+                validate: (value) => value === password || t.passwordsNotMatch,
               })}
               className="input-field"
-              placeholder="••••••••"
+              placeholder={t.confirmPasswordPlaceholder}
               disabled={loading}
             />
             {errors.confirmPassword && (
@@ -162,13 +149,13 @@ export default function RegisterPage() {
           </div>
 
           <button type="submit" disabled={loading} className="btn-primary w-full">
-            {loading ? <LoadingSpinner size="sm" /> : "Kayıt Ol"}
+            {loading ? <LoadingSpinner size="sm" /> : t.signUp}
           </button>
         </form>
 
         <div className="my-6 flex items-center gap-4">
           <div className="h-px flex-1 bg-th-border" />
-          <span className="text-xs text-th-text-mut">veya</span>
+          <span className="text-xs text-th-text-mut">{t.or}</span>
           <div className="h-px flex-1 bg-th-border" />
         </div>
 
@@ -184,13 +171,13 @@ export default function RegisterPage() {
             <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
             <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
           </svg>
-          Google ile Kayıt Ol
+          {t.registerWithGoogle}
         </button>
 
         <p className="mt-6 text-center text-sm text-th-text-mut">
-          Zaten hesabın var mı?{" "}
-          <Link href="/login" className="font-medium text-sage-500 hover:text-sage-600">
-            Giriş Yap
+          {t.alreadyHaveAccountRegister}{" "}
+          <Link href="/login" className="font-medium text-sage-500 hover:text-sage-600 dark:text-sage-400 dark:hover:text-sage-300">
+            {t.signIn}
           </Link>
         </p>
       </motion.div>

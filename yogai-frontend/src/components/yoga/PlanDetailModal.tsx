@@ -238,13 +238,6 @@ export default function PlanDetailModal({ plan, onClose, onUpdated }: PlanDetail
                       </div>
                     )}
 
-                    {ex.focus_point && (
-                      <div className="mb-2">
-                        <p className="text-xs font-medium text-sage-500 dark:text-sage-400 mb-0.5">{t.focusPoint}</p>
-                        <p className="text-xs leading-relaxed text-th-text-mut">{ex.focus_point}</p>
-                      </div>
-                    )}
-
                     {ex.benefit && (
                       <div className="rounded-lg bg-sage-50/50 dark:bg-sage-900/15 px-3 py-2">
                         <p className="text-xs leading-relaxed text-sage-600 dark:text-sage-400">{ex.benefit}</p>

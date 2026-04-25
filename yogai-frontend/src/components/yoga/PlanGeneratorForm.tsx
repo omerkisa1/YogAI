@@ -51,7 +51,7 @@ export default function PlanGeneratorForm() {
     if (loading) return;
     try {
       const values = getValues();
-      await generatePlan({ ...values, language: locale });
+      await generatePlan({ ...values });
       toast.success(t.planCreated);
       router.push("/dashboard");
     } catch {
