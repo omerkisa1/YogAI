@@ -3,6 +3,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuthContext } from "@/components/layout/AuthProvider";
 import api from "@/lib/axios";
+import {
+  analyzePoseClientSide,
+  type LandmarkRule,
+  type LandmarkPoint,
+  type AnalyzeResult as ClientAnalyzeResult,
+} from "@/lib/poseAnalyzer";
 import type {
   YogaPlan,
   BilingualPlan,
@@ -232,25 +238,59 @@ export function useGeneratePlan() {
 }
 
 export function useAnalyzePose() {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [rules, setRules] = useState<LandmarkRule[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
+  /**
+   * Fetches landmark rules for a pose from the backend — called ONCE when the
+   * user selects a pose, not on every frame.
+   */
+  const loadPoseRules = useCallback(async (poseId: string) => {
+    setIsLoading(true);
+    try {
+      const res = (await api.get(`/api/v1/yoga/poses/${poseId}`)) as APIResponse<{
+        landmark_rules?: LandmarkRule[];
+      }>;
+      const fetched = res.data?.landmark_rules ?? [];
+      setRules(fetched);
+      return fetched;
+    } catch (error) {
+      console.error("Failed to load pose rules:", error);
+      setRules([]);
+      return [];
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  /**
+   * Runs client-side pose analysis — no network request.
+   * Requires rules to have been loaded via loadPoseRules first.
+   */
+  const analyze = useCallback(
+    (poseId: string, landmarks: LandmarkPoint[]): ClientAnalyzeResult | null => {
+      if (rules.length === 0) return null;
+      return analyzePoseClientSide(poseId, rules, landmarks);
+    },
+    [rules],
+  );
+
+  /**
+   * @deprecated Use loadPoseRules + analyze (client-side) instead.
+   * Kept for backward compatibility; sends a POST to the backend.
+   */
   const analyzePose = async (data: AnalyzePoseRequest) => {
-    setLoading(true);
-    setError(null);
     try {
       const response = (await api.post("/api/v1/yoga/analyze", data)) as APIResponse<AnalyzeResponse>;
       return response.data;
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to analyze pose";
-      setError(message);
+      console.error(message);
       throw err;
-    } finally {
-      setLoading(false);
     }
   };
 
-  return { analyzePose, loading, error };
+  return { rules, isLoading, loadPoseRules, analyze, analyzePose };
 }
 
 export function useUpdatePlan() {
