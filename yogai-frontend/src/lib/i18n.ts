@@ -193,6 +193,10 @@ const en = {
   modelFull: "Full (Balanced)",
   modelHeavy: "Heavy (Accurate)",
   lowVisibility: "Low visibility",
+  notEnoughVisibility: "Please stand fully in front of the camera",
+  lowReliability: "Some joints are not fully visible, score may not be accurate",
+  visibleLandmarks: "Visible landmarks",
+  skippedRules: "Skipped rules",
 };
 
 const tr: typeof en = {
@@ -386,6 +390,10 @@ const tr: typeof en = {
   modelFull: "Full (Dengeli)",
   modelHeavy: "Heavy (Doğru)",
   lowVisibility: "Düşük görünürlük",
+  notEnoughVisibility: "Lütfen kameranın önünde tam olarak görünün",
+  lowReliability: "Bazı eklemler yeterince görünmüyor, skor tam doğru olmayabilir",
+  visibleLandmarks: "Görünen landmark",
+  skippedRules: "Atlanan kural",
 };
 
 export type Translations = typeof en;

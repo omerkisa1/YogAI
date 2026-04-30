@@ -30,7 +30,8 @@ export interface RuleResult {
   score: number;
   triggered: boolean;
   penalty: number;
-  status: string; // "good" | "needs_improvement" | "poor" | "fault_detected" | "ok" | "low_visibility"
+  /** "good" | "needs_improvement" | "poor" | "fault_detected" | "ok" | "low_visibility" */
+  status: string;
   feedback_en: string;
   feedback_tr: string;
 }
@@ -41,7 +42,16 @@ export interface AnalyzeResult {
   target_score: number;
   fault_penalty: number;
   rules: RuleResult[];
+  /** True when enough landmarks are visible to trust the score */
+  is_reliable: boolean;
+  /** Fraction of landmarks above the visibility threshold (0–1) */
+  visible_landmark_ratio: number;
+  /** Number of rules that were skipped due to low landmark visibility */
+  skipped_rules: number;
 }
+
+/** Minimum MediaPipe visibility score to consider a landmark reliable */
+const VISIBILITY_THRESHOLD = 0.65;
 
 /** Degrees of tolerance outside the target range before score hits 0 */
 const TOLERANCE = 15.0;
@@ -50,13 +60,15 @@ const TOLERANCE = 15.0;
  * Calculates the angle at vertex B formed by points A–B–C.
  * Returns a value in [0, 180] degrees.
  */
-function calculateAngle(a: LandmarkPoint, b: LandmarkPoint, c: LandmarkPoint): number {
+function calculateAngle(
+  a: LandmarkPoint,
+  b: LandmarkPoint,
+  c: LandmarkPoint,
+): number {
   const radians =
     Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x);
   let angle = Math.abs(radians * (180.0 / Math.PI));
-  if (angle > 180.0) {
-    angle = 360.0 - angle;
-  }
+  if (angle > 180.0) angle = 360.0 - angle;
   return angle;
 }
 
@@ -76,24 +88,40 @@ function scoreRule(actual: number, angleMin: number, angleMax: number): number {
 
 /**
  * Analyzes a pose entirely on the client side.
- * Receives rules fetched once from the backend and per-frame landmark data
- * produced by MediaPipe. Returns a scored result with per-rule breakdown.
+ *
+ * Returns `null` when fewer than 50 % of landmarks meet the visibility
+ * threshold — the frame is unreliable and the caller should discard it.
+ *
+ * Returns an `AnalyzeResult` (with `is_reliable` flag) otherwise.
  * Never makes network requests.
  */
 export function analyzePoseClientSide(
   poseId: string,
   rules: LandmarkRule[],
   landmarks: LandmarkPoint[],
-): AnalyzeResult {
-  const lm = new Map<number, LandmarkPoint>();
-  for (const p of landmarks) {
-    lm.set(p.index, p);
+): AnalyzeResult | null {
+  // ── Global visibility gate ──────────────────────────────────────────────
+  const visibleCount = landmarks.filter(
+    (l) => l.visibility >= VISIBILITY_THRESHOLD,
+  ).length;
+  const visibilityRatio =
+    landmarks.length > 0 ? visibleCount / landmarks.length : 0;
+
+  if (visibilityRatio < 0.5) {
+    // Too few landmarks visible — frame is not usable
+    return null;
   }
 
+  // ── Build index → point map ─────────────────────────────────────────────
+  const lm = new Map<number, LandmarkPoint>();
+  for (const p of landmarks) lm.set(p.index, p);
+
+  // ── Per-rule scoring ────────────────────────────────────────────────────
   const results: RuleResult[] = [];
   let targetWeightSum = 0;
   let targetScoreSum = 0;
   let faultPenalty = 0;
+  let skippedRules = 0;
 
   for (const rule of rules) {
     const a = lm.get(rule.point_a);
@@ -104,9 +132,9 @@ export function analyzePoseClientSide(
       !a ||
       !b ||
       !c ||
-      a.visibility < 0.5 ||
-      b.visibility < 0.5 ||
-      c.visibility < 0.5
+      a.visibility < VISIBILITY_THRESHOLD ||
+      b.visibility < VISIBILITY_THRESHOLD ||
+      c.visibility < VISIBILITY_THRESHOLD
     ) {
       results.push({
         joint: rule.joint,
@@ -120,6 +148,7 @@ export function analyzePoseClientSide(
         feedback_en: "",
         feedback_tr: "",
       });
+      skippedRules++;
       continue;
     }
 
@@ -173,8 +202,18 @@ export function analyzePoseClientSide(
     results.push(rr);
   }
 
-  let targetScore = targetWeightSum > 0 ? targetScoreSum / targetWeightSum : 0;
-  let overall = Math.max(0, Math.min(100, targetScore - faultPenalty));
+  // ── Reliability flag ────────────────────────────────────────────────────
+  // Unreliable when more than half of the target rules were skipped
+  const targetRuleCount = rules.filter(
+    (r) => (r.rule_type || "target") === "target",
+  ).length;
+  const isReliable =
+    targetRuleCount === 0 || skippedRules <= targetRuleCount * 0.5;
+
+  // ── Final score ─────────────────────────────────────────────────────────
+  const targetScore =
+    targetWeightSum > 0 ? targetScoreSum / targetWeightSum : 0;
+  const overall = Math.max(0, Math.min(100, targetScore - faultPenalty));
 
   return {
     pose_id: poseId,
@@ -182,5 +221,8 @@ export function analyzePoseClientSide(
     target_score: Math.round(targetScore * 10) / 10,
     fault_penalty: Math.round(faultPenalty * 10) / 10,
     rules: results,
+    is_reliable: isReliable,
+    visible_landmark_ratio: Math.round(visibilityRatio * 100) / 100,
+    skipped_rules: skippedRules,
   };
 }

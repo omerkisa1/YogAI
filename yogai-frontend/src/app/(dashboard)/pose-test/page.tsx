@@ -12,6 +12,10 @@ import type { AnalyzablePose } from "@/types/yoga";
 
 type ModelComplexity = 0 | 1 | 2;
 
+// Canvas + camera resolution — lower than 640×480 for better throughput
+const CAM_W = 480;
+const CAM_H = 360;
+
 function accuracyColor(acc: number): string {
   if (acc >= 80) return "text-green-600 dark:text-green-400";
   if (acc >= 50) return "text-amber-600 dark:text-amber-400";
@@ -26,14 +30,12 @@ function accuracyBarColor(acc: number): string {
 
 function ruleCardClass(r: AnalyzeResult["rules"][0]): string {
   const base = "rounded-xl p-3 text-sm transition-colors border";
-  if (r.status === "low_visibility") {
+  if (r.status === "low_visibility")
     return `${base} border-th-border bg-th-surface`;
-  }
-  if (r.rule_type === "fault") {
+  if (r.rule_type === "fault")
     return r.triggered
       ? `${base} border-l-4 border-l-red-400 border-red-200 bg-red-50 dark:border-red-800/30 dark:bg-red-900/15`
       : `${base} border-l-4 border-l-th-muted border-th-border bg-th-surface`;
-  }
   if (r.score >= 90)
     return `${base} border-l-4 border-l-green-500 border-green-200 bg-green-50/60 dark:border-green-800/30 dark:bg-green-900/10`;
   if (r.score >= 60)
@@ -53,11 +55,12 @@ export default function PoseTestPage() {
   const [fps, setFps] = useState(0);
   const [modelComplexity, setModelComplexity] = useState<ModelComplexity>(0);
   const [error, setError] = useState<string | null>(null);
+  const [visibilityWarning, setVisibilityWarning] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Refs kept in sync so the MediaPipe onResults closure always reads fresh values
+  // Refs so onResults closure always reads current values without becoming stale
   const rulesRef = useRef<LandmarkRule[]>([]);
   const selectedPoseRef = useRef<string>("");
   const frameCount = useRef(0);
@@ -82,7 +85,7 @@ export default function PoseTestPage() {
       .catch(() => {});
   }, []);
 
-  // Load landmark rules whenever the selected pose changes
+  // Fetch landmark rules when the selected pose changes (once per selection)
   useEffect(() => {
     if (!selectedPose) {
       setSelectedRules([]);
@@ -114,14 +117,14 @@ export default function PoseTestPage() {
     };
   }, [selectedPose, locale]);
 
-  // MediaPipe lifecycle — restarts when analysis toggles or model complexity changes
+  // MediaPipe lifecycle — restarts when analysis starts/stops or model changes
   useEffect(() => {
     if (!isAnalyzing || !selectedPose) return;
 
     let pose: unknown;
     let camera: unknown;
     let isMounted = true;
-    const ANALYZE_INTERVAL = 100;
+    const ANALYZE_INTERVAL = 100; // ms between client-side analysis calls
 
     const setup = async () => {
       try {
@@ -160,7 +163,7 @@ export default function PoseTestPage() {
           }) => {
             if (!isMounted) return;
 
-            // FPS counter (updated once per second)
+            // ── FPS counter (updates once per second) ───────────────────
             frameCount.current++;
             const now = Date.now();
             if (now - lastFpsTime.current >= 1000) {
@@ -169,24 +172,24 @@ export default function PoseTestPage() {
               lastFpsTime.current = now;
             }
 
-            // Canvas overlay drawn every frame → smooth video
+            // ── Canvas overlay (every frame → smooth mirrored video) ────
             const ctx = canvasRef.current?.getContext("2d");
             if (ctx && canvasRef.current) {
+              const w = canvasRef.current.width;
+              const h = canvasRef.current.height;
               ctx.save();
-              ctx.clearRect(
-                0,
-                0,
-                canvasRef.current.width,
-                canvasRef.current.height,
-              );
-              ctx.drawImage(
-                results.image,
-                0,
-                0,
-                canvasRef.current.width,
-                canvasRef.current.height,
-              );
+              ctx.clearRect(0, 0, w, h);
+
+              // Mirror transform: flip horizontally so it acts like a mirror
+              ctx.translate(w, 0);
+              ctx.scale(-1, 1);
+
+              ctx.drawImage(results.image, 0, 0, w, h);
+
               if (results.poseLandmarks) {
+                // drawConnectors/drawLandmarks use normalised coords (0–1)
+                // and multiply internally by canvas dimensions — they draw
+                // correctly in the already-flipped context.
                 drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, {
                   color: "#6BAE6C",
                   lineWidth: 3,
@@ -196,10 +199,11 @@ export default function PoseTestPage() {
                   lineWidth: 2,
                 });
               }
+
               ctx.restore();
             }
 
-            // Throttled client-side analysis (no backend call)
+            // ── Throttled client-side analysis (no backend call) ────────
             if (
               results.poseLandmarks &&
               now - lastAnalyzeTime.current > ANALYZE_INTERVAL
@@ -207,6 +211,7 @@ export default function PoseTestPage() {
               lastAnalyzeTime.current = now;
               const rules = rulesRef.current;
               if (rules.length > 0) {
+                // Raw landmark coords — NOT flipped, angle math is relative
                 const landmarks = results.poseLandmarks.map((lm, idx) => ({
                   index: idx,
                   x: lm.x,
@@ -214,6 +219,7 @@ export default function PoseTestPage() {
                   z: lm.z,
                   visibility: lm.visibility ?? 0,
                 }));
+
                 const analyzeStart = Date.now();
                 const analyzeResult = analyzePoseClientSide(
                   selectedPoseRef.current,
@@ -225,25 +231,40 @@ export default function PoseTestPage() {
                     `[PoseTest] Analyze took ${Date.now() - analyzeStart}ms`,
                   );
                 }
-                setResult(analyzeResult);
+
+                if (analyzeResult === null) {
+                  // Not enough landmarks visible — discard frame
+                  setVisibilityWarning(true);
+                  setResult(null);
+                } else {
+                  setVisibilityWarning(false);
+                  setResult(analyzeResult);
+                }
               }
             }
           },
         );
 
         if (videoRef.current) {
+          // ── Busy flag prevents frame pileup ────────────────────────────
+          let isProcessing = false;
+
           const cam = new Camera(videoRef.current, {
             onFrame: async () => {
-              if (videoRef.current && isMounted) {
-                try {
-                  await poseInstance.send({ image: videoRef.current });
-                } catch {
-                  // ignore single-frame errors
-                }
+              if (!videoRef.current || !isMounted) return;
+              if (isProcessing) return; // drop frame — previous still in-flight
+
+              isProcessing = true;
+              try {
+                await poseInstance.send({ image: videoRef.current });
+              } catch {
+                // ignore single-frame errors
+              } finally {
+                isProcessing = false;
               }
             },
-            width: 640,
-            height: 480,
+            width: CAM_W,
+            height: CAM_H,
           });
           camera = cam;
           cam.start();
@@ -285,6 +306,7 @@ export default function PoseTestPage() {
     setIsAnalyzing(false);
     setResult(null);
     setFps(0);
+    setVisibilityWarning(false);
     frameCount.current = 0;
   };
 
@@ -296,10 +318,10 @@ export default function PoseTestPage() {
 
   const handleModelChange = (c: ModelComplexity) => {
     setModelComplexity(c);
-    // If currently analyzing, the useEffect will restart MediaPipe with new complexity
     if (isAnalyzing) {
       setResult(null);
       setFps(0);
+      setVisibilityWarning(false);
       frameCount.current = 0;
     }
   };
@@ -371,32 +393,50 @@ export default function PoseTestPage() {
         </div>
       </div>
 
-      {/* Inline error banner */}
+      {/* Error banner */}
       {error && (
         <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 dark:border-red-800/30 dark:bg-red-900/15 dark:text-red-400">
           {error}
         </div>
       )}
 
-      {/* Main grid: camera left, score panel right */}
+      {/* Main grid */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        {/* Camera / canvas panel */}
+        {/* ── Camera / canvas ─────────────────────────────────────────── */}
         <div
           className="relative overflow-hidden rounded-2xl bg-th-subtle"
           style={{ aspectRatio: "4/3" }}
         >
-          <video ref={videoRef} className="hidden" playsInline muted />
+          {/*
+            Video is hidden visually but still decoded by the browser.
+            width:0 / height:0 avoids the display:none decode-skip bug in
+            some browsers while keeping the element invisible.
+          */}
+          <video
+            ref={videoRef}
+            playsInline
+            muted
+            style={{
+              position: "absolute",
+              width: 0,
+              height: 0,
+              opacity: 0,
+              pointerEvents: "none",
+            }}
+          />
           <canvas
             ref={canvasRef}
             className="h-full w-full object-cover"
-            width={640}
-            height={480}
+            width={CAM_W}
+            height={CAM_H}
           />
+
           {!isAnalyzing && (
             <div className="absolute inset-0 flex items-center justify-center">
               <p className="text-sm text-th-text-mut">{t.webcamFeed}</p>
             </div>
           )}
+
           {isAnalyzing && (
             <div className="absolute left-3 top-3 rounded-full bg-black/50 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
               {t.fpsLabel}: {fps}
@@ -404,16 +444,41 @@ export default function PoseTestPage() {
           )}
         </div>
 
-        {/* Score panel */}
+        {/* ── Score panel ─────────────────────────────────────────────── */}
         <div className="card space-y-4 overflow-hidden">
           <h2 className="text-lg font-semibold text-th-text">
             {t.overallAccuracy}
           </h2>
 
-          {!result ? (
+          {/* Visibility warning — not enough landmarks */}
+          {visibilityWarning && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-800/30 dark:bg-amber-900/15">
+              <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
+                {t.notEnoughVisibility}
+              </p>
+            </div>
+          )}
+
+          {!result && !visibilityWarning && (
             <p className="text-sm italic text-th-text-mut">{t.waitingForData}</p>
-          ) : (
+          )}
+
+          {result && (
             <>
+              {/* Low-reliability warning */}
+              {!result.is_reliable && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-800/30 dark:bg-amber-900/15">
+                  <p className="text-sm text-amber-700 dark:text-amber-400">
+                    {t.lowReliability}
+                  </p>
+                  <p className="mt-1 text-xs text-amber-600 dark:text-amber-500">
+                    {t.visibleLandmarks}:{" "}
+                    {Math.round(result.visible_landmark_ratio * 100)}% ·{" "}
+                    {t.skippedRules}: {result.skipped_rules}
+                  </p>
+                </div>
+              )}
+
               {/* Big accuracy number + progress bar */}
               <div>
                 <p
