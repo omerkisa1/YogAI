@@ -23,13 +23,17 @@ func FirebaseAuth(authClient *auth.Client) gin.HandlerFunc {
                 parts := strings.SplitN(authHeader, " ", 2)
                 if len(parts) != 2 || parts[0] != "Bearer" {
                         log.Printf("[AUTH ERROR] Invalid authorization format: %s", authHeader)
-			return
-		}
+                        models.ErrorResponse(c, http.StatusUnauthorized, "invalid authorization format")
+                        c.Abort()
+                        return
+                }
 
 		token, err := authClient.VerifyIDToken(c.Request.Context(), parts[1])
 		if err != nil {
                         log.Printf("[AUTH ERROR] Token verification failed: %v", err)
-			return
+                        models.ErrorResponse(c, http.StatusUnauthorized, "invalid or expired token")
+                        c.Abort()
+                        return
 		}
 
 		c.Set("user_id", token.UID)
