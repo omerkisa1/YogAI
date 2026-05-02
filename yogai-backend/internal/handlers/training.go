@@ -46,14 +46,9 @@ func (h *TrainingHandler) StartSession(c *gin.Context) {
 		return
 	}
 	if active != nil {
-		if time.Since(active.StartedAt) > 2 * time.Hour {
-			_ = h.repo.UpdateSession(c.Request.Context(), uid, active.ID, map[string]interface{}{
-				"status": "expired",
-			})
-		} else {
-			models.ErrorResponse(c, http.StatusConflict, "there is already an active session")
-			return
-		}
+		_ = h.repo.UpdateSession(c.Request.Context(), uid, active.ID, map[string]interface{}{
+			"status": "expired",
+		})
 	}
 
 	session := &models.TrainingSession{
@@ -67,7 +62,10 @@ func (h *TrainingHandler) StartSession(c *gin.Context) {
 		return
 	}
 
-	models.SuccessResponse(c, "session started", session)
+	models.SuccessResponse(c, "session started", gin.H{
+		"session_id": session.ID,
+		"status":     session.Status,
+	})
 }
 
 func (h *TrainingHandler) SavePose(c *gin.Context) {
@@ -165,7 +163,30 @@ func (h *TrainingHandler) GetSessions(c *gin.Context) {
 		return
 	}
 
-	models.SuccessResponse(c, "sessions retrieved", sessions)
+	type sessionResp struct {
+		ID              string     `json:"id"`
+		PlanID          string     `json:"plan_id"`
+		Status          string     `json:"status"`
+		StartedAt       time.Time  `json:"started_at"`
+		CompletedAt     *time.Time `json:"completed_at,omitempty"`
+		AverageAccuracy float64    `json:"average_accuracy"`
+		TotalDurationSec int       `json:"total_duration_sec"`
+		PoseCount       int        `json:"pose_count"`
+	}
+	resp := make([]sessionResp, 0, len(sessions))
+	for _, s := range sessions {
+		resp = append(resp, sessionResp{
+			ID:               s.ID,
+			PlanID:           s.PlanID,
+			Status:           s.Status,
+			StartedAt:        s.StartedAt,
+			CompletedAt:      s.CompletedAt,
+			AverageAccuracy:  s.TotalAccuracy,
+			TotalDurationSec: s.TotalDuration,
+			PoseCount:        s.PoseCount,
+		})
+	}
+	models.SuccessResponse(c, "sessions retrieved", resp)
 }
 
 func (h *TrainingHandler) GetSessionByID(c *gin.Context) {
@@ -226,8 +247,9 @@ func (h *TrainingHandler) GetStats(c *gin.Context) {
 	}
 
 	models.SuccessResponse(c, "stats retrieved", gin.H{
-		"total_completed_sessions": completedCount,
-		"overall_accuracy":         avgAcc,
-		"total_duration_spent":     totalDur,
+		"total_sessions":    completedCount,
+		"average_accuracy":  avgAcc,
+		"total_duration_sec": totalDur,
+		"current_streak":    0,
 	})
 }
