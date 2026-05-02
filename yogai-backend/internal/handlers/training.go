@@ -211,9 +211,32 @@ func (h *TrainingHandler) GetSessionByID(c *gin.Context) {
 		results = []*models.PoseResult{}
 	}
 
+	type poseResultResp struct {
+		PoseID          string    `json:"pose_id"`
+		Accuracy        float64   `json:"accuracy"`
+		DurationSeconds int       `json:"duration_seconds"`
+		CompletedAt     time.Time `json:"completed_at"`
+	}
+	poseResps := make([]poseResultResp, 0, len(results))
+	for _, r := range results {
+		poseResps = append(poseResps, poseResultResp{
+			PoseID:          r.PoseID,
+			Accuracy:        r.Accuracy,
+			DurationSeconds: r.DurationSeconds,
+			CompletedAt:     r.CompletedAt,
+		})
+	}
+
 	models.SuccessResponse(c, "session retrieved", gin.H{
-		"session": session,
-		"results": results,
+		"id":               session.ID,
+		"plan_id":          session.PlanID,
+		"status":           session.Status,
+		"started_at":       session.StartedAt,
+		"completed_at":     session.CompletedAt,
+		"average_accuracy": session.TotalAccuracy,
+		"total_duration_sec": session.TotalDuration,
+		"pose_count":       session.PoseCount,
+		"results":          poseResps,
 	})
 }
 
@@ -232,12 +255,15 @@ func (h *TrainingHandler) GetStats(c *gin.Context) {
 	completedCount := 0
 	var totalAcc float64
 	var totalDur int
+	activeDays := make(map[string]bool)
 
 	for _, s := range sessions {
 		if s.Status == "completed" {
 			completedCount++
 			totalAcc += s.TotalAccuracy
 			totalDur += s.TotalDuration
+			day := s.StartedAt.Format("2006-01-02")
+			activeDays[day] = true
 		}
 	}
 
@@ -246,10 +272,21 @@ func (h *TrainingHandler) GetStats(c *gin.Context) {
 		avgAcc = totalAcc / float64(completedCount)
 	}
 
+	streak := 0
+	today := time.Now()
+	for i := 0; i < 365; i++ {
+		day := today.AddDate(0, 0, -i).Format("2006-01-02")
+		if activeDays[day] {
+			streak++
+		} else if i > 0 {
+			break
+		}
+	}
+
 	models.SuccessResponse(c, "stats retrieved", gin.H{
-		"total_sessions":    completedCount,
-		"average_accuracy":  avgAcc,
+		"total_sessions":     completedCount,
+		"average_accuracy":   avgAcc,
 		"total_duration_sec": totalDur,
-		"current_streak":    0,
+		"current_streak":     streak,
 	})
 }
