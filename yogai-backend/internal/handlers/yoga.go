@@ -81,105 +81,106 @@ func (h *YogaHandler) getUserID(c *gin.Context) (string, bool) {
 }
 
 func validateAndEnrich(raw string, userInjuries []string) (*BilingualPlan, error) {
+	userInjuries = catalog.NormalizeInjuries(userInjuries)
 	var llmResp services.LLMPlanResponse
 	if err := json.Unmarshal([]byte(raw), &llmResp); err != nil {
-                return nil, fmt.Errorf("invalid JSON from LLM: %w", err)
-        }
+		return nil, fmt.Errorf("invalid JSON from LLM: %w", err)
+	}
 
-        if llmResp.TitleEN == "" && llmResp.TitleTR == "" {
-                return nil, fmt.Errorf("LLM response missing title")
-        }
+	if llmResp.TitleEN == "" && llmResp.TitleTR == "" {
+		return nil, fmt.Errorf("LLM response missing title")
+	}
 
-        if len(llmResp.Exercises) == 0 {
-                return nil, fmt.Errorf("LLM response has no exercises")
-        }
+	if len(llmResp.Exercises) == 0 {
+		return nil, fmt.Errorf("LLM response has no exercises")
+	}
 
-        plan := &BilingualPlan{
-                TitleEN:          llmResp.TitleEN,
-                TitleTR:          llmResp.TitleTR,
-                FocusArea:        llmResp.FocusArea,
-                Difficulty:       llmResp.Difficulty,
-                TotalDurationMin: 0,
-                DescriptionEN:    llmResp.DescriptionEN,
-                DescriptionTR:    llmResp.DescriptionTR,
-                IsFavorite:       false,
-                IsPinned:         false,
-                Exercises:        make([]BilingualExercise, 0),
-        }
+	plan := &BilingualPlan{
+		TitleEN:          llmResp.TitleEN,
+		TitleTR:          llmResp.TitleTR,
+		FocusArea:        llmResp.FocusArea,
+		Difficulty:       llmResp.Difficulty,
+		TotalDurationMin: 0,
+		DescriptionEN:    llmResp.DescriptionEN,
+		DescriptionTR:    llmResp.DescriptionTR,
+		IsFavorite:       false,
+		IsPinned:         false,
+		Exercises:        make([]BilingualExercise, 0),
+	}
 
-        var validExercises []BilingualExercise
-        actualDuration := 0
-        poseCount := make(map[string]int)    // duplicate tracking
-        analyzableCount := 0
+	var validExercises []BilingualExercise
+	actualDuration := 0
+	poseCount := make(map[string]int) // duplicate tracking
+	analyzableCount := 0
 
-        for _, ex := range llmResp.Exercises {
-                pose, exists := catalog.GetPoseByID(ex.PoseID)
-                if !exists {
-                        log.Printf("[WARN] LLM returned invalid pose_id %q (not in catalog), skipping...", ex.PoseID)
-                        continue
-                }
+	for _, ex := range llmResp.Exercises {
+		pose, exists := catalog.GetPoseByID(ex.PoseID)
+		if !exists {
+			log.Printf("[WARN] LLM returned invalid pose_id %q (not in catalog), skipping...", ex.PoseID)
+			continue
+		}
 
-                // Contraindication double-check: even though Gemini gets a pre-filtered list,
-                // it can still hallucinate contraindicated poses. This is the safety net.
-                if isContraindicated(pose, userInjuries) {
-                        log.Printf("[WARN] LLM returned contraindicated pose_id %q for injuries %v — skipping", ex.PoseID, userInjuries)
-                        continue
-                }
+		// Contraindication double-check: even though Gemini gets a pre-filtered list,
+		// it can still hallucinate contraindicated poses. This is the safety net.
+		if isContraindicated(pose, userInjuries) {
+			log.Printf("[WARN] LLM returned contraindicated pose_id %q for injuries %v — skipping", ex.PoseID, userInjuries)
+			continue
+		}
 
-                // Duplicate limit: same pose max 2 times in a plan
-                poseCount[ex.PoseID]++
-                if poseCount[ex.PoseID] > 2 {
-                        log.Printf("[WARN] Duplicate pose_id %q appeared %d times — skipping", ex.PoseID, poseCount[ex.PoseID])
-                        continue
-                }
+		// Duplicate limit: same pose max 2 times in a plan
+		poseCount[ex.PoseID]++
+		if poseCount[ex.PoseID] > 2 {
+			log.Printf("[WARN] Duplicate pose_id %q appeared %d times — skipping", ex.PoseID, poseCount[ex.PoseID])
+			continue
+		}
 
-                if ex.Duration <= 0 {
-                        log.Printf("[WARN] LLM returned invalid duration %d for pose %q, skipping...", ex.Duration, ex.PoseID)
-                        continue
-                }
+		if ex.Duration <= 0 {
+			log.Printf("[WARN] LLM returned invalid duration %d for pose %q, skipping...", ex.Duration, ex.PoseID)
+			continue
+		}
 
-                // Duration capping: enforce 1-5 minute range per pose
-                duration := ex.Duration
-                if duration < 1 {
-                        duration = 1
-                }
-                if duration > 5 {
-                        log.Printf("[WARN] Pose %q duration capped at 5 minutes (was %d)", ex.PoseID, duration)
-                        duration = 5
-                }
+		// Duration capping: enforce 1-5 minute range per pose
+		duration := ex.Duration
+		if duration < 1 {
+			duration = 1
+		}
+		if duration > 5 {
+			log.Printf("[WARN] Pose %q duration capped at 5 minutes (was %d)", ex.PoseID, duration)
+			duration = 5
+		}
 
-                exercise := BilingualExercise{
-                        PoseID:         ex.PoseID,
-                        NameEN:         pose.NameEN,
-                        NameTR:         pose.NameTR,
-                        DurationMin:    duration,
-                        InstructionsEN: pose.InstructionsEN,
-                        InstructionsTR: pose.InstructionsTR,
-                        BenefitEN:      ex.BenefitEN,
-                        BenefitTR:      ex.BenefitTR,
-                        TargetArea:     pose.TargetArea,
-                        Category:       string(pose.Category),
-                        IsAnalyzable:   pose.IsAnalyzable,
-                }
+		exercise := BilingualExercise{
+			PoseID:         ex.PoseID,
+			NameEN:         pose.NameEN,
+			NameTR:         pose.NameTR,
+			DurationMin:    duration,
+			InstructionsEN: pose.InstructionsEN,
+			InstructionsTR: pose.InstructionsTR,
+			BenefitEN:      ex.BenefitEN,
+			BenefitTR:      ex.BenefitTR,
+			TargetArea:     pose.TargetArea,
+			Category:       string(pose.Category),
+			IsAnalyzable:   pose.IsAnalyzable,
+		}
 
-                validExercises = append(validExercises, exercise)
-                actualDuration += duration
-                if pose.IsAnalyzable {
-                        analyzableCount++
-                }
-        }
+		validExercises = append(validExercises, exercise)
+		actualDuration += duration
+		if pose.IsAnalyzable {
+			analyzableCount++
+		}
+	}
 
-        // Minimum valid exercise check (post-filtering safety net)
-        if len(validExercises) < 3 {
-                return nil, fmt.Errorf("plan validation failed: only %d valid exercises remaining after filtering (minimum 3 required)", len(validExercises))
-        }
+	// Minimum valid exercise check (post-filtering safety net)
+	if len(validExercises) < 3 {
+		return nil, fmt.Errorf("plan validation failed: only %d valid exercises remaining after filtering (minimum 3 required)", len(validExercises))
+	}
 
-        plan.Exercises = validExercises
-        plan.TotalDurationMin = actualDuration
-        plan.AnalyzablePoseCount = analyzableCount
-        plan.TotalPoseCount = len(validExercises)
+	plan.Exercises = validExercises
+	plan.TotalDurationMin = actualDuration
+	plan.AnalyzablePoseCount = analyzableCount
+	plan.TotalPoseCount = len(validExercises)
 
-        return plan, nil
+	return plan, nil
 }
 
 func parsePlanJSON(raw string) interface{} {
@@ -242,7 +243,7 @@ func (h *YogaHandler) GeneratePlan(c *gin.Context) {
 	var profileInjuries []string
 	profile, _ := h.profileRepo.GetProfile(c.Request.Context(), uid)
 	if profile != nil && len(profile.Injuries) > 0 {
-		profileInjuries = profile.Injuries
+		profileInjuries = catalog.NormalizeInjuries(profile.Injuries)
 	}
 
 	safePoseIDs := catalog.GetSafePoseIDs(profileInjuries)
@@ -434,20 +435,20 @@ func (h *YogaHandler) AnalyzePose(c *gin.Context) {
 		return
 	}
 
-        var req services.AnalyzeRequest
-        if err := c.ShouldBindJSON(&req); err != nil {
-                models.ErrorResponse(c, http.StatusBadRequest, err.Error())
-                return
-        }
+	var req services.AnalyzeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		models.ErrorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
 
-        analysis, err := services.AnalyzePoseLandmarks(req)
-        if err != nil {
-                log.Printf("[ERROR] AnalyzePoseLandmarks failed: %v", err)
-                models.ErrorResponse(c, http.StatusInternalServerError, "failed to analyze pose: "+err.Error())
-                return
-        }
+	analysis, err := services.AnalyzePoseLandmarks(req)
+	if err != nil {
+		log.Printf("[ERROR] AnalyzePoseLandmarks failed: %v", err)
+		models.ErrorResponse(c, http.StatusInternalServerError, "failed to analyze pose: "+err.Error())
+		return
+	}
 
-        models.SuccessResponse(c, "pose analyzed successfully", analysis)
+	models.SuccessResponse(c, "pose analyzed successfully", analysis)
 }
 
 func (h *YogaHandler) HealthCheck(c *gin.Context) {
@@ -458,17 +459,17 @@ func (h *YogaHandler) HealthCheck(c *gin.Context) {
 	for _, p := range poses {
 		categories[p.Category]++
 	}
-	
+
 	catReport := make(gin.H, len(categories))
 	for cat, count := range categories {
 		catReport[string(cat)] = count
 	}
 
 	models.SuccessResponse(c, "YogAI API is running", gin.H{
-		"catalog_loaded":     catalogCount > 0,
-		"total_poses":        catalogCount,
-		"categories":         catReport,
-		"gemini_configured":  true,
+		"catalog_loaded":       catalogCount > 0,
+		"total_poses":          catalogCount,
+		"categories":           catReport,
+		"gemini_configured":    true,
 		"firestore_configured": true,
 	})
 }
@@ -491,7 +492,7 @@ func preValidatePlanRequest(level string, duration int, focusArea string, injuri
 		filteredIDs = catalog.GetPosesByMaxDifficulty(filteredIDs, 2)
 	case "intermediate":
 		filteredIDs = catalog.GetPosesByMaxDifficulty(filteredIDs, 3)
-	// "advanced" uses all difficulties, no filter needed
+		// "advanced" uses all difficulties, no filter needed
 	}
 
 	availablePoseCount = len(filteredIDs)
@@ -506,7 +507,7 @@ func preValidatePlanRequest(level string, duration int, focusArea string, injuri
 
 	// Duration feasibility check
 	minDuration := availablePoseCount * 1 // 1 min per pose minimum
-	maxDuration = availablePoseCount * 5   // 5 min per pose maximum
+	maxDuration = availablePoseCount * 5  // 5 min per pose maximum
 
 	if duration > maxDuration {
 		return availablePoseCount, maxDuration, fmt.Errorf(

@@ -93,6 +93,9 @@ func TestAllPosesHaveRequiredFields(t *testing.T) {
 		if p.Contraindications == nil {
 			t.Errorf("pose[%d] (%s) has nil Contraindications (use empty slice)", i, p.PoseID)
 		}
+		if p.LandmarkRules == nil {
+			t.Errorf("pose[%d] (%s) has nil LandmarkRules after init (expected empty slice)", i, p.PoseID)
+		}
 	}
 }
 

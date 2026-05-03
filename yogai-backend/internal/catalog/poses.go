@@ -11,34 +11,34 @@ const (
 )
 
 type LandmarkRule struct {
-        Joint      string  `json:"joint"`
-        PointA     int     `json:"point_a"`
-        PointB     int     `json:"point_b"`
-        PointC     int     `json:"point_c"`
-        AngleMin   float64 `json:"angle_min"`
-        AngleMax   float64 `json:"angle_max"`
-        Weight     float64 `json:"weight"`
-        RuleType   string  `json:"rule_type"`
-        FeedbackEN string  `json:"feedback_en"`
-        FeedbackTR string  `json:"feedback_tr"`
+	Joint      string  `json:"joint"`
+	PointA     int     `json:"point_a"`
+	PointB     int     `json:"point_b"`
+	PointC     int     `json:"point_c"`
+	AngleMin   float64 `json:"angle_min"`
+	AngleMax   float64 `json:"angle_max"`
+	Weight     float64 `json:"weight"`
+	RuleType   string  `json:"rule_type"`
+	FeedbackEN string  `json:"feedback_en"`
+	FeedbackTR string  `json:"feedback_tr"`
 }
 
 type Pose struct {
-        PoseID            string         `json:"pose_id"`
-        NameEN            string         `json:"name_en"`
-        NameTR            string         `json:"name_tr"`
-        Category          Category       `json:"category"`
-        Difficulty        int            `json:"difficulty"`
-        TargetArea        string         `json:"target_area"`
-        InstructionsEN    string         `json:"instructions_en"`
-        InstructionsTR    string         `json:"instructions_tr"`
-        Contraindications []string       `json:"contraindications"`
-        LandmarkRules     []LandmarkRule `json:"landmark_rules,omitempty"`
-        IsAnalyzable      bool           `json:"is_analyzable"`
+	PoseID            string         `json:"pose_id"`
+	NameEN            string         `json:"name_en"`
+	NameTR            string         `json:"name_tr"`
+	Category          Category       `json:"category"`
+	Difficulty        int            `json:"difficulty"`
+	TargetArea        string         `json:"target_area"`
+	InstructionsEN    string         `json:"instructions_en"`
+	InstructionsTR    string         `json:"instructions_tr"`
+	Contraindications []string       `json:"contraindications"`
+	LandmarkRules     []LandmarkRule `json:"landmark_rules"`
+	IsAnalyzable      bool           `json:"is_analyzable"`
 }
 
 var AllPoses = []Pose{
-	{PoseID: "test_right_arm_up", NameEN: "[TEST] Right Arm Up", NameTR: "[TEST] Sağ Kol Yukarı", Category: CategoryStanding, Difficulty: 1, TargetArea: "arms", 
+	{PoseID: "test_right_arm_up", NameEN: "[TEST] Right Arm Up", NameTR: "[TEST] Sağ Kol Yukarı", Category: CategoryStanding, Difficulty: 1, TargetArea: "arms",
 		InstructionsEN: "Raise your right arm straight up.", InstructionsTR: "Sağ kolunuzu dümdüz yukarı kaldırın.", Contraindications: []string{},
 		LandmarkRules: []LandmarkRule{
 			{Joint: "right_shoulder", PointA: 24, PointB: 12, PointC: 14, AngleMin: 150, AngleMax: 180, Weight: 0.50, RuleType: "target", FeedbackEN: "Raise your right arm higher.", FeedbackTR: "Sağ kolunuzu daha yukarı kaldırın."},
@@ -46,14 +46,14 @@ var AllPoses = []Pose{
 			{Joint: "torso_lean", PointA: 12, PointB: 24, PointC: 26, AngleMin: 0, AngleMax: 160, Weight: 0.15, RuleType: "fault", FeedbackEN: "Don't lean your torso, stand straight.", FeedbackTR: "Gövdenizi yana eğmeyin, dik durun."},
 		},
 	},
-	{PoseID: "test_bend_elbows", NameEN: "[TEST] Bend Elbows", NameTR: "[TEST] İki Dirseği Bük", Category: CategoryStanding, Difficulty: 1, TargetArea: "arms", 
+	{PoseID: "test_bend_elbows", NameEN: "[TEST] Bend Elbows", NameTR: "[TEST] İki Dirseği Bük", Category: CategoryStanding, Difficulty: 1, TargetArea: "arms",
 		InstructionsEN: "Bend both of your elbows tightly.", InstructionsTR: "İki dirseğinizi de kendinize doğru iyice bükün.", Contraindications: []string{},
 		LandmarkRules: []LandmarkRule{
 			{Joint: "left_elbow", PointA: 11, PointB: 13, PointC: 15, AngleMin: 10, AngleMax: 60, Weight: 0.50, RuleType: "target", FeedbackEN: "Bend your left elbow more.", FeedbackTR: "Sol dirseğinizi daha fazla bükün."},
 			{Joint: "right_elbow", PointA: 12, PointB: 14, PointC: 16, AngleMin: 10, AngleMax: 60, Weight: 0.50, RuleType: "target", FeedbackEN: "Bend your right elbow more.", FeedbackTR: "Sağ dirseğinizi daha fazla bükün."},
 		},
 	},
-	{PoseID: "test_t_pose", NameEN: "[TEST] T-Pose", NameTR: "[TEST] Kolları Yana Aç (T)", Category: CategoryStanding, Difficulty: 1, TargetArea: "arms", 
+	{PoseID: "test_t_pose", NameEN: "[TEST] T-Pose", NameTR: "[TEST] Kolları Yana Aç (T)", Category: CategoryStanding, Difficulty: 1, TargetArea: "arms",
 		InstructionsEN: "Raise both arms to the sides parallel to the floor.", InstructionsTR: "İki kolunuzu da yere paralel olacak şekilde yana açın.", Contraindications: []string{},
 		LandmarkRules: []LandmarkRule{
 			{Joint: "left_shoulder_raise", PointA: 23, PointB: 11, PointC: 13, AngleMin: 75, AngleMax: 105, Weight: 0.25, RuleType: "target", FeedbackEN: "Keep left arm parallel to floor.", FeedbackTR: "Sol kolunuzu yere paralel hizaya getirin."},
@@ -64,51 +64,51 @@ var AllPoses = []Pose{
 	},
 	{PoseID: "mountain", NameEN: "Mountain Pose", NameTR: "Dağ Duruşu", Category: CategoryStanding, Difficulty: 1, TargetArea: "full_body", InstructionsEN: "Stand tall with feet together, arms at sides. Distribute weight evenly, engage thighs, lengthen spine. Relax shoulders down and breathe deeply.", InstructionsTR: "Ayaklar bitişik, kollar yanlarda dik durun. Ağırlığı eşit dağıtın, baldırları sıkın, omurgayı uzatın. Omuzları gevşetin ve derin nefes alın.", Contraindications: []string{},
 		LandmarkRules: []LandmarkRule{
-			{Joint: "left_leg", PointA: 23, PointB: 25, PointC: 27, AngleMin: 170, AngleMax: 180, Weight: 0.25, FeedbackEN: "Keep your left leg straight.", FeedbackTR: "Sol bacağınızı düz tutun."},
-			{Joint: "right_leg", PointA: 24, PointB: 26, PointC: 28, AngleMin: 170, AngleMax: 180, Weight: 0.25, FeedbackEN: "Keep your right leg straight.", FeedbackTR: "Sağ bacağınızı düz tutun."},
-			{Joint: "left_arm", PointA: 11, PointB: 13, PointC: 15, AngleMin: 160, AngleMax: 180, Weight: 0.25, FeedbackEN: "Keep your left arm straight down.", FeedbackTR: "Sol kolunuzu düz aşağı sarkıtın."},
-			{Joint: "upright_body", PointA: 11, PointB: 23, PointC: 25, AngleMin: 170, AngleMax: 180, Weight: 0.25, FeedbackEN: "Stand tall and straight.", FeedbackTR: "Dik ve düz durun."},
+			{Joint: "left_leg", PointA: 23, PointB: 25, PointC: 27, AngleMin: 170, AngleMax: 180, Weight: 0.25, RuleType: "target", FeedbackEN: "Keep your left leg straight.", FeedbackTR: "Sol bacağınızı düz tutun."},
+			{Joint: "right_leg", PointA: 24, PointB: 26, PointC: 28, AngleMin: 170, AngleMax: 180, Weight: 0.25, RuleType: "target", FeedbackEN: "Keep your right leg straight.", FeedbackTR: "Sağ bacağınızı düz tutun."},
+			{Joint: "left_arm", PointA: 11, PointB: 13, PointC: 15, AngleMin: 160, AngleMax: 180, Weight: 0.25, RuleType: "target", FeedbackEN: "Keep your left arm straight down.", FeedbackTR: "Sol kolunuzu düz aşağı sarkıtın."},
+			{Joint: "upright_body", PointA: 11, PointB: 23, PointC: 25, AngleMin: 170, AngleMax: 180, Weight: 0.25, RuleType: "target", FeedbackEN: "Stand tall and straight.", FeedbackTR: "Dik ve düz durun."},
 		},
 	},
 	{PoseID: "forward_fold", NameEN: "Standing Forward Fold", NameTR: "Ayakta Öne Eğilme", Category: CategoryStanding, Difficulty: 1, TargetArea: "hamstrings", InstructionsEN: "From standing, hinge at hips and fold forward. Let head hang heavy, bend knees slightly if needed. Hold opposite elbows and sway gently.", InstructionsTR: "Ayakta duruştan kalçalardan öne doğru katlayın. Başı serbest bırakın, gerekirse dizleri hafifçe bükün. Dirseklerden tutup hafifçe sallanın.", Contraindications: []string{"herniated_disc", "low_back_pain"}},
 	{PoseID: "warrior_1", NameEN: "Warrior I", NameTR: "Savaşçı I", Category: CategoryStanding, Difficulty: 2, TargetArea: "legs", InstructionsEN: "Step one foot back, bend front knee to 90 degrees. Square hips forward, raise arms overhead. Press back heel firmly into the mat.", InstructionsTR: "Bir ayağı geriye atın, ön dizi 90 derece bükün. Kalçaları öne hizalayın, kolları yukarı kaldırın. Arka topuğu yere sıkıca basın.", Contraindications: []string{"knee_injury"},
 		LandmarkRules: []LandmarkRule{
-			{Joint: "front_knee", PointA: 23, PointB: 25, PointC: 27, AngleMin: 85, AngleMax: 110, Weight: 0.30, FeedbackEN: "Bend your front knee close to 90 degrees.", FeedbackTR: "Ön dizinizi 90 dereceye yakın bükün."},
-			{Joint: "back_leg", PointA: 24, PointB: 26, PointC: 28, AngleMin: 160, AngleMax: 180, Weight: 0.25, FeedbackEN: "Keep your back leg straight.", FeedbackTR: "Arka bacağınızı düz tutun."},
-			{Joint: "arms_up", PointA: 13, PointB: 11, PointC: 23, AngleMin: 150, AngleMax: 180, Weight: 0.25, FeedbackEN: "Reach your arms up straight.", FeedbackTR: "Kollarınızı yukarı uzatın."},
-			{Joint: "torso_upright", PointA: 11, PointB: 23, PointC: 25, AngleMin: 160, AngleMax: 180, Weight: 0.20, FeedbackEN: "Keep your torso upright.", FeedbackTR: "Gövdenizi dik tutun."},
+			{Joint: "front_knee", PointA: 23, PointB: 25, PointC: 27, AngleMin: 85, AngleMax: 110, Weight: 0.30, RuleType: "target", FeedbackEN: "Bend your front knee close to 90 degrees.", FeedbackTR: "Ön dizinizi 90 dereceye yakın bükün."},
+			{Joint: "back_leg", PointA: 24, PointB: 26, PointC: 28, AngleMin: 160, AngleMax: 180, Weight: 0.25, RuleType: "target", FeedbackEN: "Keep your back leg straight.", FeedbackTR: "Arka bacağınızı düz tutun."},
+			{Joint: "arms_up", PointA: 13, PointB: 11, PointC: 23, AngleMin: 150, AngleMax: 180, Weight: 0.25, RuleType: "target", FeedbackEN: "Reach your arms up straight.", FeedbackTR: "Kollarınızı yukarı uzatın."},
+			{Joint: "torso_upright", PointA: 11, PointB: 23, PointC: 25, AngleMin: 160, AngleMax: 180, Weight: 0.20, RuleType: "target", FeedbackEN: "Keep your torso upright.", FeedbackTR: "Gövdenizi dik tutun."},
 		},
 	},
 	{PoseID: "warrior_2", NameEN: "Warrior II", NameTR: "Savaşçı II", Category: CategoryStanding, Difficulty: 2, TargetArea: "legs", InstructionsEN: "Step feet wide apart, turn front foot out 90 degrees. Bend front knee over ankle, extend arms parallel to floor. Gaze over front fingertips.", InstructionsTR: "Ayakları geniş açın, ön ayağı 90 derece dışa çevirin. Ön dizi bilek üzerine bükün, kolları yere paralel uzatın. Bakışları ön parmak uçlarına yöneltin.", Contraindications: []string{"knee_injury"},
 		LandmarkRules: []LandmarkRule{
-			{Joint: "front_knee", PointA: 23, PointB: 25, PointC: 27, AngleMin: 85, AngleMax: 110, Weight: 0.30, FeedbackEN: "Bend your front knee close to 90 degrees.", FeedbackTR: "Ön dizinizi 90 dereceye yakın bükün."},
-			{Joint: "back_leg", PointA: 24, PointB: 26, PointC: 28, AngleMin: 160, AngleMax: 180, Weight: 0.25, FeedbackEN: "Keep your back leg straight.", FeedbackTR: "Arka bacağınızı düz tutun."},
-			{Joint: "arms_parallel", PointA: 15, PointB: 11, PointC: 12, AngleMin: 160, AngleMax: 180, Weight: 0.25, FeedbackEN: "Keep arms parallel to the floor.", FeedbackTR: "Kollarınızı yere paralel tutun."},
-			{Joint: "torso_upright", PointA: 11, PointB: 23, PointC: 25, AngleMin: 160, AngleMax: 180, Weight: 0.20, FeedbackEN: "Keep your torso centered.", FeedbackTR: "Gövdenizi ortada ve dik tutun."},
+			{Joint: "front_knee", PointA: 23, PointB: 25, PointC: 27, AngleMin: 85, AngleMax: 110, Weight: 0.30, RuleType: "target", FeedbackEN: "Bend your front knee close to 90 degrees.", FeedbackTR: "Ön dizinizi 90 dereceye yakın bükün."},
+			{Joint: "back_leg", PointA: 24, PointB: 26, PointC: 28, AngleMin: 160, AngleMax: 180, Weight: 0.25, RuleType: "target", FeedbackEN: "Keep your back leg straight.", FeedbackTR: "Arka bacağınızı düz tutun."},
+			{Joint: "arms_parallel", PointA: 15, PointB: 11, PointC: 12, AngleMin: 160, AngleMax: 180, Weight: 0.25, RuleType: "target", FeedbackEN: "Keep arms parallel to the floor.", FeedbackTR: "Kollarınızı yere paralel tutun."},
+			{Joint: "torso_upright", PointA: 11, PointB: 23, PointC: 25, AngleMin: 160, AngleMax: 180, Weight: 0.20, RuleType: "target", FeedbackEN: "Keep your torso centered.", FeedbackTR: "Gövdenizi ortada ve dik tutun."},
 		},
 	},
 	{PoseID: "warrior_3", NameEN: "Warrior III", NameTR: "Savaşçı III", Category: CategoryStanding, Difficulty: 4, TargetArea: "balance", InstructionsEN: "From standing, hinge forward at hips while lifting one leg behind. Arms extend forward, body forms a T-shape. Keep standing leg strong and hips level.", InstructionsTR: "Ayakta duruştan kalçalardan öne eğilirken bir bacağı arkaya kaldırın. Kollar öne uzanır, vücut T şekli oluşturur. Duran bacağı güçlü tutun, kalçaları hizada tutun.", Contraindications: []string{"knee_injury", "ankle_injury"}},
 	{PoseID: "triangle", NameEN: "Triangle Pose", NameTR: "Üçgen Duruşu", Category: CategoryStanding, Difficulty: 2, TargetArea: "legs", InstructionsEN: "Step feet wide, turn front foot out. Extend torso over front leg, lower hand to shin or floor. Top arm reaches to ceiling.", InstructionsTR: "Ayakları geniş açın, ön ayağı dışa çevirin. Gövdeyi ön bacak üzerine uzatın, eli baldıra veya yere indirin. Üst kol tavana uzanır.", Contraindications: []string{"low_back_pain"},
 		LandmarkRules: []LandmarkRule{
-			{Joint: "front_leg", PointA: 23, PointB: 25, PointC: 27, AngleMin: 160, AngleMax: 180, Weight: 0.25, FeedbackEN: "Keep your front leg straight.", FeedbackTR: "Ön bacağınızı düz tutun."},
-			{Joint: "back_leg", PointA: 24, PointB: 26, PointC: 28, AngleMin: 160, AngleMax: 180, Weight: 0.25, FeedbackEN: "Keep your back leg straight.", FeedbackTR: "Arka bacağınızı düz tutun."},
-			{Joint: "torso_lateral", PointA: 11, PointB: 23, PointC: 25, AngleMin: 60, AngleMax: 110, Weight: 0.25, FeedbackEN: "Bend sideways over your front leg.", FeedbackTR: "Ön bacağınızın üzerine doğru yana eğilin."},
-			{Joint: "arms_vertical", PointA: 15, PointB: 11, PointC: 12, AngleMin: 160, AngleMax: 180, Weight: 0.25, FeedbackEN: "Extend arms vertically.", FeedbackTR: "Kollarınızı dikey olarak uzatın."},
+			{Joint: "front_leg", PointA: 23, PointB: 25, PointC: 27, AngleMin: 160, AngleMax: 180, Weight: 0.25, RuleType: "target", FeedbackEN: "Keep your front leg straight.", FeedbackTR: "Ön bacağınızı düz tutun."},
+			{Joint: "back_leg", PointA: 24, PointB: 26, PointC: 28, AngleMin: 160, AngleMax: 180, Weight: 0.25, RuleType: "target", FeedbackEN: "Keep your back leg straight.", FeedbackTR: "Arka bacağınızı düz tutun."},
+			{Joint: "torso_lateral", PointA: 11, PointB: 23, PointC: 25, AngleMin: 60, AngleMax: 110, Weight: 0.25, RuleType: "target", FeedbackEN: "Bend sideways over your front leg.", FeedbackTR: "Ön bacağınızın üzerine doğru yana eğilin."},
+			{Joint: "arms_vertical", PointA: 15, PointB: 11, PointC: 12, AngleMin: 160, AngleMax: 180, Weight: 0.25, RuleType: "target", FeedbackEN: "Extend arms vertically.", FeedbackTR: "Kollarınızı dikey olarak uzatın."},
 		},
 	},
 	{PoseID: "extended_side_angle", NameEN: "Extended Side Angle", NameTR: "Uzatılmış Yan Açı", Category: CategoryStanding, Difficulty: 2, TargetArea: "legs", InstructionsEN: "From Warrior II, bring front forearm to front thigh or hand to floor. Extend top arm over ear creating one long line from back foot to fingertips.", InstructionsTR: "Savaşçı II'den ön kolu ön uyluğa veya eli yere indirin. Üst kolu kulak üzerinden uzatarak arka ayaktan parmak uçlarına tek bir çizgi oluşturun.", Contraindications: []string{"knee_injury"}},
 	{PoseID: "tree", NameEN: "Tree Pose", NameTR: "Ağaç Duruşu", Category: CategoryStanding, Difficulty: 2, TargetArea: "balance", InstructionsEN: "Stand on one leg, place other foot on inner thigh or calf (never on knee). Bring hands to prayer or overhead. Fix gaze on a steady point.", InstructionsTR: "Tek bacak üzerinde durun, diğer ayağı iç uyluğa veya baldıra yerleştirin (asla dize değil). Elleri namaz pozisyonuna veya yukarı getirin. Bakışları sabit bir noktaya odaklayın.", Contraindications: []string{"ankle_injury"},
 		LandmarkRules: []LandmarkRule{
-			{Joint: "standing_leg", PointA: 23, PointB: 25, PointC: 27, AngleMin: 170, AngleMax: 180, Weight: 0.40, FeedbackEN: "Keep your standing leg straight.", FeedbackTR: "Yere basan bacağınızı düz tutun."},
-			{Joint: "bent_knee", PointA: 24, PointB: 26, PointC: 28, AngleMin: 30, AngleMax: 90, Weight: 0.30, FeedbackEN: "Bend your other knee and place your foot on your thigh or calf.", FeedbackTR: "Diğer dizinizi bükün ve ayağınızı bacağınıza yerleştirin."},
-			{Joint: "torso", PointA: 11, PointB: 23, PointC: 25, AngleMin: 170, AngleMax: 180, Weight: 0.30, FeedbackEN: "Stand tall.", FeedbackTR: "Dik durun."},
+			{Joint: "standing_leg", PointA: 23, PointB: 25, PointC: 27, AngleMin: 170, AngleMax: 180, Weight: 0.40, RuleType: "target", FeedbackEN: "Keep your standing leg straight.", FeedbackTR: "Yere basan bacağınızı düz tutun."},
+			{Joint: "bent_knee", PointA: 24, PointB: 26, PointC: 28, AngleMin: 30, AngleMax: 90, Weight: 0.30, RuleType: "target", FeedbackEN: "Bend your other knee and place your foot on your thigh or calf.", FeedbackTR: "Diğer dizinizi bükün ve ayağınızı bacağınıza yerleştirin."},
+			{Joint: "torso", PointA: 11, PointB: 23, PointC: 25, AngleMin: 170, AngleMax: 180, Weight: 0.30, RuleType: "target", FeedbackEN: "Stand tall.", FeedbackTR: "Dik durun."},
 		},
 	},
 	{PoseID: "chair", NameEN: "Chair Pose", NameTR: "Sandalye Duruşu", Category: CategoryStanding, Difficulty: 2, TargetArea: "legs", InstructionsEN: "Stand with feet together, bend knees as if sitting in a chair. Keep knees behind toes, raise arms overhead. Engage core and lengthen tailbone down.", InstructionsTR: "Ayaklar bitişik, dizleri sandalyeye oturur gibi bükün. Dizleri parmak uçlarının gerisinde tutun, kolları yukarı kaldırın. Karnı sıkın ve kuyruk kemiğini aşağı uzatın.", Contraindications: []string{"knee_injury"},
 		LandmarkRules: []LandmarkRule{
-			{Joint: "knees_bent", PointA: 23, PointB: 25, PointC: 27, AngleMin: 90, AngleMax: 140, Weight: 0.40, FeedbackEN: "Bend your knees as if sitting in a chair.", FeedbackTR: "Sanki bir sandalyede oturuyormuş gibi dizlerinizi bükün."},
-			{Joint: "hips_flexed", PointA: 11, PointB: 23, PointC: 25, AngleMin: 90, AngleMax: 140, Weight: 0.30, FeedbackEN: "Hinge at your hips.", FeedbackTR: "Kalçalarınızdan eğilin."},
-			{Joint: "arms_up", PointA: 15, PointB: 11, PointC: 23, AngleMin: 140, AngleMax: 180, Weight: 0.30, FeedbackEN: "Extend arms up alongside your ears.", FeedbackTR: "Kollarınızı kulaklarınızın yanına doğru uzatın."},
+			{Joint: "knees_bent", PointA: 23, PointB: 25, PointC: 27, AngleMin: 90, AngleMax: 140, Weight: 0.40, RuleType: "target", FeedbackEN: "Bend your knees as if sitting in a chair.", FeedbackTR: "Sanki bir sandalyede oturuyormuş gibi dizlerinizi bükün."},
+			{Joint: "hips_flexed", PointA: 11, PointB: 23, PointC: 25, AngleMin: 90, AngleMax: 140, Weight: 0.30, RuleType: "target", FeedbackEN: "Hinge at your hips.", FeedbackTR: "Kalçalarınızdan eğilin."},
+			{Joint: "arms_up", PointA: 15, PointB: 11, PointC: 23, AngleMin: 140, AngleMax: 180, Weight: 0.30, RuleType: "target", FeedbackEN: "Extend arms up alongside your ears.", FeedbackTR: "Kollarınızı kulaklarınızın yanına doğru uzatın."},
 		},
 	},
 	{PoseID: "half_moon", NameEN: "Half Moon Pose", NameTR: "Yarım Ay Duruşu", Category: CategoryStanding, Difficulty: 3, TargetArea: "balance", InstructionsEN: "From Triangle, bend front knee and shift weight forward. Lift back leg parallel to floor, open hips and chest to the side. Bottom hand on floor or block.", InstructionsTR: "Üçgen duruşundan ön dizi bükün ve ağırlığı öne kaydırın. Arka bacağı yere paralel kaldırın, kalça ve göğsü yana açın. Alt el yerde veya blokta.", Contraindications: []string{"low_back_pain", "ankle_injury"}},
@@ -135,9 +135,9 @@ var AllPoses = []Pose{
 
 	{PoseID: "cobra", NameEN: "Cobra Pose", NameTR: "Kobra Duruşu", Category: CategoryProne, Difficulty: 1, TargetArea: "back", InstructionsEN: "Lie face down, place hands under shoulders. Press up gently, lifting chest while keeping hips on the floor. Elbows slightly bent, shoulders down.", InstructionsTR: "Yüzüstü uzanın, elleri omuzların altına koyun. Karnı yerde tutarak göğsü yukarı kaldırın. Dirsekler hafif bükülü, omuzlar aşağıda.", Contraindications: []string{"herniated_disc", "pregnancy"},
 		LandmarkRules: []LandmarkRule{
-			{Joint: "arms_bent", PointA: 11, PointB: 13, PointC: 15, AngleMin: 90, AngleMax: 160, Weight: 0.30, FeedbackEN: "Keep a slight bend in your elbows.", FeedbackTR: "Dirseklerinizde hafif bir bükülme bırakın."},
-			{Joint: "back_extension", PointA: 11, PointB: 23, PointC: 25, AngleMin: 120, AngleMax: 160, Weight: 0.40, FeedbackEN: "Lift your chest, arching your back gently.", FeedbackTR: "Göğsünüzü kaldırın, sırtınızı nazikçe kavisleştirin."},
-			{Joint: "legs_straight", PointA: 23, PointB: 25, PointC: 27, AngleMin: 160, AngleMax: 180, Weight: 0.30, FeedbackEN: "Keep your legs straight behind you.", FeedbackTR: "Bacaklarınızı arkanızda düz tutun."},
+			{Joint: "arms_bent", PointA: 11, PointB: 13, PointC: 15, AngleMin: 90, AngleMax: 160, Weight: 0.30, RuleType: "target", FeedbackEN: "Keep a slight bend in your elbows.", FeedbackTR: "Dirseklerinizde hafif bir bükülme bırakın."},
+			{Joint: "back_extension", PointA: 11, PointB: 23, PointC: 25, AngleMin: 120, AngleMax: 160, Weight: 0.40, RuleType: "target", FeedbackEN: "Lift your chest, arching your back gently.", FeedbackTR: "Göğsünüzü kaldırın, sırtınızı nazikçe kavisleştirin."},
+			{Joint: "legs_straight", PointA: 23, PointB: 25, PointC: 27, AngleMin: 160, AngleMax: 180, Weight: 0.30, RuleType: "target", FeedbackEN: "Keep your legs straight behind you.", FeedbackTR: "Bacaklarınızı arkanızda düz tutun."},
 		},
 	},
 	{PoseID: "upward_dog", NameEN: "Upward-Facing Dog", NameTR: "Yukarı Bakan Köpek", Category: CategoryProne, Difficulty: 2, TargetArea: "back", InstructionsEN: "From prone position, press hands into floor and straighten arms. Lift thighs and knees off the mat. Open chest, shoulders back and down.", InstructionsTR: "Yüzüstü pozisyondan elleri yere basın ve kolları düzeltin. Uyluk ve dizleri matın üzerinden kaldırın. Göğsü açın, omuzları geri ve aşağı çekin.", Contraindications: []string{"herniated_disc", "wrist_injury"}},
@@ -161,9 +161,9 @@ var AllPoses = []Pose{
 	{PoseID: "forearm_plank", NameEN: "Forearm Plank", NameTR: "Ön Kol Plank", Category: CategoryProne, Difficulty: 2, TargetArea: "core", InstructionsEN: "Place forearms on floor, elbows under shoulders. Extend legs back, body in a straight line. Hold position, engaging core throughout.", InstructionsTR: "Ön kolları yere koyun, dirsekler omuzların altında. Bacakları geriye uzatın, vücut düz çizgide. Pozisyonu tutun, karnı sürekli sıkın.", Contraindications: []string{}},
 	{PoseID: "downward_dog", NameEN: "Downward-Facing Dog", NameTR: "Aşağı Bakan Köpek", Category: CategoryProne, Difficulty: 2, TargetArea: "full_body", InstructionsEN: "From all fours, lift hips up and back forming an inverted V. Press hands into mat, straighten legs and relax head between arms.", InstructionsTR: "Dört ayak üstünden kalçaları yukarı ve geriye kaldırarak ters V oluşturun. Elleri mata basın, bacakları düzeltin ve başı kollar arasında gevşetin.", Contraindications: []string{"wrist_injury", "high_blood_pressure"},
 		LandmarkRules: []LandmarkRule{
-			{Joint: "shoulder_flexion", PointA: 13, PointB: 11, PointC: 23, AngleMin: 150, AngleMax: 180, Weight: 0.30, FeedbackEN: "Push your chest towards your thighs.", FeedbackTR: "Göğsünüzü uyluklarınıza doğru itin."},
-			{Joint: "hip_angle", PointA: 11, PointB: 23, PointC: 25, AngleMin: 60, AngleMax: 100, Weight: 0.40, FeedbackEN: "Create a sharp inverted V shape with your hips.", FeedbackTR: "Kalçalarınızla keskin bir ters V şekli oluşturun."},
-			{Joint: "legs_straight", PointA: 23, PointB: 25, PointC: 27, AngleMin: 150, AngleMax: 180, Weight: 0.30, FeedbackEN: "Try to keep your legs straight.", FeedbackTR: "Bacaklarınızı düz tutmaya çalışın."},
+			{Joint: "shoulder_flexion", PointA: 13, PointB: 11, PointC: 23, AngleMin: 150, AngleMax: 180, Weight: 0.30, RuleType: "target", FeedbackEN: "Push your chest towards your thighs.", FeedbackTR: "Göğsünüzü uyluklarınıza doğru itin."},
+			{Joint: "hip_angle", PointA: 11, PointB: 23, PointC: 25, AngleMin: 60, AngleMax: 100, Weight: 0.40, RuleType: "target", FeedbackEN: "Create a sharp inverted V shape with your hips.", FeedbackTR: "Kalçalarınızla keskin bir ters V şekli oluşturun."},
+			{Joint: "legs_straight", PointA: 23, PointB: 25, PointC: 27, AngleMin: 150, AngleMax: 180, Weight: 0.30, RuleType: "target", FeedbackEN: "Try to keep your legs straight.", FeedbackTR: "Bacaklarınızı düz tutmaya çalışın."},
 		},
 	},
 	{PoseID: "child", NameEN: "Child's Pose", NameTR: "Çocuk Duruşu", Category: CategoryProne, Difficulty: 1, TargetArea: "back", InstructionsEN: "Kneel, sit back on heels, fold forward with arms extended or alongside body. Rest forehead on mat. Breathe deeply and release tension.", InstructionsTR: "Diz çökün, topuklara oturun, kollar uzatılmış veya vücudun yanında öne katlayın. Alnı mata koyun. Derin nefes alın ve gerginliği bırakın.", Contraindications: []string{"knee_injury"}},
@@ -171,9 +171,9 @@ var AllPoses = []Pose{
 
 	{PoseID: "bridge", NameEN: "Bridge Pose", NameTR: "Köprü Duruşu", Category: CategorySupine, Difficulty: 1, TargetArea: "glutes", InstructionsEN: "Lie on back, bend knees with feet flat. Lift hips toward ceiling, clasp hands under back. Press feet and shoulders into mat.", InstructionsTR: "Sırt üstü uzanın, dizleri bükün, ayaklar yerde. Kalçaları tavana doğru kaldırın, elleri sırtın altında kavuşturun. Ayakları ve omuzları mata basın.", Contraindications: []string{"neck_injury"},
 		LandmarkRules: []LandmarkRule{
-			{Joint: "knees_bent", PointA: 23, PointB: 25, PointC: 27, AngleMin: 60, AngleMax: 110, Weight: 0.30, FeedbackEN: "Keep your knees bent over your ankles.", FeedbackTR: "Dizlerinizi ayak bileklerinizin hizasında bükük tutun."},
-			{Joint: "hips_lifted", PointA: 11, PointB: 23, PointC: 25, AngleMin: 140, AngleMax: 180, Weight: 0.50, FeedbackEN: "Lift your hips high.", FeedbackTR: "Kalçalarınızı yükseğe kaldırın."},
-			{Joint: "arms_down", PointA: 13, PointB: 11, PointC: 23, AngleMin: 0, AngleMax: 45, Weight: 0.20, FeedbackEN: "Keep your arms flat on the mat.", FeedbackTR: "Kollarınızı matın üzerinde düz tutun."},
+			{Joint: "knees_bent", PointA: 23, PointB: 25, PointC: 27, AngleMin: 60, AngleMax: 110, Weight: 0.30, RuleType: "target", FeedbackEN: "Keep your knees bent over your ankles.", FeedbackTR: "Dizlerinizi ayak bileklerinizin hizasında bükük tutun."},
+			{Joint: "hips_lifted", PointA: 11, PointB: 23, PointC: 25, AngleMin: 140, AngleMax: 180, Weight: 0.50, RuleType: "target", FeedbackEN: "Lift your hips high.", FeedbackTR: "Kalçalarınızı yükseğe kaldırın."},
+			{Joint: "arms_down", PointA: 13, PointB: 11, PointC: 23, AngleMin: 0, AngleMax: 45, Weight: 0.20, RuleType: "target", FeedbackEN: "Keep your arms flat on the mat.", FeedbackTR: "Kollarınızı matın üzerinde düz tutun."},
 		},
 	},
 	{PoseID: "supine_twist", NameEN: "Supine Spinal Twist", NameTR: "Sırtüstü Omurga Bükümü", Category: CategorySupine, Difficulty: 1, TargetArea: "spine", InstructionsEN: "Lie on back, draw one knee to chest. Guide knee across body to opposite side, extend arm out. Look opposite direction and relax.", InstructionsTR: "Sırt üstü uzanın, bir dizi göğse çekin. Dizi karşı tarafa doğru yönlendirin, kolu yana uzatın. Ters yöne bakın ve gevşeyin.", Contraindications: []string{"herniated_disc"}},
@@ -198,9 +198,15 @@ var poseIndex map[string]*Pose
 func init() {
 	poseIndex = make(map[string]*Pose, len(AllPoses))
 	for i := range AllPoses {
-                if len(AllPoses[i].LandmarkRules) > 0 {
-                        AllPoses[i].IsAnalyzable = true
-                }
+		if AllPoses[i].LandmarkRules == nil {
+			AllPoses[i].LandmarkRules = []LandmarkRule{}
+		}
+		if AllPoses[i].Contraindications == nil {
+			AllPoses[i].Contraindications = []string{}
+		}
+		if len(AllPoses[i].LandmarkRules) > 0 {
+			AllPoses[i].IsAnalyzable = true
+		}
 		poseIndex[AllPoses[i].PoseID] = &AllPoses[i]
 	}
 }
@@ -227,6 +233,7 @@ func AllPoseIDs() []string {
 }
 
 func GetSafePoseIDs(injuries []string) []string {
+	injuries = NormalizeInjuries(injuries)
 	if len(injuries) == 0 {
 		return AllPoseIDs()
 	}
@@ -259,21 +266,21 @@ func CategoriesWithCounts() map[Category]int {
 }
 
 func GetAnalyzablePoses() []Pose {
-        var analyzable []Pose
-        for _, p := range AllPoses {
-                if p.IsAnalyzable {
-                        analyzable = append(analyzable, p)
-                }
-        }
-        return analyzable
+	var analyzable []Pose
+	for _, p := range AllPoses {
+		if p.IsAnalyzable {
+			analyzable = append(analyzable, p)
+		}
+	}
+	return analyzable
 }
 
 func GetPoseRules(id string) ([]LandmarkRule, bool) {
-        p, ok := poseIndex[id]
-        if !ok || !p.IsAnalyzable {
-                return nil, false
-        }
-        return p.LandmarkRules, true
+	p, ok := poseIndex[id]
+	if !ok || !p.IsAnalyzable {
+		return nil, false
+	}
+	return p.LandmarkRules, true
 }
 
 // GetPosesByTargetArea filters the given poseIDs to only those whose TargetArea matches focusArea.
