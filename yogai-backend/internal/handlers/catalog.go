@@ -16,24 +16,37 @@ func NewCatalogHandler() *CatalogHandler {
 
 func (h *CatalogHandler) GetPoses(c *gin.Context) {
 	poses := catalog.GetAllPoses()
-	
-	// Create lightweight response without full rules
+
 	type PoseMeta struct {
-		PoseID       string `json:"pose_id"`
-		NameEN       string `json:"name_en"`
-		NameTR       string `json:"name_tr"`
-		Difficulty   int    `json:"difficulty"`
-		IsAnalyzable bool   `json:"is_analyzable"`
+		PoseID            string   `json:"pose_id"`
+		NameEN            string   `json:"name_en"`
+		NameTR            string   `json:"name_tr"`
+		Category          string   `json:"category"`
+		Difficulty        int      `json:"difficulty"`
+		TargetArea        string   `json:"target_area"`
+		InstructionsEN    string   `json:"instructions_en"`
+		InstructionsTR    string   `json:"instructions_tr"`
+		Contraindications []string `json:"contraindications"`
+		IsAnalyzable      bool     `json:"is_analyzable"`
 	}
 
-	var metaList []PoseMeta
+	metaList := make([]PoseMeta, 0, len(poses))
 	for _, p := range poses {
+		contraindications := p.Contraindications
+		if contraindications == nil {
+			contraindications = []string{}
+		}
 		metaList = append(metaList, PoseMeta{
-			PoseID:       p.PoseID,
-			NameEN:       p.NameEN,
-			NameTR:       p.NameTR,
-			Difficulty:   p.Difficulty,
-			IsAnalyzable: p.IsAnalyzable,
+			PoseID:            p.PoseID,
+			NameEN:            p.NameEN,
+			NameTR:            p.NameTR,
+			Category:          string(p.Category),
+			Difficulty:        p.Difficulty,
+			TargetArea:        p.TargetArea,
+			InstructionsEN:    p.InstructionsEN,
+			InstructionsTR:    p.InstructionsTR,
+			Contraindications: contraindications,
+			IsAnalyzable:      p.IsAnalyzable,
 		})
 	}
 

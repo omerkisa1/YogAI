@@ -69,6 +69,17 @@ type BilingualPlan struct {
 	Exercises           []BilingualExercise `json:"exercises"`
 	AnalyzablePoseCount int                 `json:"analyzable_pose_count"`
 	TotalPoseCount      int                 `json:"total_pose_count"`
+	Source              string              `json:"source,omitempty"`
+}
+
+type CustomPlanRequest struct {
+	Title     string                `json:"title" binding:"required"`
+	Exercises []CustomPlanExercise  `json:"exercises" binding:"required,min=1"`
+}
+
+type CustomPlanExercise struct {
+	PoseID      string `json:"pose_id" binding:"required"`
+	DurationMin int    `json:"duration_min" binding:"required,min=1,max=10"`
 }
 
 func (h *YogaHandler) getUserID(c *gin.Context) (string, bool) {
@@ -209,6 +220,7 @@ func planToResponse(p *repository.YogaPlan) gin.H {
 		"level":       p.Level,
 		"duration":    p.Duration,
 		"focus_area":  p.FocusArea,
+		"source":      p.Source,
 		"is_favorite": p.IsFavorite,
 		"is_pinned":   p.IsPinned,
 		"created_at":  p.CreatedAt,
@@ -222,6 +234,7 @@ func bilingualPlanToResponse(p *repository.YogaPlan, bilingual *BilingualPlan) g
 		"level":       p.Level,
 		"duration":    p.Duration,
 		"focus_area":  p.FocusArea,
+		"source":      p.Source,
 		"is_favorite": p.IsFavorite,
 		"is_pinned":   p.IsPinned,
 		"created_at":  p.CreatedAt,
@@ -288,6 +301,7 @@ func (h *YogaHandler) GeneratePlan(c *gin.Context) {
 		Level:     req.Level,
 		Duration:  req.Duration,
 		FocusArea: req.FocusArea,
+		Source:    "ai",
 	}
 
 	if err := h.repo.SavePlan(c.Request.Context(), uid, plan); err != nil {
@@ -594,6 +608,122 @@ func buildBilingualPlanPrompt(req GeneratePlanRequest, injuries []string, poseID
 		" - If you cannot fill the requested duration with the available poses, use fewer poses with longer durations (max 5 min each) rather than inventing new pose_ids."
 
 	return prompt
+}
+
+func (h *YogaHandler) CreateCustomPlan(c *gin.Context) {
+	uid, ok := h.getUserID(c)
+	if !ok {
+		return
+	}
+
+	var req CustomPlanRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		models.ErrorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	var profileInjuries []string
+	profile, _ := h.profileRepo.GetProfile(c.Request.Context(), uid)
+	if profile != nil && len(profile.Injuries) > 0 {
+		profileInjuries = catalog.NormalizeInjuries(profile.Injuries)
+	}
+
+	var exercises []BilingualExercise
+	var warnings []string
+	totalDuration := 0
+	analyzableCount := 0
+	maxDifficulty := 0
+
+	for _, ex := range req.Exercises {
+		pose, exists := catalog.GetPoseByID(ex.PoseID)
+		if !exists {
+			models.ErrorResponse(c, http.StatusBadRequest, "unknown pose_id: "+ex.PoseID)
+			return
+		}
+
+		if isContraindicated(pose, profileInjuries) {
+			for _, ci := range pose.Contraindications {
+				for _, inj := range profileInjuries {
+					if ci == inj {
+						warnings = append(warnings,
+							fmt.Sprintf("'%s' hareketi %s için önerilmez", pose.NameTR, ci))
+					}
+				}
+			}
+		}
+
+		exercises = append(exercises, BilingualExercise{
+			PoseID:         pose.PoseID,
+			NameEN:         pose.NameEN,
+			NameTR:         pose.NameTR,
+			DurationMin:    ex.DurationMin,
+			InstructionsEN: pose.InstructionsEN,
+			InstructionsTR: pose.InstructionsTR,
+			TargetArea:     pose.TargetArea,
+			Category:       string(pose.Category),
+			IsAnalyzable:   pose.IsAnalyzable,
+		})
+
+		totalDuration += ex.DurationMin
+		if pose.IsAnalyzable {
+			analyzableCount++
+		}
+		if pose.Difficulty > maxDifficulty {
+			maxDifficulty = pose.Difficulty
+		}
+	}
+
+	level := "beginner"
+	difficultyLabel := "Beginner"
+	if maxDifficulty >= 4 {
+		level = "advanced"
+		difficultyLabel = "Advanced"
+	} else if maxDifficulty >= 3 {
+		level = "intermediate"
+		difficultyLabel = "Intermediate"
+	}
+
+	bilingual := &BilingualPlan{
+		TitleEN:             req.Title,
+		TitleTR:             req.Title,
+		FocusArea:           "full_body",
+		Difficulty:          difficultyLabel,
+		TotalDurationMin:    totalDuration,
+		DescriptionEN:       "Custom plan created by user.",
+		DescriptionTR:       "Kullanıcı tarafından oluşturulan özel plan.",
+		Exercises:           exercises,
+		AnalyzablePoseCount: analyzableCount,
+		TotalPoseCount:      len(exercises),
+		Source:              "custom",
+	}
+
+	planBytes, _ := json.Marshal(bilingual)
+	planJSON := string(planBytes)
+
+	plan := &repository.YogaPlan{
+		PlanEN:    planJSON,
+		PlanTR:    planJSON,
+		Level:     level,
+		Duration:  totalDuration,
+		FocusArea: "full_body",
+		Source:    "custom",
+	}
+
+	if err := h.repo.SavePlan(c.Request.Context(), uid, plan); err != nil {
+		log.Printf("[ERROR] firestore SavePlan (custom) failed for uid=%s: %v", uid, err)
+		models.ErrorResponse(c, http.StatusInternalServerError, "failed to save custom plan")
+		return
+	}
+
+	resp := bilingualPlanToResponse(plan, bilingual)
+	c.JSON(http.StatusCreated, gin.H{
+		"status":  http.StatusCreated,
+		"message": "custom plan created",
+		"data": gin.H{
+			"plan":     resp,
+			"warnings": warnings,
+		},
+	})
 }
 
 // buildAnalyzePrompt removed

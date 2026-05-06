@@ -53,6 +53,7 @@ type YogaPlan struct {
 	Level      string    `json:"level" firestore:"level"`
 	Duration   int       `json:"duration" firestore:"duration"`
 	FocusArea  string    `json:"focus_area" firestore:"focus_area"`
+	Source     string    `json:"source" firestore:"source"` // "ai" or "custom"
 	IsFavorite bool      `json:"is_favorite" firestore:"is_favorite"`
 	IsPinned   bool      `json:"is_pinned" firestore:"is_pinned"`
 	CreatedAt  time.Time `json:"created_at" firestore:"created_at"`
