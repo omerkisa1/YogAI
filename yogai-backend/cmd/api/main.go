@@ -42,7 +42,6 @@ func main() {
         catalogHandler := handlers.NewCatalogHandler()
 
         router := gin.Default()
-        router.Use(gin.Recovery())
         router.Use(middleware.CORS())
 
         api := router.Group("/api/v1")
@@ -70,6 +69,7 @@ func main() {
                 authorized.POST("/training/sessions/:id/complete", trainingHandler.CompleteSession)
                 authorized.GET("/training/sessions", trainingHandler.GetSessions)
                 authorized.GET("/training/sessions/:id", trainingHandler.GetSessionByID)
+                authorized.DELETE("/training/sessions/:id", trainingHandler.DeleteSession)
                 authorized.GET("/training/stats", trainingHandler.GetStats)
 		authorized.GET("/profile", profileHandler.GetProfile)
 		authorized.PUT("/profile", profileHandler.SaveProfile)

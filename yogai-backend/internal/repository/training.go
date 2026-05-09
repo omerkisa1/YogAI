@@ -19,6 +19,8 @@ type TrainingRepository interface {
 	SavePoseResult(ctx context.Context, uid string, sessionID string, result *models.PoseResult) error
 	GetPoseResults(ctx context.Context, uid string, sessionID string) ([]*models.PoseResult, error)
 	GetSessions(ctx context.Context, uid string) ([]*models.TrainingSession, error)
+	DeleteSession(ctx context.Context, uid, sessionID string) error
+	GetPlanTitle(ctx context.Context, uid, planID string) (string, error)
 }
 
 type trainingRepository struct {
@@ -120,6 +122,38 @@ func (r *trainingRepository) GetPoseResults(ctx context.Context, uid string, ses
 		results = append(results, &pr)
 	}
 	return results, nil
+}
+
+func (r *trainingRepository) DeleteSession(ctx context.Context, uid, sessionID string) error {
+	sessionRef := r.sessionsColl(uid).Doc(sessionID)
+
+	results := sessionRef.Collection("results").Documents(ctx)
+	defer results.Stop()
+	for {
+		doc, err := results.Next()
+		if err != nil {
+			break
+		}
+		_, _ = doc.Ref.Delete(ctx)
+	}
+
+	_, err := sessionRef.Delete(ctx)
+	return err
+}
+
+func (r *trainingRepository) GetPlanTitle(ctx context.Context, uid, planID string) (string, error) {
+	doc, err := r.firestore.Collection("users").Doc(uid).Collection("plans").Doc(planID).Get(ctx)
+	if err != nil {
+		return "", err
+	}
+	data := doc.Data()
+	if titleTR, ok := data["title_tr"].(string); ok && titleTR != "" {
+		return titleTR, nil
+	}
+	if titleEN, ok := data["title_en"].(string); ok {
+		return titleEN, nil
+	}
+	return "", nil
 }
 
 func (r *trainingRepository) GetSessions(ctx context.Context, uid string) ([]*models.TrainingSession, error) {

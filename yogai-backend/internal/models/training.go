@@ -5,11 +5,12 @@ import "time"
 type TrainingSession struct {
 	ID            string     `json:"id" firestore:"id"`
 	PlanID        string     `json:"plan_id" firestore:"plan_id"`
+	PlanTitle     string     `json:"plan_title" firestore:"plan_title"`
 	StartedAt     time.Time  `json:"started_at" firestore:"started_at"`
 	CompletedAt   *time.Time `json:"completed_at,omitempty" firestore:"completed_at,omitempty"`
-	Status        string     `json:"status" firestore:"status"`           // "active", "completed", "expired"
+	Status        string     `json:"status" firestore:"status"`
 	TotalAccuracy float64    `json:"total_accuracy" firestore:"total_accuracy"`
-	TotalDuration int        `json:"total_duration" firestore:"total_duration"` // seconds
+	TotalDuration int        `json:"total_duration" firestore:"total_duration"`
 	PoseCount     int        `json:"pose_count" firestore:"pose_count"`
 }
 

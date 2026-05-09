@@ -57,6 +57,10 @@ func (h *TrainingHandler) StartSession(c *gin.Context) {
 		Status:    "active",
 	}
 
+	if title, err := h.repo.GetPlanTitle(c.Request.Context(), uid, req.PlanID); err == nil {
+		session.PlanTitle = title
+	}
+
 	if err := h.repo.CreateSession(c.Request.Context(), uid, session); err != nil {
 		models.ErrorResponse(c, http.StatusInternalServerError, "failed to start session")
 		return
@@ -117,16 +121,20 @@ func (h *TrainingHandler) CompleteSession(c *gin.Context) {
 
 	var totalAcc float64
 	var totalDur int
+	var accCount int
 	poseCount := len(results)
 
 	for _, r := range results {
-		totalAcc += r.Accuracy
+		if r.Accuracy > 0 {
+			totalAcc += r.Accuracy
+			accCount++
+		}
 		totalDur += r.DurationSeconds
 	}
 
 	avgAcc := 0.0
-	if poseCount > 0 {
-		avgAcc = totalAcc / float64(poseCount)
+	if accCount > 0 {
+		avgAcc = totalAcc / float64(accCount)
 	}
 
 	now := time.Now()
@@ -240,6 +248,26 @@ func (h *TrainingHandler) GetSessionByID(c *gin.Context) {
 	})
 }
 
+func (h *TrainingHandler) DeleteSession(c *gin.Context) {
+	uid, ok := h.getUserID(c)
+	if !ok {
+		return
+	}
+
+	sessionID := c.Param("id")
+	if sessionID == "" {
+		models.ErrorResponse(c, http.StatusBadRequest, "session ID is required")
+		return
+	}
+
+	if err := h.repo.DeleteSession(c.Request.Context(), uid, sessionID); err != nil {
+		models.ErrorResponse(c, http.StatusInternalServerError, "failed to delete session")
+		return
+	}
+
+	models.SuccessResponse(c, "session deleted successfully", nil)
+}
+
 func (h *TrainingHandler) GetStats(c *gin.Context) {
 	uid, ok := h.getUserID(c)
 	if !ok {
@@ -254,13 +282,17 @@ func (h *TrainingHandler) GetStats(c *gin.Context) {
 
 	completedCount := 0
 	var totalAcc float64
+	var accCount int
 	var totalDur int
 	activeDays := make(map[string]bool)
 
 	for _, s := range sessions {
 		if s.Status == "completed" {
 			completedCount++
-			totalAcc += s.TotalAccuracy
+			if s.TotalAccuracy > 0 {
+				totalAcc += s.TotalAccuracy
+				accCount++
+			}
 			totalDur += s.TotalDuration
 			day := s.StartedAt.Format("2006-01-02")
 			activeDays[day] = true
@@ -268,8 +300,8 @@ func (h *TrainingHandler) GetStats(c *gin.Context) {
 	}
 
 	avgAcc := 0.0
-	if completedCount > 0 {
-		avgAcc = totalAcc / float64(completedCount)
+	if accCount > 0 {
+		avgAcc = totalAcc / float64(accCount)
 	}
 
 	streak := 0
