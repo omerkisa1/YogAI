@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   AlertTriangle,
@@ -15,40 +15,18 @@ import {
   type AnalyzeResult,
 } from "@/lib/poseAnalyzer";
 import { useAnalyzablePoses, usePose } from "@/hooks/usePoses";
-import { colors } from "@/lib/colors";
+import {
+  useMediapipePoseCamera,
+  type MediapipeLandmarkFrame,
+} from "@/hooks/useMediapipePoseCamera";
+import { PoseCameraStage } from "@/components/training/PoseCameraStage";
+import {
+  accuracyAccent,
+  accuracyTextClass,
+  ruleOverlayClass,
+} from "@/lib/poseTestCameraTheme";
 
 type ModelComplexity = 0 | 1 | 2;
-
-const CAM_W = 2560;
-const CAM_H = 1440;
-
-function accuracyTextClass(acc: number): string {
-  if (acc >= 80) return "text-green-400";
-  if (acc >= 50) return "text-amber-400";
-  return "text-red-400";
-}
-
-function ruleOverlayClass(r: AnalyzeResult["rules"][0]): string {
-  const base =
-    "rounded-xl border p-3 text-sm transition-colors border-white/15 text-white";
-  if (r.status === "low_visibility")
-    return `${base} border-l-4 border-l-gray-400 bg-black/45 text-white/75`;
-  if (r.rule_type === "fault")
-    return r.triggered
-      ? `${base} border-l-4 border-l-red-500 bg-red-500/25`
-      : `${base} border-l-4 border-l-white/25 bg-black/35`;
-  if (r.score >= 90)
-    return `${base} border-l-4 border-l-green-400 bg-black/35`;
-  if (r.score >= 60)
-    return `${base} border-l-4 border-l-amber-400 bg-black/35`;
-  return `${base} border-l-4 border-l-red-400 bg-black/35`;
-}
-
-function accuracyAccent(acc: number): string {
-  if (acc >= 80) return "from-green-500/35 to-green-600/20";
-  if (acc >= 50) return "from-amber-500/35 to-amber-600/20";
-  return "from-red-500/35 to-red-600/20";
-}
 
 function formatElapsed(sec: number): string {
   const m = Math.floor(sec / 60);
@@ -63,7 +41,6 @@ export default function PoseTestPage() {
   const urlPoseApplied = useRef(false);
 
   const shellRef = useRef<HTMLDivElement>(null);
-  const [dims, setDims] = useState({ w: 0, h: 0 });
 
   const { data: poses = [] } = useAnalyzablePoses();
   const [selectedPose, setSelectedPose] = useState<string>("");
@@ -75,7 +52,6 @@ export default function PoseTestPage() {
   const [selectedRules, setSelectedRules] = useState<LandmarkRule[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<AnalyzeResult | null>(null);
-  const [fps, setFps] = useState(0);
   const [modelComplexity, setModelComplexity] = useState<ModelComplexity>(0);
   const [error, setError] = useState<string | null>(null);
   const [visibilityWarning, setVisibilityWarning] = useState(false);
@@ -87,42 +63,50 @@ export default function PoseTestPage() {
 
   const rulesRef = useRef<LandmarkRule[]>([]);
   const selectedPoseRef = useRef<string>("");
-  const frameCount = useRef(0);
-  const lastFpsTime = useRef(Date.now());
-  const lastAnalyzeTime = useRef(0);
 
-  useEffect(() => {
-    if (!isAnalyzing) {
-      setDims({ w: 0, h: 0 });
+  const handleFrame = useCallback((frame: MediapipeLandmarkFrame) => {
+    const { landmarks } = frame;
+    if (!landmarks) {
+      setVisibilityWarning(true);
+      setResult(null);
       return;
     }
-    const el = shellRef.current;
-    if (!el) return;
+    if (rulesRef.current.length === 0) return;
+    const mapped = landmarks.map((lm, idx) => ({
+      index: idx,
+      x: lm.x,
+      y: lm.y,
+      z: lm.z,
+      visibility: lm.visibility ?? 0,
+    }));
+    const analyzeResult = analyzePoseClientSide(
+      selectedPoseRef.current,
+      rulesRef.current,
+      mapped,
+    );
+    if (analyzeResult === null) {
+      setVisibilityWarning(true);
+      setResult(null);
+    } else {
+      setVisibilityWarning(false);
+      setResult(analyzeResult);
+    }
+  }, []);
 
-    const measure = () => {
-      const rect = el.getBoundingClientRect();
-      const dpr = Math.min(window.devicePixelRatio || 1, 3);
-      const w = Math.max(2, Math.floor(rect.width * dpr));
-      const h = Math.max(2, Math.floor(rect.height * dpr));
-      setDims({ w, h });
-    };
+  const handleModelError = useCallback(() => {
+    setError(t.poseModelLoadError);
+  }, [t]);
 
-    measure();
-    const ro = new ResizeObserver(() => measure());
-    ro.observe(el);
-    window.addEventListener("resize", measure);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener("resize", measure);
-    };
-  }, [isAnalyzing]);
-
-  useEffect(() => {
-    const c = canvasRef.current;
-    if (!c || dims.w < 2 || dims.h < 2) return;
-    c.width = dims.w;
-    c.height = dims.h;
-  }, [dims]);
+  const { fps } = useMediapipePoseCamera({
+    active: isAnalyzing && !!selectedPose,
+    containerRef: shellRef,
+    videoRef,
+    canvasRef,
+    modelComplexity,
+    restartKey: selectedPose,
+    onFrame: handleFrame,
+    onModelLoadError: handleModelError,
+  });
 
   useEffect(() => {
     rulesRef.current = selectedRules;
@@ -166,179 +150,11 @@ export default function PoseTestPage() {
     return () => clearInterval(id);
   }, [isAnalyzing]);
 
-  useEffect(() => {
-    if (!isAnalyzing || !selectedPose) return;
-
-    let pose: unknown;
-    let camera: unknown;
-    let isMounted = true;
-    const ANALYZE_INTERVAL = 100;
-
-    const setup = async () => {
-      try {
-        const { Pose, POSE_CONNECTIONS } = await import("@mediapipe/pose");
-        const { Camera } = await import("@mediapipe/camera_utils");
-        const { drawConnectors, drawLandmarks } = await import(
-          "@mediapipe/drawing_utils"
-        );
-
-        if (!isMounted) return;
-
-        const poseInstance = new Pose({
-          locateFile: (file: string) =>
-            `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`,
-        });
-        pose = poseInstance;
-
-        poseInstance.setOptions({
-          modelComplexity,
-          smoothLandmarks: true,
-          enableSegmentation: false,
-          smoothSegmentation: false,
-          minDetectionConfidence: 0.5,
-          minTrackingConfidence: 0.5,
-        });
-
-        poseInstance.onResults(
-          (results: {
-            image: CanvasImageSource;
-            poseLandmarks?: Array<{
-              x: number;
-              y: number;
-              z: number;
-              visibility?: number;
-            }>;
-          }) => {
-            if (!isMounted) return;
-
-            frameCount.current++;
-            const now = Date.now();
-            if (now - lastFpsTime.current >= 1000) {
-              setFps(frameCount.current);
-              frameCount.current = 0;
-              lastFpsTime.current = now;
-            }
-
-            const ctx = canvasRef.current?.getContext("2d");
-            if (
-              ctx &&
-              canvasRef.current &&
-              canvasRef.current.width >= 2 &&
-              canvasRef.current.height >= 2
-            ) {
-              const w = canvasRef.current.width;
-              const h = canvasRef.current.height;
-              ctx.save();
-              ctx.clearRect(0, 0, w, h);
-              ctx.translate(w, 0);
-              ctx.scale(-1, 1);
-              ctx.drawImage(results.image, 0, 0, w, h);
-
-              if (results.poseLandmarks) {
-                drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, {
-                  color: colors.primaryLight,
-                  lineWidth: 3,
-                });
-                drawLandmarks(ctx, results.poseLandmarks, {
-                  color: colors.secondary,
-                  lineWidth: 2,
-                });
-              }
-
-              ctx.restore();
-            }
-
-            if (
-              results.poseLandmarks &&
-              now - lastAnalyzeTime.current > ANALYZE_INTERVAL
-            ) {
-              lastAnalyzeTime.current = now;
-              const rules = rulesRef.current;
-              if (rules.length > 0) {
-                const landmarks = results.poseLandmarks.map((lm, idx) => ({
-                  index: idx,
-                  x: lm.x,
-                  y: lm.y,
-                  z: lm.z,
-                  visibility: lm.visibility ?? 0,
-                }));
-
-                const analyzeResult = analyzePoseClientSide(
-                  selectedPoseRef.current,
-                  rules,
-                  landmarks,
-                );
-
-                if (analyzeResult === null) {
-                  setVisibilityWarning(true);
-                  setResult(null);
-                } else {
-                  setVisibilityWarning(false);
-                  setResult(analyzeResult);
-                }
-              }
-            }
-          },
-        );
-
-        if (videoRef.current) {
-          let isProcessing = false;
-
-          const cam = new Camera(videoRef.current, {
-            onFrame: async () => {
-              if (!videoRef.current || !isMounted) return;
-              if (isProcessing) return;
-
-              isProcessing = true;
-              try {
-                await poseInstance.send({ image: videoRef.current });
-              } catch {
-              } finally {
-                isProcessing = false;
-              }
-            },
-            width: CAM_W,
-            height: CAM_H,
-          });
-          camera = cam;
-          cam.start();
-        }
-      } catch {
-        if (isMounted) {
-          setError(t.poseModelLoadError);
-        }
-      }
-    };
-
-    setup();
-
-    return () => {
-      isMounted = false;
-      if (
-        camera &&
-        typeof (camera as { stop?: () => void }).stop === "function"
-      ) {
-        (camera as { stop: () => void }).stop();
-      }
-      if (pose) {
-        setTimeout(() => {
-          try {
-            (pose as { close: () => void }).close();
-          } catch {
-          }
-        }, 100);
-      }
-    };
-  }, [isAnalyzing, selectedPose, modelComplexity, t]);
-
   const handleStop = () => {
     setIsAnalyzing(false);
     setResult(null);
-    setFps(0);
     setVisibilityWarning(false);
     setRulesOpen(false);
-    frameCount.current = 0;
-    setDims({ w: 0, h: 0 });
   };
 
   const handlePoseChange = (poseId: string) => {
@@ -354,9 +170,7 @@ export default function PoseTestPage() {
     setModelComplexity(c);
     if (isAnalyzing) {
       setResult(null);
-      setFps(0);
       setVisibilityWarning(false);
-      frameCount.current = 0;
     }
   };
 
@@ -501,23 +315,12 @@ export default function PoseTestPage() {
               </button>
             </div>
 
-            <div
-              ref={shellRef}
-              className="relative flex min-h-0 flex-1 w-full overflow-hidden rounded-2xl border border-th-border bg-black shadow-inner min-h-[78vh] xl:min-h-[calc(100dvh-12.5rem)]"
-            >
-              <video
-                ref={videoRef}
-                playsInline
-                muted
-                className="pointer-events-none absolute h-px w-px opacity-0"
-                width={CAM_W}
-                height={CAM_H}
-              />
-              <canvas
-                ref={canvasRef}
-                className="absolute inset-0 h-full w-full object-cover"
-                width={dims.w}
-                height={dims.h}
+            <div className="relative flex min-h-0 flex-1 w-full overflow-hidden rounded-2xl border border-th-border bg-black shadow-inner min-h-[78vh] xl:min-h-[calc(100dvh-12.5rem)]">
+              <PoseCameraStage
+                containerRef={shellRef}
+                videoRef={videoRef}
+                canvasRef={canvasRef}
+                className="absolute inset-0 h-full w-full"
               />
 
               <div className="pointer-events-none absolute left-3 top-3 z-20 md:left-4 md:top-4">
