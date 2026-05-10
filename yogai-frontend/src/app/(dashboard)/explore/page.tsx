@@ -7,8 +7,10 @@ import { useAllPoses } from "@/hooks/usePoses";
 import { useApp } from "@/components/layout/AppProvider";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { categoryBorder } from "@/lib/exploreMeta";
+import DifficultyDots from "@/components/shared/DifficultyDots";
 import type { Pose } from "@/types/yoga";
 import type { Translations } from "@/lib/i18n";
+import { Plus, Search } from "lucide-react";
 
 function catLabel(c: string, t: Translations): string {
   const k = c.toLowerCase();
@@ -24,11 +26,6 @@ function PoseGridCard({ pose, locale, t }: { pose: Pose; locale: string; t: Tran
   const name = locale === "tr" ? pose.name_tr : pose.name_en;
   const sub = locale === "tr" ? pose.name_en : pose.name_tr;
   const border = categoryBorder(pose.category);
-  const dots = Array.from({ length: 5 }, (_, i) => (
-    <span key={i} className={i < pose.difficulty ? "text-sage-500" : "text-th-muted"}>
-      ●
-    </span>
-  ));
 
   return (
     <Link href={`/explore/${pose.pose_id}`} className="block">
@@ -41,7 +38,9 @@ function PoseGridCard({ pose, locale, t }: { pose: Pose; locale: string; t: Tran
           <p className="font-semibold text-th-text">{name}</p>
           <p className="text-xs text-th-text-mut">{sub}</p>
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-th-text-sec">
-            <span className="flex gap-0.5">{dots}</span>
+            <span className="flex items-center gap-0.5">
+              <DifficultyDots value={pose.difficulty} />
+            </span>
             <span className="rounded-md bg-th-subtle px-2 py-0.5">{catLabel(pose.category, t)}</span>
             <span className="rounded-md bg-th-subtle px-2 py-0.5">{pose.target_area}</span>
           </div>
@@ -98,19 +97,23 @@ export default function ExplorePage() {
           <h1 className="text-2xl font-bold text-th-text">{t.exploreTitle}</h1>
           <p className="mt-1 text-sm text-th-text-mut">{t.poseLibrarySubtitle}</p>
         </div>
-        <Link href="/explore/create-custom" className="btn-primary inline-flex justify-center">
+        <Link href="/explore/create-custom" className="btn-primary inline-flex items-center justify-center gap-2">
+          <Plus className="h-4 w-4 shrink-0" strokeWidth={2} aria-hidden />
           {t.createCustomPlan}
         </Link>
       </div>
 
-      <input
-        type="search"
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        placeholder={t.searchPoses}
-        className="input-field mb-6 w-full max-w-xl"
-        aria-label={t.searchPoses}
-      />
+      <div className="relative mb-6 max-w-xl">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-th-text-mut" strokeWidth={2} aria-hidden />
+        <input
+          type="search"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder={t.searchPoses}
+          className="input-field w-full pl-10"
+          aria-label={t.searchPoses}
+        />
+      </div>
 
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:flex-wrap lg:items-end">
         <div>

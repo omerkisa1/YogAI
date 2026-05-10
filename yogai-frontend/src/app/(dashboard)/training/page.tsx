@@ -8,6 +8,7 @@ import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import ConfirmDialog from "@/components/shared/ConfirmDialog";
 import { useState } from "react";
 import type { TrainingSession } from "@/types/yoga";
+import { Flame } from "lucide-react";
 
 function accuracyBorder(acc: number): string {
   if (acc >= 80) return "border-l-green-500";
@@ -52,7 +53,8 @@ export default function TrainingListPage() {
           {stats?.total_sessions ?? 0} {t.statsSessions} · {hours} {t.statsHoursWord} · %
           {Math.round(stats?.average_accuracy ?? 0)} {t.statsAvgShort}
         </p>
-        <p className="mt-2 text-sm text-white/90">
+        <p className="mt-2 flex items-center gap-2 text-sm text-white/90">
+          <Flame className="h-4 w-4 shrink-0 text-amber-200" strokeWidth={2} aria-hidden />
           {stats?.current_streak ?? 0} {t.streakDays}
         </p>
       </div>

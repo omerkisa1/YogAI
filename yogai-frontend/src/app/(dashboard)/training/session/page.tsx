@@ -9,6 +9,7 @@ import { useApp } from "@/components/layout/AppProvider";
 import { getLocalizedPlanSafe } from "@/lib/planHelpers";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import ConfirmDialog from "@/components/shared/ConfirmDialog";
+import { X, PersonStanding } from "lucide-react";
 
 const FIXED_ACCURACY = 75;
 const DEV_TIMER = process.env.NODE_ENV === "development";
@@ -181,8 +182,9 @@ export default function TrainingSessionPage() {
   return (
     <div className="mx-auto max-w-xl px-4 py-6 md:py-10">
       <div className="mb-6 flex items-center justify-between gap-2">
-        <button type="button" onClick={() => setCancelOpen(true)} className="text-sm font-medium text-th-text-mut hover:text-th-text">
-          ✕ {t.close}
+        <button type="button" onClick={() => setCancelOpen(true)} className="inline-flex items-center gap-1.5 text-sm font-medium text-th-text-mut hover:text-th-text">
+          <X className="h-4 w-4 shrink-0" strokeWidth={2} aria-hidden />
+          {t.close}
         </button>
         <p className="truncate text-center text-sm font-medium text-th-text">
           {detail.title} · {index + 1}/{exercises.length}
@@ -196,8 +198,8 @@ export default function TrainingSessionPage() {
 
       <div className="mb-6 flex min-h-[200px] items-center justify-center rounded-3xl border border-th-border bg-gradient-to-b from-th-subtle to-th-card p-8">
         <div className="text-center">
-          <div className="mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-2xl bg-sage-400/15 text-4xl text-sage-600 dark:text-sage-400">
-            ◎
+          <div className="mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-2xl bg-sage-400/15 text-sage-600 dark:text-sage-400">
+            <PersonStanding className="h-12 w-12" strokeWidth={1.5} aria-hidden />
           </div>
           <p className="font-mono text-4xl font-bold tabular-nums text-th-text">{formatTime(timer)}</p>
           {DEV_TIMER && <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">{t.devTimerNote}</p>}

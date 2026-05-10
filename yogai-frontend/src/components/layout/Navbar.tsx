@@ -30,7 +30,7 @@ export default function Navbar() {
           }`}
         >
           <span className="text-base" aria-hidden>
-            {item.icon}
+            <item.Icon className="h-4 w-4 shrink-0 opacity-90" strokeWidth={2} />
           </span>
           {label}
         </Link>
@@ -76,12 +76,13 @@ export default function Navbar() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`whitespace-nowrap rounded-full px-3 py-2 text-xs font-medium transition-all sm:text-sm ${
+                  className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-2 text-xs font-medium transition-all sm:text-sm ${
                     active
                       ? "bg-sage-400/10 text-sage-500 dark:text-sage-400"
                       : "text-th-text-mut hover:bg-th-subtle hover:text-th-text"
                   }`}
                 >
+                  <item.Icon className="h-3.5 w-3.5 shrink-0 opacity-90" strokeWidth={2} />
                   {label}
                 </Link>
               );

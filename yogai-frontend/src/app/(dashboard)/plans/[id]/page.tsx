@@ -1,7 +1,6 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 import { usePlan, useDeletePlan, useUpdatePlan } from "@/hooks/usePlans";
@@ -9,8 +8,10 @@ import { useStartSession } from "@/hooks/useTraining";
 import { useApp } from "@/components/layout/AppProvider";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import ConfirmDialog from "@/components/shared/ConfirmDialog";
+import BackLink from "@/components/shared/BackLink";
 import { getLocalizedPlanSafe } from "@/lib/planHelpers";
 import { useState } from "react";
+import { Camera, Pin, PinOff, Star, Trash2 } from "lucide-react";
 
 export default function PlanDetailPage() {
   const params = useParams();
@@ -90,9 +91,9 @@ export default function PlanDetailPage() {
         <button type="button" onClick={() => refetch()} className="btn-primary mt-4">
           {t.reload}
         </button>
-        <Link href="/plans" className="mt-4 block text-sm text-sage-500 hover:underline">
-          ← {t.allPlans}
-        </Link>
+        <div className="mt-4 flex justify-center">
+          <BackLink href="/plans">{t.allPlans}</BackLink>
+        </div>
       </div>
     );
   }
@@ -101,9 +102,9 @@ export default function PlanDetailPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 md:px-6">
-      <Link href="/plans" className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-sage-600 hover:text-sage-700 dark:text-sage-400">
-        ← {t.back}
-      </Link>
+      <BackLink href="/plans" className="mb-6">
+        {t.back}
+      </BackLink>
 
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-sage-400/90 via-sage-500/80 to-clay-400/90 p-6 text-white shadow-lg md:p-8">
@@ -120,27 +121,36 @@ export default function PlanDetailPage() {
                 type="button"
                 onClick={toggleFavorite}
                 disabled={updateMutation.isPending}
-                className="rounded-xl bg-white/20 px-3 py-2 text-xs font-medium backdrop-blur-sm hover:bg-white/30 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-white/20 px-3 py-2 text-xs font-medium backdrop-blur-sm hover:bg-white/30 disabled:opacity-50"
               >
-                {plan.is_favorite ? "★ " : "☆ "}
+                <Star
+                  className={`h-3.5 w-3.5 shrink-0 ${plan.is_favorite ? "fill-white text-white" : "text-white"}`}
+                  strokeWidth={2}
+                  aria-hidden
+                />
                 {t.favorite}
               </button>
               <button
                 type="button"
                 onClick={togglePin}
                 disabled={updateMutation.isPending}
-                className="rounded-xl bg-white/20 px-3 py-2 text-xs font-medium backdrop-blur-sm hover:bg-white/30 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-white/20 px-3 py-2 text-xs font-medium backdrop-blur-sm hover:bg-white/30 disabled:opacity-50"
               >
-                {plan.is_pinned ? "📌 " : "📍 "}
+                {plan.is_pinned ? (
+                  <Pin className="h-3.5 w-3.5 shrink-0 text-white" strokeWidth={2} aria-hidden />
+                ) : (
+                  <PinOff className="h-3.5 w-3.5 shrink-0 text-white" strokeWidth={2} aria-hidden />
+                )}
                 {t.pin}
               </button>
               <button
                 type="button"
                 onClick={() => setConfirmDel(true)}
                 disabled={deleteMutation.isPending}
-                className="rounded-xl bg-red-500/40 px-3 py-2 text-xs font-medium backdrop-blur-sm hover:bg-red-500/60 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-red-500/40 px-3 py-2 text-xs font-medium backdrop-blur-sm hover:bg-red-500/60 disabled:opacity-50"
               >
-                🗑 {t.deleteTxt}
+                <Trash2 className="h-3.5 w-3.5 shrink-0 text-white" strokeWidth={2} aria-hidden />
+                {t.deleteTxt}
               </button>
             </div>
           </div>
@@ -174,7 +184,7 @@ export default function PlanDetailPage() {
                         {ex.duration_min} {t.minutesShort}
                       </span>
                       {ex.is_analyzable && (
-                        <span className="text-[10px] text-sage-600 dark:text-sage-400">📷</span>
+                        <Camera className="h-3.5 w-3.5 shrink-0 text-sage-600 dark:text-sage-400" strokeWidth={2} aria-hidden />
                       )}
                     </div>
                   </div>

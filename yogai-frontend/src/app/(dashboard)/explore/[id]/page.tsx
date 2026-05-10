@@ -5,6 +5,9 @@ import { useParams, useRouter } from "next/navigation";
 import { usePose } from "@/hooks/usePoses";
 import { useApp } from "@/components/layout/AppProvider";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
+import BackLink from "@/components/shared/BackLink";
+import BackButton from "@/components/shared/BackButton";
+import DifficultyDots from "@/components/shared/DifficultyDots";
 import { categoryBorder } from "@/lib/exploreMeta";
 import { colors } from "@/lib/colors";
 import { labelForContraindication } from "@/lib/contraindications";
@@ -49,9 +52,9 @@ export default function PoseDetailPage() {
         <button type="button" className="btn-primary mt-4" onClick={() => refetch()}>
           {t.reload}
         </button>
-        <Link href="/explore" className="mt-4 block text-sm text-sage-600 hover:underline">
-          ← {t.exploreTitle}
-        </Link>
+        <div className="mt-4 flex justify-center">
+          <BackLink href="/explore">{t.exploreTitle}</BackLink>
+        </div>
       </div>
     );
   }
@@ -59,17 +62,12 @@ export default function PoseDetailPage() {
   const name = locale === "tr" ? pose.name_tr : pose.name_en;
   const sub = locale === "tr" ? pose.name_en : pose.name_tr;
   const instr = locale === "tr" ? pose.instructions_tr : pose.instructions_en;
-  const dots = Array.from({ length: 5 }, (_, i) => (
-    <span key={i} className={i < pose.difficulty ? "text-white" : "text-white/40"}>
-      ●
-    </span>
-  ));
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 md:px-6">
-      <button type="button" onClick={() => router.back()} className="mb-6 text-sm font-medium text-sage-600 hover:underline dark:text-sage-400">
-        ← {t.back}
-      </button>
+      <div className="mb-6">
+        <BackButton onClick={() => router.back()}>{t.back}</BackButton>
+      </div>
 
       <div
         className="rounded-3xl p-6 text-white shadow-lg md:p-8"
@@ -79,7 +77,13 @@ export default function PoseDetailPage() {
       >
         <p className="text-2xl font-bold md:text-3xl">{name}</p>
         <p className="mt-1 text-sm text-white/85">{sub}</p>
-        <div className="mt-3 flex gap-1 text-sm">{dots}</div>
+        <div className="mt-3 flex items-center gap-1 text-sm">
+          <DifficultyDots
+            value={pose.difficulty}
+            activeClassName="text-white"
+            inactiveClassName="text-white/40"
+          />
+        </div>
         <p className="mt-2 text-sm text-white/90">
           {catLabel(pose.category, t)} · {pose.difficulty}/5
         </p>

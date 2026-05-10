@@ -1,12 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTrainingSession, useStartSession } from "@/hooks/useTraining";
 import { useAllPoses } from "@/hooks/usePoses";
 import { useApp } from "@/components/layout/AppProvider";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import toast from "react-hot-toast";
+import BackLink from "@/components/shared/BackLink";
 
 export default function TrainingDetailPage() {
   const params = useParams();
@@ -45,9 +45,9 @@ export default function TrainingDetailPage() {
         <button type="button" className="btn-primary mt-4" onClick={() => refetch()}>
           {t.reload}
         </button>
-        <Link href="/training" className="mt-4 block text-sm text-sage-600 hover:underline">
-          ← {t.trainingHistory}
-        </Link>
+        <div className="mt-4 flex justify-center">
+          <BackLink href="/training">{t.trainingHistory}</BackLink>
+        </div>
       </div>
     );
   }
@@ -65,9 +65,9 @@ export default function TrainingDetailPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 md:px-6">
-      <Link href="/training" className="mb-6 inline-flex text-sm font-medium text-sage-600 hover:underline dark:text-sage-400">
-        ← {t.back}
-      </Link>
+      <BackLink href="/training" className="mb-6">
+        {t.back}
+      </BackLink>
 
       <h1 className="text-xl font-bold text-th-text md:text-2xl">{t.trainingDetail}</h1>
 

@@ -36,7 +36,7 @@ export default function DashboardSidebar() {
               }`}
             >
               <span className="text-base" aria-hidden>
-                {item.icon}
+                <item.Icon className="h-4 w-4 shrink-0 opacity-90" strokeWidth={2} />
               </span>
               {label}
             </Link>

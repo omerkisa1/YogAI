@@ -9,6 +9,7 @@ import { useApp } from "@/components/layout/AppProvider";
 import PlanCard from "@/components/yoga/PlanCard";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import type { TrainingSession } from "@/types/yoga";
+import { Flame } from "lucide-react";
 
 function accuracyBorder(acc: number): string {
   if (acc >= 80) return "border-l-green-500";
@@ -103,26 +104,12 @@ export default function DashboardPage() {
               {stats?.total_sessions ?? 0} {t.statsSessions} · {hours} {t.statsHoursWord} · %
               {Math.round(stats?.average_accuracy ?? 0)} {t.statsAvgShort}
             </p>
-            <p className="mt-2 text-sm text-white/90">
-              🔥 {stats?.current_streak ?? 0} {t.streakDays}
+            <p className="mt-2 flex items-center gap-2 text-sm text-white/90">
+              <Flame className="h-4 w-4 shrink-0 text-amber-200" strokeWidth={2} aria-hidden />
+              {stats?.current_streak ?? 0} {t.streakDays}
             </p>
           </>
         )}
-      </div>
-
-      <div className="mb-10">
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-th-text-mut">{t.quickAccess}</h2>
-        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-          <Link href="/create-plan" className="btn-primary justify-center text-center sm:flex-1">
-            {t.createPlanAi}
-          </Link>
-          <Link href="/explore" className="btn-secondary justify-center text-center sm:flex-1">
-            {t.explore}
-          </Link>
-          <Link href="/pose-test" className="btn-secondary justify-center text-center sm:flex-1">
-            {t.poseTest}
-          </Link>
-        </div>
       </div>
 
       <div className="mb-10">

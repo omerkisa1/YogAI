@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import { useAllPoses } from "@/hooks/usePoses";
@@ -9,9 +8,11 @@ import { useCreateCustomPlan } from "@/hooks/usePlans";
 import { useProfile } from "@/hooks/useProfile";
 import { useApp } from "@/components/layout/AppProvider";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
+import BackLink from "@/components/shared/BackLink";
 import { colors } from "@/lib/colors";
 import { categoryBorder } from "@/lib/exploreMeta";
 import type { Translations } from "@/lib/i18n";
+import { CheckSquare, Plus, Square, Trash2 } from "lucide-react";
 
 type Entry = { pose_id: string; duration_min: number };
 
@@ -138,9 +139,9 @@ export default function CreateCustomPlanPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 md:px-6">
-      <Link href="/explore" className="mb-6 inline-flex text-sm font-medium text-sage-600 hover:underline dark:text-sage-400">
-        ← {t.back}
-      </Link>
+      <BackLink href="/explore" className="mb-6">
+        {t.back}
+      </BackLink>
 
       <h1 className="text-2xl font-bold text-th-text">{t.customPlanPageTitle}</h1>
 
@@ -161,7 +162,8 @@ export default function CreateCustomPlanPage() {
           <h2 className="text-sm font-semibold text-th-text">
             {t.selectedPosesTitle} ({entries.length})
           </h2>
-          <button type="button" onClick={() => setModalOpen(true)} className="btn-secondary text-sm">
+          <button type="button" onClick={() => setModalOpen(true)} className="btn-secondary inline-flex items-center gap-2 text-sm">
+            <Plus className="h-4 w-4 shrink-0" strokeWidth={2} aria-hidden />
             {t.addPose}
           </button>
         </div>
@@ -194,11 +196,8 @@ export default function CreateCustomPlanPage() {
                         </option>
                       ))}
                     </select>
-                    <button type="button" onClick={() => removeEntry(e.pose_id)} className="rounded-lg p-2 text-th-text-mut hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/30">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <polyline points="3 6 5 6 21 6" />
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                      </svg>
+                    <button type="button" onClick={() => removeEntry(e.pose_id)} className="rounded-lg p-2 text-th-text-mut hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/30" aria-label={t.deleteTxt}>
+                      <Trash2 className="h-[18px] w-[18px]" strokeWidth={2} aria-hidden />
                     </button>
                   </div>
                 </li>
@@ -266,7 +265,9 @@ export default function CreateCustomPlanPage() {
                         disabled ? "opacity-40" : checked ? "bg-sage-400/15" : "hover:bg-th-subtle"
                       }`}
                     >
-                      <span className="mt-0.5">{checked ? "☑" : "☐"}</span>
+                      <span className="mt-0.5 text-sage-600 dark:text-sage-400" aria-hidden>
+                        {checked ? <CheckSquare className="h-4 w-4 shrink-0" strokeWidth={2} /> : <Square className="h-4 w-4 shrink-0" strokeWidth={2} />}
+                      </span>
                       <span>
                         <span className="font-medium text-th-text">{locale === "tr" ? p.name_tr : p.name_en}</span>
                         <span className="ml-2 text-xs text-th-text-mut">{catLabel(p.category, t)}</span>
