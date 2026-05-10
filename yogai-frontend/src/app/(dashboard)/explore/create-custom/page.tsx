@@ -9,10 +9,11 @@ import { useProfile } from "@/hooks/useProfile";
 import { useApp } from "@/components/layout/AppProvider";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import BackLink from "@/components/shared/BackLink";
+import DifficultyDots from "@/components/shared/DifficultyDots";
 import { colors } from "@/lib/colors";
 import { categoryBorder } from "@/lib/exploreMeta";
 import type { Translations } from "@/lib/i18n";
-import { CheckSquare, Plus, Square, Trash2 } from "lucide-react";
+import { CheckSquare, Plus, Search, Square, Trash2 } from "lucide-react";
 
 type Entry = { pose_id: string; duration_min: number };
 
@@ -181,7 +182,13 @@ export default function CreateCustomPlanPage() {
                     <div className="w-1 shrink-0 rounded-full" style={{ backgroundColor: border }} />
                     <div>
                       <p className="font-medium text-th-text">{nameOf(e.pose_id)}</p>
-                      <p className="text-xs text-th-text-mut">{p ? catLabel(p.category, t) : ""}</p>
+                      {p && (
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-th-text-mut">
+                          <DifficultyDots value={p.difficulty} />
+                          <span>{catLabel(p.category, t)}</span>
+                          {p.target_area ? <span>{p.target_area}</span> : null}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -236,7 +243,15 @@ export default function CreateCustomPlanPage() {
           >
             <div className="border-b border-th-border px-4 py-3">
               <h3 className="font-semibold text-th-text">{t.selectPoses}</h3>
-              <input value={mq} onChange={(e) => setMq(e.target.value)} placeholder={t.searchPoses} className="input-field mt-3 w-full text-sm" />
+              <div className="relative mt-3">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-th-text-mut" strokeWidth={2} aria-hidden />
+                <input
+                  value={mq}
+                  onChange={(e) => setMq(e.target.value)}
+                  placeholder={t.searchPoses}
+                  className="input-field w-full pl-10 text-sm"
+                />
+              </div>
               <select value={mcat} onChange={(e) => setMcat(e.target.value)} className="input-field mt-2 w-full text-sm">
                 <option value="">{t.categoryAll}</option>
                 {Array.from(new Set(poses.map((p) => p.category)))
@@ -268,9 +283,12 @@ export default function CreateCustomPlanPage() {
                       <span className="mt-0.5 text-sage-600 dark:text-sage-400" aria-hidden>
                         {checked ? <CheckSquare className="h-4 w-4 shrink-0" strokeWidth={2} /> : <Square className="h-4 w-4 shrink-0" strokeWidth={2} />}
                       </span>
-                      <span>
+                      <span className="min-w-0 flex-1">
                         <span className="font-medium text-th-text">{locale === "tr" ? p.name_tr : p.name_en}</span>
-                        <span className="ml-2 text-xs text-th-text-mut">{catLabel(p.category, t)}</span>
+                        <span className="mt-1 flex flex-wrap items-center gap-2">
+                          <DifficultyDots value={p.difficulty} />
+                          <span className="text-xs text-th-text-mut">{catLabel(p.category, t)}</span>
+                        </span>
                       </span>
                     </button>
                   );

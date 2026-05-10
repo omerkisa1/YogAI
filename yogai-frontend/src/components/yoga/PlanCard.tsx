@@ -96,22 +96,17 @@ export default function PlanCard({ plan, index, onClick, onUpdated, detailHref }
       </div>
 
       <div className="mb-4 flex flex-wrap gap-2">
-        <span className="inline-flex items-center gap-1 rounded-lg bg-th-subtle px-2.5 py-1 text-xs text-th-text-sec">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="10" />
-            <polyline points="12 6 12 12 16 14" />
-          </svg>
-          {detail.total_duration_min || plan.duration} {t.min}
-        </span>
         {(detail.focus_area || plan.focus_area) && (
           <span className="inline-flex items-center rounded-lg bg-clay-50 dark:bg-clay-900/20 px-2.5 py-1 text-xs text-clay-500 dark:text-clay-300">
             {detail.focus_area || plan.focus_area}
           </span>
         )}
-        <span className="inline-flex items-center rounded-lg bg-sage-50 dark:bg-sage-900/20 px-2.5 py-1 text-xs text-sage-600 dark:text-sage-400">
-          {exercises.length} {t.exercises}
-        </span>
       </div>
+
+      <p className="mb-4 text-xs font-medium text-th-text-sec">
+        {detail.total_duration_min || plan.duration || 0} {t.minutesShort} · {exercises.length} {t.sessionCardPoses} · {detail.analyzable_pose_count}{" "}
+        {t.analyzableSlash}
+      </p>
 
       {exercises.length > 0 && (
         <div className="mb-4 space-y-1.5">

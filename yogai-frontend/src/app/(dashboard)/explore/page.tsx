@@ -10,7 +10,7 @@ import { categoryBorder } from "@/lib/exploreMeta";
 import DifficultyDots from "@/components/shared/DifficultyDots";
 import type { Pose } from "@/types/yoga";
 import type { Translations } from "@/lib/i18n";
-import { Plus, Search } from "lucide-react";
+import { Camera, Plus, Search } from "lucide-react";
 
 function catLabel(c: string, t: Translations): string {
   const k = c.toLowerCase();
@@ -45,7 +45,10 @@ function PoseGridCard({ pose, locale, t }: { pose: Pose; locale: string; t: Tran
             <span className="rounded-md bg-th-subtle px-2 py-0.5">{pose.target_area}</span>
           </div>
           {pose.is_analyzable && (
-            <p className="mt-2 text-xs font-medium text-sage-600 dark:text-sage-400">{t.poseAnalyzableBadge}</p>
+            <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-sage-600 dark:text-sage-400">
+              <Camera className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
+              {t.poseAnalyzableBadge}
+            </p>
           )}
         </div>
       </motion.div>

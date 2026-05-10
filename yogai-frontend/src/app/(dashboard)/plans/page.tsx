@@ -8,12 +8,13 @@ import { useApp } from "@/components/layout/AppProvider";
 import PlanCard from "@/components/yoga/PlanCard";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { getEffectivePlanSource } from "@/lib/planMeta";
+import { Plus } from "lucide-react";
 
 type FilterKey = "all" | "ai" | "custom" | "favorites";
 
 export default function PlansPage() {
   const { t } = useApp();
-  const { plans, loading, refetch, error, isError } = usePlans();
+  const { plans, loading, refetch, isError } = usePlans();
   const [filter, setFilter] = useState<FilterKey>("all");
 
   const filtered = useMemo(() => {
@@ -42,7 +43,8 @@ export default function PlansPage() {
             {plans.length} {plans.length !== 1 ? t.planPlural : t.plan} {t.planCreatedCount}
           </p>
         </div>
-        <Link href="/create-plan" className="btn-primary inline-flex shrink-0 items-center justify-center">
+        <Link href="/create-plan" className="btn-primary inline-flex shrink-0 items-center justify-center gap-2">
+          <Plus className="h-4 w-4 shrink-0" strokeWidth={2} aria-hidden />
           {t.createPlanCta}
         </Link>
       </div>

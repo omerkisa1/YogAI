@@ -167,14 +167,29 @@ export default function TrainingSessionPage() {
   if (phase === "done") {
     const avg = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
     return (
-      <div className="mx-auto max-w-lg px-4 py-16 text-center">
-        <h1 className="text-2xl font-bold text-th-text">{t.congratulations}</h1>
-        <p className="mt-2 text-th-text-mut">{t.trainingCompleted}</p>
-        <p className="mt-6 text-3xl font-bold text-sage-600 dark:text-sage-400">%{Math.round(avg)}</p>
-        <p className="text-sm text-th-text-mut">{t.averageScore}</p>
-        <Link href="/dashboard" className="btn-primary mt-8 inline-block">
-          {t.backToHome}
-        </Link>
+      <div className="mx-auto max-w-lg px-4 py-16">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-th-text">{t.congratulations}</h1>
+          <p className="mt-2 text-th-text-mut">{t.trainingCompleted}</p>
+          <p className="mt-6 text-3xl font-bold text-sage-600 dark:text-sage-400">%{Math.round(avg)}</p>
+          <p className="text-sm text-th-text-mut">{t.averageScore}</p>
+        </div>
+        <h2 className="mb-3 mt-10 text-sm font-semibold text-th-text">{t.trainingResults}</h2>
+        <ul className="space-y-2 rounded-2xl border border-th-border bg-th-card p-4 text-sm">
+          {exercises.map((ex, i) => (
+            <li key={`${ex.pose_id}-${i}`} className="flex items-center justify-between gap-3 border-b border-th-border pb-2 last:border-0 last:pb-0">
+              <span className="text-th-text">
+                {i + 1}. {ex.name}
+              </span>
+              <span className="shrink-0 font-semibold text-sage-600 dark:text-sage-400">%{Math.round(scores[i] ?? 0)}</span>
+            </li>
+          ))}
+        </ul>
+        <div className="mt-8 text-center">
+          <Link href="/dashboard" className="btn-primary inline-block">
+            {t.backToHome}
+          </Link>
+        </div>
       </div>
     );
   }
@@ -219,7 +234,7 @@ export default function TrainingSessionPage() {
         <button type="button" onClick={onComplete} disabled={submitPose.isPending} className="btn-primary flex-1 justify-center">
           {submitPose.isPending ? <LoadingSpinner size="sm" /> : t.completePose}
         </button>
-        <button type="button" onClick={onSkip} disabled={submitPose.isPending} className="btn-secondary flex-1 justify-center">
+        <button type="button" onClick={onSkip} disabled={submitPose.isPending} className="btn-ghost flex-1 justify-center">
           {t.skipPose}
         </button>
       </div>

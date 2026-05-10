@@ -56,6 +56,10 @@
     @apply inline-flex items-center justify-center rounded-full border border-th-border bg-th-card px-8 py-3 text-sm font-medium text-sage-500 transition-all duration-200 hover:bg-th-subtle active:scale-[0.98] dark:text-sage-400;
   }
 
+  .btn-ghost {
+    @apply inline-flex items-center justify-center rounded-full px-8 py-3 text-sm font-medium text-th-text-sec transition-all hover:bg-th-subtle active:scale-[0.98] dark:text-th-text-mut;
+  }
+
   .btn-danger {
     @apply inline-flex items-center justify-center rounded-full bg-brand-error-soft px-6 py-2 text-sm font-medium text-brand-error transition-all duration-200 hover:bg-brand-error-soft/90 active:scale-[0.98] dark:bg-brand-error/15 dark:text-red-300 dark:hover:bg-brand-error/25;
   }
