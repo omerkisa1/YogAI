@@ -95,6 +95,9 @@ const en = {
   dashboard: "Dashboard",
   createPlan: "Create Plan",
   profile: "Profile",
+  explore: "Explore",
+  training: "Training",
+  plansNav: "Plans",
   plan: "plan",
   plans: "plans",
 
@@ -293,6 +296,9 @@ const tr: typeof en = {
   dashboard: "Panel",
   createPlan: "Plan Oluştur",
   profile: "Profil",
+  explore: "Keşfet",
+  training: "Antrenman",
+  plansNav: "Planlar",
   plan: "plan",
   plans: "plan",
 

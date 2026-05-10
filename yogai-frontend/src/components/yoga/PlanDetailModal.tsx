@@ -3,7 +3,8 @@
 import { useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { YogaPlan } from "@/types/yoga";
-import { useUpdatePlan, useDeletePlan, getLocalizedPlan } from "@/hooks/useYoga";
+import { useUpdatePlan, useDeletePlan } from "@/hooks/usePlans";
+import { getLocalizedPlanSafe } from "@/lib/planHelpers";
 import { useApp } from "@/components/layout/AppProvider";
 import toast from "react-hot-toast";
 
@@ -20,8 +21,10 @@ interface PlanDetailModalProps {
 }
 
 export default function PlanDetailModal({ plan, onClose, onUpdated }: PlanDetailModalProps) {
-  const { updatePlan, loading: updating } = useUpdatePlan();
-  const { deletePlan, loading: deleting } = useDeletePlan();
+  const updatePlanMutation = useUpdatePlan();
+  const deletingMutation = useDeletePlan();
+  const updating = updatePlanMutation.isPending;
+  const deleting = deletingMutation.isPending;
   const { t, locale } = useApp();
 
   const handleKeyDown = useCallback(
@@ -45,7 +48,10 @@ export default function PlanDetailModal({ plan, onClose, onUpdated }: PlanDetail
   const handleToggleFavorite = async () => {
     if (!plan) return;
     try {
-      await updatePlan(plan.id, { is_favorite: !plan.is_favorite });
+      await updatePlanMutation.mutateAsync({
+        id: plan.id,
+        data: { is_favorite: !(plan.is_favorite ?? false) },
+      });
       onUpdated();
       toast.success(plan.is_favorite ? t.removedFavorite : t.addedFavorite);
     } catch {
@@ -56,7 +62,10 @@ export default function PlanDetailModal({ plan, onClose, onUpdated }: PlanDetail
   const handleTogglePin = async () => {
     if (!plan) return;
     try {
-      await updatePlan(plan.id, { is_pinned: !plan.is_pinned });
+      await updatePlanMutation.mutateAsync({
+        id: plan.id,
+        data: { is_pinned: !(plan.is_pinned ?? false) },
+      });
       onUpdated();
       toast.success(plan.is_pinned ? t.unpinned : t.pinnedTop);
     } catch {
@@ -67,7 +76,7 @@ export default function PlanDetailModal({ plan, onClose, onUpdated }: PlanDetail
   const handleDelete = async () => {
     if (!plan) return;
     try {
-      await deletePlan(plan.id);
+      await deletingMutation.mutateAsync(plan.id);
       onUpdated();
       onClose();
       toast.success(t.planDeleted);
@@ -78,7 +87,7 @@ export default function PlanDetailModal({ plan, onClose, onUpdated }: PlanDetail
 
   if (!plan) return null;
 
-  const detail = getLocalizedPlan(plan, locale);
+  const detail = getLocalizedPlanSafe(plan, locale, t.yogaPlan);
   const exercises = detail.exercises || [];
   const diffKey = (detail.difficulty || plan.level || "beginner").toLowerCase();
   const badgeClass = difficultyColors[diffKey] || difficultyColors.beginner;

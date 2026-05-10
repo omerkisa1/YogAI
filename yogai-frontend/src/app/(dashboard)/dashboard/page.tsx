@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { usePlans } from "@/hooks/useYoga";
+import { usePlans } from "@/hooks/usePlans";
 import { useAuthContext } from "@/components/layout/AuthProvider";
 import { useApp } from "@/components/layout/AppProvider";
 import PlanCard from "@/components/yoga/PlanCard";

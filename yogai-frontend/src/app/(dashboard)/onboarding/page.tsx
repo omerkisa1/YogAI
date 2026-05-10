@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/components/layout/AppProvider";
 import { useAuthContext } from "@/components/layout/AuthProvider";
-import { useSaveProfile } from "@/hooks/useProfile";
+import { useUpdateProfile } from "@/hooks/useProfile";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import toast from "react-hot-toast";
 import type { Translations } from "@/lib/i18n";
@@ -43,7 +43,7 @@ const durations = [15, 30, 45, 60];
 export default function OnboardingPage() {
   const { t, locale } = useApp();
   const { user } = useAuthContext();
-  const { saveProfile, loading: saving } = useSaveProfile();
+  const updateProfile = useUpdateProfile();
   const router = useRouter();
 
   const [step, setStep] = useState(0);
@@ -71,7 +71,7 @@ export default function OnboardingPage() {
 
   const handleFinish = async () => {
     try {
-      await saveProfile({
+      await updateProfile.mutateAsync({
         display_name: displayName || user?.email?.split("@")[0] || "User",
         birth_year: birthYear,
         gender,
@@ -359,10 +359,10 @@ export default function OnboardingPage() {
             <button
               type="button"
               onClick={handleFinish}
-              disabled={saving}
+              disabled={updateProfile.isPending}
               className="btn-primary min-w-[160px] disabled:opacity-50"
             >
-              {saving ? <LoadingSpinner size="sm" /> : t.finish}
+              {updateProfile.isPending ? <LoadingSpinner size="sm" /> : t.finish}
             </button>
           )}
         </div>

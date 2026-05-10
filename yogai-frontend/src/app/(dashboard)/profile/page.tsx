@@ -4,8 +4,8 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useApp } from "@/components/layout/AppProvider";
 import { useAuthContext } from "@/components/layout/AuthProvider";
-import { useProfile, useSaveProfile } from "@/hooks/useProfile";
-import { usePlans } from "@/hooks/useYoga";
+import { useProfile, useUpdateProfile } from "@/hooks/useProfile";
+import { usePlans } from "@/hooks/usePlans";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import toast from "react-hot-toast";
 import type { Translations } from "@/lib/i18n";
@@ -43,8 +43,8 @@ const durations = [15, 30, 45, 60];
 export default function ProfilePage() {
   const { t, locale } = useApp();
   const { user } = useAuthContext();
-  const { profile, loading } = useProfile();
-  const { saveProfile, loading: saving } = useSaveProfile();
+  const { data: profile, isLoading: loading } = useProfile();
+  const updateProfile = useUpdateProfile();
   const { plans } = usePlans();
 
   const [displayName, setDisplayName] = useState("");
@@ -78,7 +78,7 @@ export default function ProfilePage() {
 
   const handleSave = async () => {
     try {
-      await saveProfile({
+      await updateProfile.mutateAsync({
         display_name: displayName,
         birth_year: birthYear,
         gender,
@@ -336,10 +336,10 @@ export default function ProfilePage() {
               <button
                 type="button"
                 onClick={handleSave}
-                disabled={saving || !displayName.trim()}
+                disabled={updateProfile.isPending || !displayName.trim()}
                 className="btn-primary disabled:opacity-50"
               >
-                {saving ? <LoadingSpinner size="sm" /> : t.saveProfile}
+                {updateProfile.isPending ? <LoadingSpinner size="sm" /> : t.saveProfile}
               </button>
             </div>
           )}

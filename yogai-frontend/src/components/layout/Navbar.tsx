@@ -13,8 +13,10 @@ export default function Navbar() {
 
   const navLinks = [
     { href: "/dashboard", label: t.dashboard },
-    { href: "/create-plan", label: t.createPlan },
-    { href: "/pose-test", label: "Pose Test" },
+    { href: "/plans", label: t.plansNav },
+    { href: "/explore", label: t.explore },
+    { href: "/training", label: t.training },
+    { href: "/profile", label: t.profile },
   ];
 
   return (

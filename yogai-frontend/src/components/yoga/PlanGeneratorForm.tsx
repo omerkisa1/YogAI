@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { motion, AnimatePresence } from "framer-motion";
-import { useGeneratePlan } from "@/hooks/useYoga";
+import { useCreatePlan } from "@/hooks/usePlans";
 import { useProfile } from "@/hooks/useProfile";
 import { useApp } from "@/components/layout/AppProvider";
 import { focusAreaKeys } from "@/lib/i18n";
@@ -17,8 +17,8 @@ const durations = [15, 30, 45, 60];
 export default function PlanGeneratorForm() {
   const [step, setStep] = useState(0);
   const router = useRouter();
-  const { generatePlan, loading } = useGeneratePlan();
-  const { profile } = useProfile();
+  const createPlan = useCreatePlan();
+  const { data: profile } = useProfile();
   const { t, locale } = useApp();
   const { setValue, watch, getValues } = useForm<GeneratePlanRequest>({
     defaultValues: { level: "", duration: 30, focus_area: "", preferences: "" },
@@ -48,10 +48,10 @@ export default function PlanGeneratorForm() {
   ];
 
   const handleGenerate = async () => {
-    if (loading) return;
+    if (createPlan.isPending) return;
     try {
       const values = getValues();
-      await generatePlan({ ...values });
+      await createPlan.mutateAsync({ ...values });
       toast.success(t.planCreated);
       router.push("/dashboard");
     } catch {
@@ -235,10 +235,10 @@ export default function PlanGeneratorForm() {
           <button
             type="button"
             onClick={handleGenerate}
-            disabled={loading}
+            disabled={createPlan.isPending}
             className="btn-primary min-w-[160px] disabled:opacity-50"
           >
-            {loading ? <LoadingSpinner size="sm" /> : t.generatePlan}
+            {createPlan.isPending ? <LoadingSpinner size="sm" /> : t.generatePlan}
           </button>
         )}
       </div>

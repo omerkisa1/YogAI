@@ -1,4 +1,4 @@
-export interface APIResponse<T = unknown> {
+export interface APIResponse<T> {
   status: number;
   message: string;
   data?: T;
@@ -31,17 +31,66 @@ export interface BilingualPlan {
   exercises: BilingualExercise[];
   analyzable_pose_count: number;
   total_pose_count: number;
+  source?: "ai" | "custom";
 }
 
 export interface YogaPlan {
   id: string;
-  plan: BilingualPlan;
+  plan_en: BilingualPlan;
+  plan_tr: BilingualPlan;
+  created_at: string;
+  updated_at?: string;
+  level?: string;
+  duration?: number;
+  focus_area?: string;
+  source?: string;
+  is_favorite?: boolean;
+  is_pinned?: boolean;
+}
+
+export interface GeneratePlanRequest {
   level: string;
   duration: number;
   focus_area: string;
-  is_favorite: boolean;
-  is_pinned: boolean;
-  created_at: string;
+  preferences?: string;
+  injuries?: string[];
+}
+
+export interface CustomPlanRequest {
+  title: string;
+  exercises: { pose_id: string; duration_min: number }[];
+}
+
+export interface CustomPlanResponse {
+  plan: YogaPlan;
+  warnings?: string[];
+}
+
+export interface LandmarkRule {
+  joint: string;
+  point_a: number;
+  point_b: number;
+  point_c: number;
+  angle_min: number;
+  angle_max: number;
+  weight: number;
+  rule_type: string;
+  feedback_en: string;
+  feedback_tr: string;
+}
+
+export interface Pose {
+  pose_id: string;
+  name_en: string;
+  name_tr: string;
+  category: string;
+  difficulty: number;
+  target_area: string;
+  instructions_en: string;
+  instructions_tr: string;
+  contraindications: string[];
+  landmark_rules: LandmarkRule[];
+  is_analyzable: boolean;
 }
 
 export interface PoseLandmark {
@@ -59,15 +108,15 @@ export interface AnalyzePoseRequest {
 
 export interface RuleResult {
   joint: string;
-  expected_range: number[];
-  actual_angle: number;
   rule_type: string;
-  score?: number;
-  penalty?: number;
-  triggered?: boolean;
+  expected_range: [number, number];
+  actual_angle: number;
+  score: number;
+  triggered: boolean;
+  penalty: number;
   status: string;
-  feedback_en?: string;
-  feedback_tr?: string;
+  feedback_en: string;
+  feedback_tr: string;
 }
 
 export interface AnalyzeResponse {
@@ -76,31 +125,6 @@ export interface AnalyzeResponse {
   target_score: number;
   fault_penalty: number;
   rules: RuleResult[];
-  feedback_en?: string;
-  feedback_tr?: string;
-}
-
-export interface GeneratePlanRequest {
-  level: string;
-  duration: number;
-  focus_area?: string;
-  preferences?: string;
-}
-
-export interface GeneratePlanResponse {
-  id: string;
-  plan: BilingualPlan;
-  level: string;
-  duration: number;
-  focus_area: string;
-  is_favorite: boolean;
-  is_pinned: boolean;
-  created_at: string;
-}
-
-export interface PlansListResponse {
-  plans: YogaPlan[];
-  count: number;
 }
 
 export interface UserProfile {
@@ -114,20 +138,41 @@ export interface UserProfile {
   goals: string[];
   preferred_duration: number;
   profile_image_url: string;
-  platform?: string;
-  last_login_at?: string;
-  auth_provider?: string;
+  platform: string;
+  auth_provider: string;
+  last_login_at: string;
   created_at: string;
   updated_at: string;
 }
 
-export interface AnalyzablePose {
+export interface TrainingSessionStart {
+  session_id: string;
+  status: string;
+}
+
+export interface TrainingSession {
+  id: string;
+  plan_id: string;
+  plan_title?: string;
+  status: string;
+  started_at: string;
+  completed_at?: string | null;
+  average_accuracy: number;
+  total_duration_sec: number;
+  pose_count: number;
+  results?: PoseResult[];
+}
+
+export interface PoseResult {
   pose_id: string;
-  name_en: string;
-  name_tr: string;
-  category: string;
-  difficulty: number;
-  target_area: string;
-  instructions_en: string;
-  instructions_tr: string;
+  accuracy: number;
+  duration_seconds: number;
+  completed_at: string;
+}
+
+export interface TrainingStats {
+  total_sessions: number;
+  total_duration_sec: number;
+  average_accuracy: number;
+  current_streak: number;
 }

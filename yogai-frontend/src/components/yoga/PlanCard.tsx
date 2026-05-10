@@ -2,7 +2,8 @@
 
 import { motion } from "framer-motion";
 import type { YogaPlan } from "@/types/yoga";
-import { useUpdatePlan, getLocalizedPlan, type LocalizedPlan } from "@/hooks/useYoga";
+import { useUpdatePlan } from "@/hooks/usePlans";
+import { getLocalizedPlanSafe } from "@/lib/planHelpers";
 import { useApp } from "@/components/layout/AppProvider";
 import toast from "react-hot-toast";
 
@@ -20,14 +21,18 @@ interface PlanCardProps {
 }
 
 export default function PlanCard({ plan, index, onClick, onUpdated }: PlanCardProps) {
-  const { updatePlan, loading: updating } = useUpdatePlan();
+  const updatePlanMutation = useUpdatePlan();
+  const updating = updatePlanMutation.isPending;
   const { t, locale } = useApp();
-  const detail = getLocalizedPlan(plan, locale);
+  const detail = getLocalizedPlanSafe(plan, locale, t.yogaPlan);
 
   const handleFavorite = async (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      await updatePlan(plan.id, { is_favorite: !plan.is_favorite });
+      await updatePlanMutation.mutateAsync({
+        id: plan.id,
+        data: { is_favorite: !(plan.is_favorite ?? false) },
+      });
       onUpdated();
     } catch {
       toast.error(t.failedUpdate);
@@ -37,7 +42,10 @@ export default function PlanCard({ plan, index, onClick, onUpdated }: PlanCardPr
   const handlePin = async (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      await updatePlan(plan.id, { is_pinned: !plan.is_pinned });
+      await updatePlanMutation.mutateAsync({
+        id: plan.id,
+        data: { is_pinned: !(plan.is_pinned ?? false) },
+      });
       onUpdated();
     } catch {
       toast.error(t.failedUpdate);

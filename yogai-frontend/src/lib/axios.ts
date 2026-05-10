@@ -1,35 +1,55 @@
 "use client";
 
 import axios from "axios";
+import type { InternalAxiosRequestConfig } from "axios";
 import { auth } from "@/lib/firebase";
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL,
-  headers: {
-    "Content-Type": "application/json",
-  },
+  timeout: 30000,
+  headers: { "Content-Type": "application/json" },
 });
 
+type RetryConfig = InternalAxiosRequestConfig & { _retry?: boolean };
+
 api.interceptors.request.use(async (config) => {
-  await auth.authStateReady(); 
-  
+  await auth.authStateReady();
   const user = auth.currentUser;
   if (user) {
     const token = await user.getIdToken();
     config.headers.Authorization = `Bearer ${token}`;
-  } else {
-    console.warn("DİKKAT: Kullanıcı girişi bulunamadı, yetkisiz istek atılıyor!");
   }
   return config;
 });
 
 api.interceptors.response.use(
   (response) => response.data,
-  (error) => {
+  async (error: {
+    response?: { status?: number; data?: { message?: string; error?: string } };
+    config?: RetryConfig;
+    message?: string;
+  }) => {
+    const status = error.response?.status;
+
+    if (status === 401 && error.config && !error.config._retry) {
+      error.config._retry = true;
+      const user = auth.currentUser;
+      if (user) {
+        const newToken = await user.getIdToken(true);
+        error.config.headers.Authorization = `Bearer ${newToken}`;
+        const retryResponse = await api.request(error.config);
+        return retryResponse;
+      }
+    }
+
     const message =
-      error.response?.data?.message || "Something went wrong";
+      error.response?.data?.message ||
+      error.response?.data?.error ||
+      error.message ||
+      "Bir hata oluştu";
+
     return Promise.reject(new Error(message));
-  }
+  },
 );
 
 export default api;

@@ -11,6 +11,8 @@ import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 
+import { profileService } from "@/services/profileService";
+
 interface LoginForm {
   email: string;
   password: string;
@@ -52,8 +54,7 @@ export default function LoginPage() {
 
   const checkProfileAndRedirect = async () => {
     try {
-      const response = await (await import("@/lib/axios")).default.get("/api/v1/profile");
-      const data = (response as { data?: unknown }).data;
+      const data = await profileService.getProfile();
       router.push(data ? "/dashboard" : "/onboarding");
     } catch {
       router.push("/onboarding");

@@ -2,13 +2,12 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { useApp } from "@/components/layout/AppProvider";
-import api from "@/lib/axios";
 import {
   analyzePoseClientSide,
   type LandmarkRule,
   type AnalyzeResult,
 } from "@/lib/poseAnalyzer";
-import type { AnalyzablePose } from "@/types/yoga";
+import { useAnalyzablePoses, usePose } from "@/hooks/usePoses";
 
 type ModelComplexity = 0 | 1 | 2;
 
@@ -46,10 +45,14 @@ function ruleCardClass(r: AnalyzeResult["rules"][0]): string {
 export default function PoseTestPage() {
   const { t, locale } = useApp();
 
-  const [poses, setPoses] = useState<AnalyzablePose[]>([]);
+  const { data: poses = [] } = useAnalyzablePoses();
   const [selectedPose, setSelectedPose] = useState<string>("");
+  const poseQuery = usePose(selectedPose);
+  const poseDetail = poseQuery.data;
+  const rulesLoading = !!selectedPose && poseQuery.isLoading;
+  const poseLoadError = poseQuery.isError;
+
   const [selectedRules, setSelectedRules] = useState<LandmarkRule[]>([]);
-  const [rulesLoading, setRulesLoading] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<AnalyzeResult | null>(null);
   const [fps, setFps] = useState(0);
@@ -75,49 +78,27 @@ export default function PoseTestPage() {
     selectedPoseRef.current = selectedPose;
   }, [selectedPose]);
 
-  // Load analyzable pose list once on mount
-  useEffect(() => {
-    api
-      .get("/api/v1/yoga/poses/analyzable")
-      .then((res: { data?: AnalyzablePose[] }) => {
-        if (res.data) setPoses(res.data);
-      })
-      .catch(() => {});
-  }, []);
-
-  // Fetch landmark rules when the selected pose changes (once per selection)
   useEffect(() => {
     if (!selectedPose) {
       setSelectedRules([]);
+      setError(null);
       return;
     }
-    let cancelled = false;
-    setRulesLoading(true);
-    setError(null);
-    api
-      .get(`/api/v1/yoga/poses/${selectedPose}`)
-      .then((res: { data?: { landmark_rules?: LandmarkRule[] } }) => {
-        if (!cancelled) setSelectedRules(res.data?.landmark_rules ?? []);
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setError(
-            locale === "tr"
-              ? "Bu poz için analiz kuralları yüklenemedi."
-              : "Could not load analysis rules for this pose.",
-          );
-          setSelectedRules([]);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setRulesLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedPose, locale]);
+    if (poseLoadError) {
+      setError(
+        locale === "tr"
+          ? "Bu poz için analiz kuralları yüklenemedi."
+          : "Could not load analysis rules for this pose.",
+      );
+      setSelectedRules([]);
+      return;
+    }
+    if (poseDetail) {
+      setSelectedRules((poseDetail.landmark_rules ?? []) as LandmarkRule[]);
+      setError(null);
+    }
+  }, [selectedPose, poseDetail, poseLoadError, locale]);
 
-  // MediaPipe lifecycle — restarts when analysis starts/stops or model changes
   useEffect(() => {
     if (!isAnalyzing || !selectedPose) return;
 
