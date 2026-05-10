@@ -9,6 +9,7 @@ import {
   type AnalyzeResult,
 } from "@/lib/poseAnalyzer";
 import { useAnalyzablePoses, usePose } from "@/hooks/usePoses";
+import { colors } from "@/lib/colors";
 
 type ModelComplexity = 0 | 1 | 2;
 
@@ -180,11 +181,11 @@ export default function PoseTestPage() {
                 // and multiply internally by canvas dimensions — they draw
                 // correctly in the already-flipped context.
                 drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, {
-                  color: "#6BAE6C",
+                  color: colors.primaryLight,
                   lineWidth: 3,
                 });
                 drawLandmarks(ctx, results.poseLandmarks, {
-                  color: "#C4956A",
+                  color: colors.secondary,
                   lineWidth: 2,
                 });
               }

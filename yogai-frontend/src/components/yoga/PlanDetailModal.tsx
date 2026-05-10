@@ -9,9 +9,9 @@ import { useApp } from "@/components/layout/AppProvider";
 import toast from "react-hot-toast";
 
 const difficultyColors: Record<string, string> = {
-  beginner: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-  intermediate: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-  advanced: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+  beginner: "bg-sage-50 text-sage-800 dark:bg-sage-900/30 dark:text-sage-300",
+  intermediate: "bg-brand-warning-soft text-brand-warning-dark dark:bg-orange-950/30 dark:text-orange-300",
+  advanced: "bg-brand-error-soft text-brand-error dark:bg-red-950/30 dark:text-red-300",
 };
 
 interface PlanDetailModalProps {
@@ -199,8 +199,8 @@ export default function PlanDetailModal({ plan, onClose, onUpdated }: PlanDetail
             )}
 
             <div className="flex flex-wrap gap-3">
-              <div className="flex items-center gap-2 rounded-xl bg-th-subtle px-3 py-2">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#889E81" strokeWidth="2">
+              <div className="flex items-center gap-2 rounded-xl bg-th-subtle px-3 py-2 text-sage-500">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="12" cy="12" r="10" />
                   <polyline points="12 6 12 12 16 14" />
                 </svg>
@@ -209,8 +209,8 @@ export default function PlanDetailModal({ plan, onClose, onUpdated }: PlanDetail
                 </span>
               </div>
               {(detail.focus_area || plan.focus_area) && (
-                <div className="flex items-center gap-2 rounded-xl bg-clay-50 dark:bg-clay-900/20 px-3 py-2">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C4956A" strokeWidth="2">
+                <div className="flex items-center gap-2 rounded-xl bg-clay-50 dark:bg-clay-900/20 px-3 py-2 text-clay-500">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <circle cx="12" cy="12" r="10"/>
                     <circle cx="12" cy="12" r="6"/>
                     <circle cx="12" cy="12" r="2"/>

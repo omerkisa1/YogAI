@@ -9,6 +9,7 @@ import { useCreateCustomPlan } from "@/hooks/usePlans";
 import { useProfile } from "@/hooks/useProfile";
 import { useApp } from "@/components/layout/AppProvider";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
+import { colors } from "@/lib/colors";
 import { categoryBorder } from "@/lib/exploreMeta";
 import type { Translations } from "@/lib/i18n";
 
@@ -171,7 +172,7 @@ export default function CreateCustomPlanPage() {
           <ul className="space-y-3">
             {entries.map((e) => {
               const p = poseMap[e.pose_id];
-              const border = p ? categoryBorder(p.category) : "#889E81";
+              const border = p ? categoryBorder(p.category) : colors.primary;
               return (
                 <li key={e.pose_id} className="flex flex-col gap-3 rounded-xl border border-th-border bg-th-card p-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex gap-3">

@@ -6,6 +6,7 @@ import { usePose } from "@/hooks/usePoses";
 import { useApp } from "@/components/layout/AppProvider";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { categoryBorder } from "@/lib/exploreMeta";
+import { colors } from "@/lib/colors";
 import { labelForContraindication } from "@/lib/contraindications";
 import type { Translations } from "@/lib/i18n";
 
@@ -26,7 +27,7 @@ export default function PoseDetailPage() {
   const { t, locale } = useApp();
   const { data: pose, isLoading, error, refetch } = usePose(id);
 
-  const border = pose ? categoryBorder(pose.category) : "#889E81";
+  const border = pose ? categoryBorder(pose.category) : colors.primary;
 
   const testHref = `/pose-test?poseId=${encodeURIComponent(id)}`;
   const customHref = `/explore/create-custom?add=${encodeURIComponent(id)}`;
@@ -73,7 +74,7 @@ export default function PoseDetailPage() {
       <div
         className="rounded-3xl p-6 text-white shadow-lg md:p-8"
         style={{
-          background: `linear-gradient(135deg, ${border}dd 0%, rgb(15 23 42) 100%)`,
+          background: `linear-gradient(135deg, ${border}dd 0%, ${colors.gradientHero[1]} 100%)`,
         }}
       >
         <p className="text-2xl font-bold md:text-3xl">{name}</p>

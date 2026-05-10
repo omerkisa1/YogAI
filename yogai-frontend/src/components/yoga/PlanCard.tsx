@@ -9,9 +9,9 @@ import { useApp } from "@/components/layout/AppProvider";
 import toast from "react-hot-toast";
 
 const difficultyColors: Record<string, string> = {
-  beginner: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-  intermediate: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-  advanced: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+  beginner: "bg-sage-50 text-sage-800 dark:bg-sage-900/30 dark:text-sage-300",
+  intermediate: "bg-brand-warning-soft text-brand-warning-dark dark:bg-orange-950/30 dark:text-orange-300",
+  advanced: "bg-brand-error-soft text-brand-error dark:bg-red-950/30 dark:text-red-300",
 };
 
 interface PlanCardProps {
@@ -78,7 +78,7 @@ export default function PlanCard({ plan, index, onClick, onUpdated, detailHref }
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 mb-1">
             {plan.is_pinned && (
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="#3B82F6" className="shrink-0">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="shrink-0 text-brand-info">
                 <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/>
               </svg>
             )}

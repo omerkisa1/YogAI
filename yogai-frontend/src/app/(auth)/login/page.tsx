@@ -124,8 +124,8 @@ export default function LoginPage() {
           <div className="mt-8 space-y-4">
             {[t.feature1, t.feature2, t.feature3].map((feature) => (
               <div key={feature} className="flex items-center gap-3">
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sage-400/20">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#889E81" strokeWidth="3">
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sage-400/20 text-sage-500">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
                 </div>

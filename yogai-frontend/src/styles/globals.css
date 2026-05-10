@@ -4,27 +4,33 @@
 
 @layer base {
   :root {
-    --c-bg: 249 247 242;
-    --c-surface: 253 252 250;
+    --c-bg: 248 247 244;
+    --c-surface: 255 255 255;
     --c-card: 255 255 255;
-    --c-subtle: 243 239 231;
-    --c-muted: 234 228 216;
-    --c-border: 234 228 216;
-    --c-text: 45 45 45;
-    --c-text-sec: 74 74 74;
-    --c-text-mut: 107 107 107;
+    --c-subtle: 245 244 240;
+    --c-muted: 240 239 235;
+    --c-border: 229 229 227;
+    --c-text: 28 28 30;
+    --c-text-sec: 107 114 128;
+    --c-text-mut: 156 163 175;
+    --c-primary: 45 139 94;
+    --c-primary-dark: 30 107 69;
+    --c-secondary: 196 149 106;
   }
 
   .dark {
-    --c-bg: 18 21 19;
-    --c-surface: 26 30 28;
-    --c-card: 32 36 34;
-    --c-subtle: 40 44 42;
-    --c-muted: 50 55 50;
-    --c-border: 50 55 50;
-    --c-text: 232 232 228;
-    --c-text-sec: 176 176 170;
-    --c-text-mut: 120 120 114;
+    --c-bg: 15 24 20;
+    --c-surface: 22 34 28;
+    --c-card: 28 40 32;
+    --c-subtle: 34 48 40;
+    --c-muted: 42 56 48;
+    --c-border: 55 65 58;
+    --c-text: 248 247 244;
+    --c-text-sec: 176 182 176;
+    --c-text-mut: 130 138 130;
+    --c-primary: 61 175 117;
+    --c-primary-dark: 45 139 94;
+    --c-secondary: 212 171 133;
   }
 
   html {
@@ -37,7 +43,7 @@
   }
 
   ::selection {
-    @apply bg-sage-400/30;
+    @apply bg-sage-400/25;
   }
 }
 
@@ -51,7 +57,7 @@
   }
 
   .btn-danger {
-    @apply inline-flex items-center justify-center rounded-full bg-red-500/10 px-6 py-2 text-sm font-medium text-red-600 transition-all duration-200 hover:bg-red-500/20 active:scale-[0.98] dark:bg-red-500/15 dark:text-red-400;
+    @apply inline-flex items-center justify-center rounded-full bg-brand-error-soft px-6 py-2 text-sm font-medium text-brand-error transition-all duration-200 hover:bg-brand-error-soft/90 active:scale-[0.98] dark:bg-brand-error/15 dark:text-red-300 dark:hover:bg-brand-error/25;
   }
 
   .card {
