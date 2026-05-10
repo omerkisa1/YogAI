@@ -12,14 +12,43 @@ import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 
-const durations = [15, 30, 45, 60];
+const durations = [10, 15, 20, 25, 30, 35, 45, 60];
 
-export default function PlanGeneratorForm() {
+function formatPlanErrorMessage(
+  details: Record<string, unknown> | undefined,
+  fallback: string,
+): string {
+  if (!details) return fallback;
+  const err =
+    (typeof details.error === "string" && details.error) ||
+    (typeof details.message === "string" && details.message) ||
+    fallback;
+  const lines = [err];
+  const ap = details.available_poses;
+  const md = details.max_duration;
+  const sug = details.suggestion;
+  if (typeof ap === "number") lines.push(`${ap} poz`);
+  if (typeof md === "number" && md > 0) lines.push(`~${md} dk`);
+  if (typeof sug === "string" && sug) lines.push(sug);
+  return lines.join(" · ");
+}
+
+export type PlanGeneratorFormProps = {
+  presetLevel?: string;
+  presetDuration?: number;
+  presetFocus?: string;
+};
+
+export default function PlanGeneratorForm({
+  presetLevel,
+  presetDuration,
+  presetFocus,
+}: PlanGeneratorFormProps) {
   const [step, setStep] = useState(0);
   const router = useRouter();
   const createPlan = useCreatePlan();
   const { data: profile } = useProfile();
-  const { t, locale } = useApp();
+  const { t } = useApp();
   const { setValue, watch, getValues } = useForm<GeneratePlanRequest>({
     defaultValues: { level: "", duration: 30, focus_area: "", preferences: "" },
   });
@@ -30,6 +59,19 @@ export default function PlanGeneratorForm() {
       if (profile.preferred_duration) setValue("duration", profile.preferred_duration);
     }
   }, [profile, setValue]);
+
+  useEffect(() => {
+    const levels = ["beginner", "intermediate", "advanced"] as const;
+    if (presetLevel && levels.includes(presetLevel as (typeof levels)[number])) {
+      setValue("level", presetLevel);
+    }
+    if (presetDuration != null && Number.isFinite(presetDuration) && presetDuration > 0) {
+      setValue("duration", presetDuration);
+    }
+    if (presetFocus && focusAreaKeys.some((a) => a.value === presetFocus)) {
+      setValue("focus_area", presetFocus);
+    }
+  }, [presetLevel, presetDuration, presetFocus, setValue]);
 
   const selectedLevel = watch("level");
   const selectedDuration = watch("duration");
@@ -51,11 +93,15 @@ export default function PlanGeneratorForm() {
     if (createPlan.isPending) return;
     try {
       const values = getValues();
-      await createPlan.mutateAsync({ ...values });
+      await createPlan.mutateAsync({
+        ...values,
+        injuries: profile?.injuries?.length ? [...profile.injuries] : undefined,
+      });
       toast.success(t.planCreated);
       router.push("/dashboard");
-    } catch {
-      toast.error(t.generateFailed);
+    } catch (e) {
+      const details = (e as Error & { apiDetails?: Record<string, unknown> }).apiDetails;
+      toast.error(formatPlanErrorMessage(details, t.generateFailed));
     }
   };
 
@@ -148,7 +194,7 @@ export default function PlanGeneratorForm() {
             >
               <h2 className="text-lg font-semibold text-th-text">{t.sessionDuration}</h2>
               <p className="text-sm text-th-text-mut">{t.durationDesc}</p>
-              <div className="mt-4 grid grid-cols-2 gap-3">
+              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {durations.map((d) => (
                   <button
                     key={d}
@@ -207,6 +253,7 @@ export default function PlanGeneratorForm() {
                   className="input-field mt-2 resize-none"
                 />
               </div>
+              <p className="text-xs text-th-text-mut">{t.planInjuriesMergedHint}</p>
             </motion.div>
           )}
         </AnimatePresence>

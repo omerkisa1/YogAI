@@ -48,7 +48,16 @@ api.interceptors.response.use(
       error.message ||
       "Bir hata oluştu";
 
-    return Promise.reject(new Error(message));
+    const apiErr = new Error(message) as Error & {
+      status?: number;
+      apiDetails?: Record<string, unknown>;
+    };
+    apiErr.status = status;
+    if (error.response?.data && typeof error.response.data === "object") {
+      apiErr.apiDetails = error.response.data as Record<string, unknown>;
+    }
+
+    return Promise.reject(apiErr);
   },
 );
 

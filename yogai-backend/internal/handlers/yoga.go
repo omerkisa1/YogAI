@@ -29,10 +29,11 @@ func NewYogaHandler(aiService services.AIService, repo repository.YogaRepository
 }
 
 type GeneratePlanRequest struct {
-	Level       string `json:"level" binding:"required"`
-	Duration    int    `json:"duration" binding:"required"`
-	FocusArea   string `json:"focus_area"`
-	Preferences string `json:"preferences"`
+	Level       string   `json:"level" binding:"required"`
+	Duration    int      `json:"duration" binding:"required"`
+	FocusArea   string   `json:"focus_area"`
+	Preferences string   `json:"preferences"`
+	Injuries    []string `json:"injuries"`
 }
 
 type UpdatePlanMetaRequest struct {
@@ -253,17 +254,19 @@ func (h *YogaHandler) GeneratePlan(c *gin.Context) {
 		return
 	}
 
-	var profileInjuries []string
+	var injuryPool []string
 	profile, _ := h.profileRepo.GetProfile(c.Request.Context(), uid)
 	if profile != nil && len(profile.Injuries) > 0 {
-		profileInjuries = catalog.NormalizeInjuries(profile.Injuries)
+		injuryPool = append(injuryPool, profile.Injuries...)
 	}
+	injuryPool = append(injuryPool, req.Injuries...)
+	mergedInjuries := catalog.NormalizeInjuries(injuryPool)
 
-	safePoseIDs := catalog.GetSafePoseIDs(profileInjuries)
+	safePoseIDs := catalog.GetSafePoseIDs(mergedInjuries)
 
 	// PRE-VALIDATION: check if enough poses exist for the requested filters
 	// before wasting a Gemini API call that would timeout or produce garbage.
-	availableCount, maxDur, err := preValidatePlanRequest(req.Level, req.Duration, req.FocusArea, profileInjuries)
+	availableCount, maxDur, err := preValidatePlanRequest(req.Level, req.Duration, req.FocusArea, mergedInjuries)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error":           err.Error(),
@@ -276,7 +279,7 @@ func (h *YogaHandler) GeneratePlan(c *gin.Context) {
 
 	poseIDList := strings.Join(safePoseIDs, ", ")
 
-	prompt := buildBilingualPlanPrompt(req, profileInjuries, poseIDList)
+	prompt := buildBilingualPlanPrompt(req, mergedInjuries, poseIDList)
 
 	result, err := h.aiService.GenerateYogaPlan(c.Request.Context(), prompt)
 	if err != nil {
@@ -285,7 +288,7 @@ func (h *YogaHandler) GeneratePlan(c *gin.Context) {
 		return
 	}
 
-	bilingual, err := validateAndEnrich(result, profileInjuries)
+	bilingual, err := validateAndEnrich(result, mergedInjuries)
 	if err != nil {
 		log.Printf("[ERROR] plan validation/enrichment failed for uid=%s: %v | raw_response_length=%d", uid, err, len(result))
 		models.ErrorResponse(c, http.StatusInternalServerError, "AI produced invalid plan data: "+err.Error())

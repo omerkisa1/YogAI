@@ -69,6 +69,21 @@ const en = {
   morningEnergy: "Morning Energy",
   sleep: "Sleep",
 
+  focusCatalogFullBody: "Full body",
+  focusCatalogLegs: "Legs",
+  focusCatalogBackBody: "Back",
+  focusCatalogCore: "Core",
+  focusCatalogArms: "Arms",
+  focusCatalogHips: "Hips",
+
+  planQuickStartTitle: "Quick start",
+  planPresetBeginnerSub: "15 min · Full body",
+  planPresetIntermediateSub: "25 min · Balance",
+  planPresetAdvancedSub: "35 min · Full body",
+
+  planInjuriesMergedHint:
+    "Your profile injuries and any you select here are combined for this request.",
+
   exercises: "exercises",
   moreExercises: "more exercises",
   minTotal: "min total",
@@ -389,6 +404,21 @@ const tr: typeof en = {
   morningEnergy: "Sabah Enerjisi",
   sleep: "Uyku",
 
+  focusCatalogFullBody: "Tam vücut",
+  focusCatalogLegs: "Bacaklar",
+  focusCatalogBackBody: "Sırt",
+  focusCatalogCore: "Core",
+  focusCatalogArms: "Kollar",
+  focusCatalogHips: "Kalça",
+
+  planQuickStartTitle: "Hızlı başlangıç",
+  planPresetBeginnerSub: "15 dk · Tam vücut",
+  planPresetIntermediateSub: "25 dk · Denge",
+  planPresetAdvancedSub: "35 dk · Tam vücut",
+
+  planInjuriesMergedHint:
+    "Profildeki ve burada seçtikleriniz bu istek için birleştirilir.",
+
   exercises: "egzersiz",
   moreExercises: "egzersiz daha",
   minTotal: "dk toplam",
@@ -647,12 +677,12 @@ export function getTranslations(locale: Locale): Translations {
 }
 
 export const focusAreaKeys: Array<{ value: string; key: keyof Translations }> = [
-  { value: "Flexibility", key: "flexibility" },
-  { value: "Strength", key: "strength" },
-  { value: "Balance", key: "balance" },
-  { value: "Relaxation", key: "relaxation" },
-  { value: "Back Pain", key: "backPain" },
-  { value: "Stress Relief", key: "stressRelief" },
-  { value: "Morning Energy", key: "morningEnergy" },
-  { value: "Sleep", key: "sleep" },
+  { value: "full_body", key: "focusCatalogFullBody" },
+  { value: "legs", key: "focusCatalogLegs" },
+  { value: "back", key: "focusCatalogBackBody" },
+  { value: "core", key: "focusCatalogCore" },
+  { value: "balance", key: "balance" },
+  { value: "flexibility", key: "flexibility" },
+  { value: "arms", key: "focusCatalogArms" },
+  { value: "hips", key: "focusCatalogHips" },
 ];

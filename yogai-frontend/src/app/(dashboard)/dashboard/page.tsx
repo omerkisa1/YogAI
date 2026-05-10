@@ -93,6 +93,33 @@ export default function DashboardPage() {
         </h1>
       </motion.div>
 
+      <section className="mb-10" aria-label={t.planQuickStartTitle}>
+        <h2 className="mb-4 text-lg font-semibold text-th-text">{t.planQuickStartTitle}</h2>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <Link
+            href="/create-plan?level=beginner&duration=15&focus_area=full_body"
+            className="rounded-2xl border border-th-border bg-th-card p-5 shadow-sm transition hover:shadow-md"
+          >
+            <p className="font-semibold text-th-text">{t.beginner}</p>
+            <p className="mt-1 text-sm text-th-text-sec">{t.planPresetBeginnerSub}</p>
+          </Link>
+          <Link
+            href="/create-plan?level=intermediate&duration=25&focus_area=balance"
+            className="rounded-2xl border border-th-border bg-th-card p-5 shadow-sm transition hover:shadow-md"
+          >
+            <p className="font-semibold text-th-text">{t.intermediate}</p>
+            <p className="mt-1 text-sm text-th-text-sec">{t.planPresetIntermediateSub}</p>
+          </Link>
+          <Link
+            href="/create-plan?level=advanced&duration=35&focus_area=full_body"
+            className="rounded-2xl border border-th-border bg-th-card p-5 shadow-sm transition hover:shadow-md"
+          >
+            <p className="font-semibold text-th-text">{t.advanced}</p>
+            <p className="mt-1 text-sm text-th-text-sec">{t.planPresetAdvancedSub}</p>
+          </Link>
+        </div>
+      </section>
+
       <div className="mb-8 rounded-3xl bg-gradient-to-br from-sage-400/90 via-sage-500/85 to-clay-400/90 p-6 text-white shadow-lg md:p-8">
         {statsLoading ? (
           <div className="flex justify-center py-4">
