@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { motion } from "framer-motion";
 import type { YogaPlan } from "@/types/yoga";
 import { useUpdatePlan } from "@/hooks/usePlans";
@@ -16,11 +17,12 @@ const difficultyColors: Record<string, string> = {
 interface PlanCardProps {
   plan: YogaPlan;
   index: number;
-  onClick: () => void;
+  onClick?: () => void;
   onUpdated: () => void;
+  detailHref?: string;
 }
 
-export default function PlanCard({ plan, index, onClick, onUpdated }: PlanCardProps) {
+export default function PlanCard({ plan, index, onClick, onUpdated, detailHref }: PlanCardProps) {
   const updatePlanMutation = useUpdatePlan();
   const updating = updatePlanMutation.isPending;
   const { t, locale } = useApp();
@@ -61,13 +63,16 @@ export default function PlanCard({ plan, index, onClick, onUpdated }: PlanCardPr
 
   const exercises = detail.exercises || [];
 
-  return (
+  const cardClass =
+    "card group cursor-pointer ring-1 ring-transparent transition-all hover:ring-sage-300/40 dark:hover:ring-sage-600/30 hover:shadow-lg";
+
+  const inner = (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: index * 0.08 }}
-      onClick={onClick}
-      className="card group cursor-pointer ring-1 ring-transparent transition-all hover:ring-sage-300/40 dark:hover:ring-sage-600/30 hover:shadow-lg"
+      onClick={detailHref ? undefined : onClick}
+      className={cardClass}
     >
       <div className="mb-3 flex items-start justify-between">
         <div className="flex-1 min-w-0">
@@ -161,4 +166,14 @@ export default function PlanCard({ plan, index, onClick, onUpdated }: PlanCardPr
       </div>
     </motion.div>
   );
+
+  if (detailHref) {
+    return (
+      <Link href={detailHref} className="block">
+        {inner}
+      </Link>
+    );
+  }
+
+  return inner;
 }

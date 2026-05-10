@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthContext } from "@/components/layout/AuthProvider";
+import DashboardSidebar from "@/components/layout/DashboardSidebar";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
@@ -32,10 +33,13 @@ export default function DashboardLayout({
   if (!user) return null;
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <Navbar />
-      <main className="flex-1">{children}</main>
-      <Footer />
+    <div className="flex min-h-screen flex-col bg-th-bg lg:flex-row">
+      <DashboardSidebar />
+      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
+        <Navbar />
+        <main className="flex-1">{children}</main>
+        <Footer />
+      </div>
     </div>
   );
 }

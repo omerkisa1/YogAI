@@ -1,101 +1,184 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { usePlans } from "@/hooks/usePlans";
+import { useTrainingSessions, useTrainingStats } from "@/hooks/useTraining";
 import { useAuthContext } from "@/components/layout/AuthProvider";
 import { useApp } from "@/components/layout/AppProvider";
 import PlanCard from "@/components/yoga/PlanCard";
-import PlanDetailModal from "@/components/yoga/PlanDetailModal";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
-import type { YogaPlan } from "@/types/yoga";
+import type { TrainingSession } from "@/types/yoga";
+
+function accuracyBorder(acc: number): string {
+  if (acc >= 80) return "border-l-green-500";
+  if (acc >= 50) return "border-l-amber-500";
+  return "border-l-red-500";
+}
+
+function RecentSessionCard({
+  session,
+  locale,
+}: {
+  session: TrainingSession;
+  locale: string;
+}) {
+  const { t } = useApp();
+  const title = session.plan_title || t.sessionUntitled;
+  const dt = new Date(session.started_at).toLocaleString(locale === "tr" ? "tr-TR" : "en-US", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const acc = session.average_accuracy ?? 0;
+  const durMin = Math.round((session.total_duration_sec || 0) / 60);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`rounded-2xl border border-th-border bg-th-card shadow-sm ${accuracyBorder(acc)} border-l-4`}
+    >
+      <Link href={`/training/${session.id}`} className="block p-4">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="font-semibold text-th-text">{title}</p>
+            <p className="mt-1 text-xs text-th-text-mut">{dt}</p>
+            <p className="mt-2 text-sm text-th-text-sec">
+              {durMin}
+              {t.minutesShort} · {session.pose_count ?? 0} {t.sessionCardPoses}
+            </p>
+          </div>
+          <span className="shrink-0 text-lg font-bold text-sage-600 dark:text-sage-400">%{Math.round(acc)}</span>
+        </div>
+        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-th-muted">
+          <div
+            className={`h-full rounded-full ${acc >= 80 ? "bg-green-500" : acc >= 50 ? "bg-amber-500" : "bg-red-500"}`}
+            style={{ width: `${Math.min(100, Math.round(acc))}%` }}
+          />
+        </div>
+      </Link>
+    </motion.div>
+  );
+}
 
 export default function DashboardPage() {
   const { user } = useAuthContext();
-  const { t } = useApp();
-  const { plans, loading, refetch } = usePlans();
-  const [selectedPlan, setSelectedPlan] = useState<YogaPlan | null>(null);
+  const { t, locale } = useApp();
+  const { plans, loading: plansLoading, refetch } = usePlans();
+  const { data: sessions = [], isLoading: sessionsLoading } = useTrainingSessions();
+  const { data: stats, isLoading: statsLoading } = useTrainingStats();
 
-  const handlePlanUpdated = () => {
-    refetch();
-    if (selectedPlan) {
-      const fresh = plans.find((p) => p.id === selectedPlan.id);
-      if (fresh) setSelectedPlan(fresh);
-    }
-  };
+  const hours = stats ? (stats.total_duration_sec / 3600).toFixed(1) : "0";
+  const sortedSessions = [...sessions].sort((a, b) => {
+    const ta = new Date(a.started_at).getTime();
+    const tb = new Date(b.started_at).getTime();
+    return tb - ta;
+  });
+  const recentPlans = plans.slice(0, 3);
+  const recentSessions = sortedSessions.slice(0, 3);
+
+  const showPlansSkeleton = plansLoading && plans.length === 0;
+  const showSessionsSkeleton = sessionsLoading && sessions.length === 0;
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-10">
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-10"
-      >
+    <div className="mx-auto max-w-6xl px-4 py-8 md:px-6 md:py-10">
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
         <h1 className="text-2xl font-bold text-th-text">
-          {t.welcomeBackUser}{user?.displayName ? `, ${user.displayName}` : ""}
+          {t.welcomeBackUser}
+          {user?.displayName ? `, ${user.displayName}` : ""}
         </h1>
-        <p className="mt-1 text-sm text-th-text-mut">{t.personalizedPlans}</p>
       </motion.div>
 
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-th-text">{t.yourPlans}</h2>
-          <p className="text-sm text-th-text-mut">
-            {plans.length} {plans.length !== 1 ? t.plans : t.plan} {t.planCreatedCount}
-          </p>
-        </div>
-        <Link href="/create-plan" className="btn-primary">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="mr-2">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          {t.newPlan}
-        </Link>
+      <div className="mb-8 rounded-3xl bg-gradient-to-br from-sage-400/90 via-sage-500/85 to-clay-400/90 p-6 text-white shadow-lg md:p-8">
+        {statsLoading ? (
+          <div className="flex justify-center py-4">
+            <LoadingSpinner size="md" />
+          </div>
+        ) : (
+          <>
+            <p className="text-lg font-semibold leading-relaxed">
+              {stats?.total_sessions ?? 0} {t.statsSessions} · {hours} {t.statsHoursWord} · %
+              {Math.round(stats?.average_accuracy ?? 0)} {t.statsAvgShort}
+            </p>
+            <p className="mt-2 text-sm text-white/90">
+              🔥 {stats?.current_streak ?? 0} {t.streakDays}
+            </p>
+          </>
+        )}
       </div>
 
-      {loading ? (
-        <div className="flex justify-center py-20">
-          <LoadingSpinner size="lg" />
-        </div>
-      ) : plans.length === 0 ? (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-th-border py-20"
-        >
-          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-sage-400/10">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#889E81" strokeWidth="2">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" />
-              <path d="M12 8v8" />
-              <path d="M8 12h8" />
-            </svg>
-          </div>
-          <h3 className="text-base font-semibold text-th-text">{t.noPlanYet}</h3>
-          <p className="mt-1 text-sm text-th-text-mut">{t.createFirstDesc}</p>
-          <Link href="/create-plan" className="btn-primary mt-6">
-            {t.createFirstBtn}
+      <div className="mb-10">
+        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-th-text-mut">{t.quickAccess}</h2>
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+          <Link href="/create-plan" className="btn-primary justify-center text-center sm:flex-1">
+            {t.createPlanAi}
           </Link>
-        </motion.div>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {plans.map((plan, index) => (
-            <PlanCard
-              key={plan.id}
-              plan={plan}
-              index={index}
-              onClick={() => setSelectedPlan(plan)}
-              onUpdated={handlePlanUpdated}
-            />
-          ))}
+          <Link href="/explore" className="btn-secondary justify-center text-center sm:flex-1">
+            {t.explore}
+          </Link>
+          <Link href="/pose-test" className="btn-secondary justify-center text-center sm:flex-1">
+            {t.poseTest}
+          </Link>
         </div>
-      )}
+      </div>
 
-      <PlanDetailModal
-        plan={selectedPlan}
-        onClose={() => setSelectedPlan(null)}
-        onUpdated={handlePlanUpdated}
-      />
+      <div className="mb-10">
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+          <h2 className="text-lg font-semibold text-th-text">{t.recentPlans}</h2>
+          <Link href="/plans" className="text-sm font-medium text-sage-600 hover:underline dark:text-sage-400">
+            {t.viewAllPlans}
+          </Link>
+        </div>
+        {showPlansSkeleton ? (
+          <div className="flex justify-center py-12">
+            <LoadingSpinner size="lg" />
+          </div>
+        ) : recentPlans.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-th-border py-12 text-center text-sm text-th-text-mut">
+            {t.noPlans}{" "}
+            <Link href="/create-plan" className="font-medium text-sage-600 underline dark:text-sage-400">
+              {t.createFirstBtn}
+            </Link>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {recentPlans.map((plan, index) => (
+              <PlanCard
+                key={plan.id}
+                plan={plan}
+                index={index}
+                onUpdated={() => refetch()}
+                detailHref={`/plans/${plan.id}`}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div>
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+          <h2 className="text-lg font-semibold text-th-text">{t.recentTrainings}</h2>
+          <Link href="/training" className="text-sm font-medium text-sage-600 hover:underline dark:text-sage-400">
+            {t.viewAllTrainings}
+          </Link>
+        </div>
+        {showSessionsSkeleton ? (
+          <div className="flex justify-center py-12">
+            <LoadingSpinner size="lg" />
+          </div>
+        ) : recentSessions.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-th-border py-12 text-center text-sm text-th-text-mut">{t.noTrainings}</div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {recentSessions.map((s) => (
+              <RecentSessionCard key={s.id} session={s} locale={locale} />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

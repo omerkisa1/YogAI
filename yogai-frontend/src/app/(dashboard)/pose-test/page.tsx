@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useApp } from "@/components/layout/AppProvider";
 import {
   analyzePoseClientSide,
@@ -44,6 +45,9 @@ function ruleCardClass(r: AnalyzeResult["rules"][0]): string {
 
 export default function PoseTestPage() {
   const { t, locale } = useApp();
+  const searchParams = useSearchParams();
+  const urlPoseId = searchParams.get("poseId");
+  const urlPoseApplied = useRef(false);
 
   const { data: poses = [] } = useAnalyzablePoses();
   const [selectedPose, setSelectedPose] = useState<string>("");
@@ -79,17 +83,21 @@ export default function PoseTestPage() {
   }, [selectedPose]);
 
   useEffect(() => {
+    if (urlPoseApplied.current || !urlPoseId || poses.length === 0) return;
+    if (poses.some((p) => p.pose_id === urlPoseId)) {
+      setSelectedPose(urlPoseId);
+      urlPoseApplied.current = true;
+    }
+  }, [urlPoseId, poses]);
+
+  useEffect(() => {
     if (!selectedPose) {
       setSelectedRules([]);
       setError(null);
       return;
     }
     if (poseLoadError) {
-      setError(
-        locale === "tr"
-          ? "Bu poz için analiz kuralları yüklenemedi."
-          : "Could not load analysis rules for this pose.",
-      );
+      setError(t.poseRulesLoadError);
       setSelectedRules([]);
       return;
     }
@@ -97,7 +105,7 @@ export default function PoseTestPage() {
       setSelectedRules((poseDetail.landmark_rules ?? []) as LandmarkRule[]);
       setError(null);
     }
-  }, [selectedPose, poseDetail, poseLoadError, locale]);
+  }, [selectedPose, poseDetail, poseLoadError, t]);
 
   useEffect(() => {
     if (!isAnalyzing || !selectedPose) return;
@@ -252,11 +260,7 @@ export default function PoseTestPage() {
         }
       } catch {
         if (isMounted) {
-          setError(
-            locale === "tr"
-              ? "Model yüklenemedi, sayfayı yenileyin."
-              : "Model could not be loaded. Please refresh the page.",
-          );
+          setError(t.poseModelLoadError);
         }
       }
     };
@@ -281,7 +285,7 @@ export default function PoseTestPage() {
         }, 100);
       }
     };
-  }, [isAnalyzing, selectedPose, modelComplexity, locale]);
+  }, [isAnalyzing, selectedPose, modelComplexity, t]);
 
   const handleStop = () => {
     setIsAnalyzing(false);
