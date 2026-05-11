@@ -8,6 +8,7 @@ const (
 	CategoryProne     Category = "prone"
 	CategorySupine    Category = "supine"
 	CategoryInversion Category = "inversion"
+	CategoryFace      Category = "face"
 )
 
 type LandmarkRule struct {
@@ -35,6 +36,9 @@ type Pose struct {
 	Contraindications []string       `json:"contraindications"`
 	LandmarkRules     []LandmarkRule `json:"landmark_rules"`
 	IsAnalyzable      bool           `json:"is_analyzable"`
+	AnalysisKind      string         `json:"analysis_kind"`
+	MetricType        string         `json:"metric_type"`
+	RepTarget         int            `json:"rep_target"`
 }
 
 var AllPoses = []Pose{
@@ -450,6 +454,23 @@ var AllPoses = []Pose{
 			{Joint: "legs_straight", PointA: 23, PointB: 25, PointC: 27, AngleMin: 155, AngleMax: 180, Weight: 0.30, RuleType: "target", FeedbackEN: "Try to straighten your legs.", FeedbackTR: "Bacaklarınızı düzeltmeye çalışın."},
 		},
 	},
+
+	{
+		PoseID:            "face_jaw_open",
+		NameEN:            "Jaw Open & Close",
+		NameTR:            "Ağız Açma Kapama",
+		Category:          CategoryFace,
+		Difficulty:        1,
+		TargetArea:        "face",
+		InstructionsEN:    "Open your mouth wide, hold for a moment, then close. Repeat slowly and controlled.",
+		InstructionsTR:    "Ağzınızı sonuna kadar açın, bir an bekleyin, sonra kapatın. Yavaş ve kontrollü tekrarlayın.",
+		Contraindications: []string{},
+		LandmarkRules:     []LandmarkRule{},
+		IsAnalyzable:      true,
+		AnalysisKind:      "face",
+		MetricType:        "reps",
+		RepTarget:         10,
+	},
 }
 
 var poseIndex map[string]*Pose
@@ -457,6 +478,12 @@ var poseIndex map[string]*Pose
 func init() {
 	poseIndex = make(map[string]*Pose, len(AllPoses))
 	for i := range AllPoses {
+		if AllPoses[i].AnalysisKind == "" {
+			AllPoses[i].AnalysisKind = "body"
+		}
+		if AllPoses[i].MetricType == "" {
+			AllPoses[i].MetricType = "accuracy"
+		}
 		if AllPoses[i].LandmarkRules == nil {
 			AllPoses[i].LandmarkRules = []LandmarkRule{}
 		}

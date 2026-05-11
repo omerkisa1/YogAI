@@ -28,6 +28,9 @@ func (h *CatalogHandler) GetPoses(c *gin.Context) {
 		InstructionsTR    string   `json:"instructions_tr"`
 		Contraindications []string `json:"contraindications"`
 		IsAnalyzable      bool     `json:"is_analyzable"`
+		AnalysisKind      string   `json:"analysis_kind"`
+		MetricType        string   `json:"metric_type"`
+		RepTarget         int      `json:"rep_target"`
 	}
 
 	metaList := make([]PoseMeta, 0, len(poses))
@@ -47,6 +50,9 @@ func (h *CatalogHandler) GetPoses(c *gin.Context) {
 			InstructionsTR:    p.InstructionsTR,
 			Contraindications: contraindications,
 			IsAnalyzable:      p.IsAnalyzable,
+			AnalysisKind:      p.AnalysisKind,
+			MetricType:        p.MetricType,
+			RepTarget:         p.RepTarget,
 		})
 	}
 

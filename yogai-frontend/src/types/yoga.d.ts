@@ -91,6 +91,9 @@ export interface Pose {
   contraindications: string[];
   landmark_rules: LandmarkRule[];
   is_analyzable: boolean;
+  analysis_kind: "body" | "face";
+  metric_type: "accuracy" | "reps";
+  rep_target: number;
 }
 
 export interface PoseLandmark {

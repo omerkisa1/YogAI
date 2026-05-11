@@ -102,7 +102,7 @@ func TestAllPosesHaveRequiredFields(t *testing.T) {
 func TestCategoryCoverage(t *testing.T) {
 	counts := CategoriesWithCounts()
 
-	expectedCategories := []Category{CategoryStanding, CategorySeated, CategoryProne, CategorySupine, CategoryInversion}
+	expectedCategories := []Category{CategoryStanding, CategorySeated, CategoryProne, CategorySupine, CategoryInversion, CategoryFace}
 	for _, cat := range expectedCategories {
 		count, exists := counts[cat]
 		if !exists || count == 0 {

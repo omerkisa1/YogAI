@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   AlertTriangle,
@@ -17,14 +17,23 @@ import {
 import { useAnalyzablePoses, usePose } from "@/hooks/usePoses";
 import {
   useMediapipePoseCamera,
+  MEDIAPIPE_CAM_H,
+  MEDIAPIPE_CAM_W,
   type MediapipeLandmarkFrame,
 } from "@/hooks/useMediapipePoseCamera";
+import { useFaceLandmarker } from "@/hooks/useFaceLandmarker";
+import {
+  createFaceRepCounter,
+  FACE_EXERCISE_CONFIGS,
+  type FaceRepResult,
+} from "@/lib/faceRepCounter";
 import { PoseCameraStage } from "@/components/training/PoseCameraStage";
 import {
   accuracyAccent,
   accuracyTextClass,
   ruleOverlayClass,
 } from "@/lib/poseTestCameraTheme";
+import type { Pose } from "@/types/yoga";
 
 type ModelComplexity = 0 | 1 | 2;
 
@@ -48,6 +57,33 @@ export default function PoseTestPage() {
   const poseDetail = poseQuery.data;
   const rulesLoading = !!selectedPose && poseQuery.isLoading;
   const poseLoadError = poseQuery.isError;
+  const resolvedPose =
+    poseDetail && poseDetail.pose_id === selectedPose ? poseDetail : undefined;
+  const analysisKind = resolvedPose?.analysis_kind ?? "body";
+  const isFaceExercise = analysisKind === "face";
+
+  const faceLandmarker = useFaceLandmarker();
+  const {
+    start: startFaceLandmarker,
+    stop: stopFaceLandmarker,
+    currentFrame: faceFrame,
+    fps: faceFps,
+    isLoading: faceLmLoading,
+    error: faceLmError,
+  } = faceLandmarker;
+  const faceRepCounterRef = useRef<ReturnType<typeof createFaceRepCounter>>(null);
+  const [faceRepResult, setFaceRepResult] = useState<FaceRepResult | null>(null);
+
+  const { facePoses, bodyPoses } = useMemo(() => {
+    const face: Pose[] = [];
+    const body: Pose[] = [];
+    for (const p of poses) {
+      const kind = p.analysis_kind ?? "body";
+      if (kind === "face") face.push(p);
+      else body.push(p);
+    }
+    return { facePoses: face, bodyPoses: body };
+  }, [poses]);
 
   const [selectedRules, setSelectedRules] = useState<LandmarkRule[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -98,7 +134,7 @@ export default function PoseTestPage() {
   }, [t]);
 
   const { fps } = useMediapipePoseCamera({
-    active: isAnalyzing && !!selectedPose,
+    active: isAnalyzing && !!selectedPose && !isFaceExercise,
     containerRef: shellRef,
     videoRef,
     canvasRef,
@@ -107,6 +143,94 @@ export default function PoseTestPage() {
     onFrame: handleFrame,
     onModelLoadError: handleModelError,
   });
+
+  useEffect(() => {
+    if (!resolvedPose) return;
+    if (resolvedPose.analysis_kind === "face") {
+      faceRepCounterRef.current = createFaceRepCounter(
+        resolvedPose.pose_id,
+        resolvedPose.rep_target > 0 ? resolvedPose.rep_target : undefined,
+      );
+      setFaceRepResult(null);
+    } else {
+      stopFaceLandmarker();
+      faceRepCounterRef.current = null;
+      setFaceRepResult(null);
+    }
+  }, [resolvedPose?.pose_id, resolvedPose?.analysis_kind, stopFaceLandmarker]);
+
+  useEffect(() => {
+    if (!isAnalyzing || !isFaceExercise) return;
+    const video = videoRef.current;
+    if (!video) return;
+    let stream: MediaStream | null = null;
+    let cancelled = false;
+    (async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: MEDIAPIPE_CAM_W },
+            height: { ideal: MEDIAPIPE_CAM_H },
+          },
+          audio: false,
+        });
+        if (cancelled) {
+          stream.getTracks().forEach((tr) => tr.stop());
+          return;
+        }
+        const el = videoRef.current;
+        if (!el) {
+          stream.getTracks().forEach((tr) => tr.stop());
+          return;
+        }
+        el.srcObject = stream;
+        await el.play().catch(() => {});
+      } catch {
+        setError(t.poseModelLoadError);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      stream?.getTracks().forEach((tr) => tr.stop());
+      const el = videoRef.current;
+      if (el) el.srcObject = null;
+    };
+  }, [isAnalyzing, isFaceExercise, selectedPose, t.poseModelLoadError]);
+
+  useEffect(() => {
+    if (!isAnalyzing || !isFaceExercise) return;
+    const v = videoRef.current;
+    if (!v) return;
+    let cancelled = false;
+    const onReady = () => {
+      if (!cancelled && v.videoWidth) startFaceLandmarker(v);
+    };
+    if (v.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) onReady();
+    else v.addEventListener("loadeddata", onReady);
+    return () => {
+      cancelled = true;
+      v.removeEventListener("loadeddata", onReady);
+      stopFaceLandmarker();
+    };
+  }, [
+    isAnalyzing,
+    isFaceExercise,
+    selectedPose,
+    startFaceLandmarker,
+    stopFaceLandmarker,
+  ]);
+
+  useEffect(() => {
+    if (!isFaceExercise || !faceFrame || !faceRepCounterRef.current) return;
+    if (!faceFrame.faceDetected) return;
+    if (faceRepResult?.isComplete) return;
+    const result = faceRepCounterRef.current.update(faceFrame.blendshapes);
+    setFaceRepResult(result);
+  }, [isFaceExercise, faceFrame, faceRepResult?.isComplete]);
+
+  useEffect(() => {
+    if (isFaceExercise && faceLmError) setError(faceLmError);
+  }, [isFaceExercise, faceLmError]);
 
   useEffect(() => {
     rulesRef.current = selectedRules;
@@ -151,10 +275,12 @@ export default function PoseTestPage() {
   }, [isAnalyzing]);
 
   const handleStop = () => {
+    stopFaceLandmarker();
     setIsAnalyzing(false);
     setResult(null);
     setVisibilityWarning(false);
     setRulesOpen(false);
+    setFaceRepResult(null);
   };
 
   const handlePoseChange = (poseId: string) => {
@@ -183,12 +309,16 @@ export default function PoseTestPage() {
   const canStart =
     !!selectedPose &&
     !rulesLoading &&
-    selectedRules.length > 0 &&
+    !!resolvedPose &&
+    (isFaceExercise || selectedRules.length > 0) &&
     !isAnalyzing;
 
   const ruleCount = result?.rules?.length ?? 0;
 
   const accVal = result?.overall_accuracy ?? 0;
+  const displayFps = isFaceExercise ? faceFps : fps;
+  const jawEnterThreshold =
+    FACE_EXERCISE_CONFIGS[selectedPose]?.enterThreshold ?? 0.5;
 
   return (
     <div
@@ -224,13 +354,27 @@ export default function PoseTestPage() {
                   onChange={(e) => handlePoseChange(e.target.value)}
                 >
                   <option value="">— {t.selectPose} —</option>
-                  {poses.map((p) => (
-                    <option key={p.pose_id} value={p.pose_id}>
-                      {locale === "tr" ? p.name_tr : p.name_en}
-                    </option>
-                  ))}
+                  {facePoses.length > 0 && (
+                    <optgroup label={t.faceCategory}>
+                      {facePoses.map((p) => (
+                        <option key={p.pose_id} value={p.pose_id}>
+                          {locale === "tr" ? p.name_tr : p.name_en}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {bodyPoses.length > 0 && (
+                    <optgroup label={t.bodyCategory}>
+                      {bodyPoses.map((p) => (
+                        <option key={p.pose_id} value={p.pose_id}>
+                          {locale === "tr" ? p.name_tr : p.name_en}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
                 </select>
               </div>
+              {!isFaceExercise && (
               <div>
                 <p className="mb-1.5 text-xs text-th-text-sec">
                   {t.poseTestPoseModel}
@@ -252,6 +396,7 @@ export default function PoseTestPage() {
                   ))}
                 </div>
               </div>
+              )}
               <button
                 type="button"
                 onClick={() => setIsAnalyzing(true)}
@@ -278,13 +423,27 @@ export default function PoseTestPage() {
                   disabled={rulesLoading}
                 >
                   <option value="">— {t.selectPose} —</option>
-                  {poses.map((p) => (
-                    <option key={p.pose_id} value={p.pose_id}>
-                      {locale === "tr" ? p.name_tr : p.name_en}
-                    </option>
-                  ))}
+                  {facePoses.length > 0 && (
+                    <optgroup label={t.faceCategory}>
+                      {facePoses.map((p) => (
+                        <option key={p.pose_id} value={p.pose_id}>
+                          {locale === "tr" ? p.name_tr : p.name_en}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {bodyPoses.length > 0 && (
+                    <optgroup label={t.bodyCategory}>
+                      {bodyPoses.map((p) => (
+                        <option key={p.pose_id} value={p.pose_id}>
+                          {locale === "tr" ? p.name_tr : p.name_en}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
                 </select>
               </div>
+              {!isFaceExercise && (
               <div className="flex min-w-0 flex-1 flex-col sm:max-w-md">
                 <span className="text-xs font-medium text-th-text-sec">
                   {t.poseTestPoseModel}
@@ -306,6 +465,7 @@ export default function PoseTestPage() {
                   ))}
                 </div>
               </div>
+              )}
               <button
                 type="button"
                 onClick={handleStop}
@@ -321,15 +481,19 @@ export default function PoseTestPage() {
                 videoRef={videoRef}
                 canvasRef={canvasRef}
                 className="absolute inset-0 h-full w-full"
+                mirrorVideo={isAnalyzing && isFaceExercise}
               />
 
               <div className="pointer-events-none absolute left-3 top-3 z-20 md:left-4 md:top-4">
                 <div className="overlay-badge font-mono text-[11px] text-white md:text-xs">
-                  {fps} {t.fpsLabel.toLowerCase()} · {formatElapsed(elapsed)}
+                  {displayFps} {t.fpsLabel.toLowerCase()} · {formatElapsed(elapsed)}
                 </div>
               </div>
 
-              {selectedPose && selectedRules.length > 0 && result && (
+              {!isFaceExercise &&
+                selectedPose &&
+                selectedRules.length > 0 &&
+                result && (
                 <div
                   className={`pointer-events-none absolute right-3 top-3 z-20 rounded-2xl border border-white/20 bg-gradient-to-br px-4 py-2.5 text-center shadow-lg backdrop-blur-md md:right-4 md:top-4 md:px-5 md:py-3 ${accuracyAccent(accVal)}`}
                 >
@@ -344,7 +508,7 @@ export default function PoseTestPage() {
                 </div>
               )}
 
-              {visibilityWarning && (
+              {visibilityWarning && !isFaceExercise && (
                 <div
                   className="absolute left-3 right-3 top-14 z-30 flex items-start gap-2 rounded-xl px-3 py-2.5 text-xs text-white backdrop-blur-md md:left-4 md:right-4 md:text-sm"
                   style={{ backgroundColor: "rgba(234, 179, 8, 0.38)" }}
@@ -354,7 +518,88 @@ export default function PoseTestPage() {
                 </div>
               )}
 
-              {!selectedPose || selectedRules.length === 0 ? (
+              {isFaceExercise && faceFrame && !faceFrame.faceDetected && (
+                <div className="fixed top-20 left-1/2 z-30 max-w-md -translate-x-1/2 rounded-xl bg-amber-500/30 px-6 py-3 backdrop-blur-md">
+                  <span className="text-sm text-white">{t.faceNotDetected}</span>
+                </div>
+              )}
+
+              {isFaceExercise && faceLmLoading && (
+                <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center bg-black/35">
+                  <p className="rounded-xl overlay-panel px-5 py-3 text-sm text-white">
+                    {t.waitingForData}
+                  </p>
+                </div>
+              )}
+
+              {isFaceExercise && faceRepResult && (
+                <div className="pointer-events-none fixed top-1/3 left-1/2 z-20 flex max-w-[min(100vw-2rem,20rem)] -translate-x-1/2 -translate-y-1/2 flex-col items-center p-6 overlay-panel">
+                  <div className="text-5xl font-bold text-white">
+                    {faceRepResult.reps} / {faceRepResult.target}
+                  </div>
+                  <div className="mt-1 text-sm text-white/60">{t.reps}</div>
+                  <div className="mt-3 h-2 w-48 rounded-full bg-white/10">
+                    <div
+                      className="h-full rounded-full bg-green-400 transition-all duration-200"
+                      style={{ width: `${faceRepResult.progress * 100}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {isFaceExercise && faceRepResult && (
+                <div className="pointer-events-none fixed bottom-24 left-1/2 z-20 w-64 max-w-[calc(100vw-2rem)] -translate-x-1/2 p-4 overlay-panel">
+                  <div className="mb-1 text-xs text-white/60">{t.jawOpenLevel}</div>
+                  <div className="relative h-3 w-full rounded-full bg-white/10">
+                    <div
+                      className={`h-full rounded-full transition-all duration-100 ${
+                        faceRepResult.currentValue >= 0.5
+                          ? "bg-green-400"
+                          : "bg-amber-400"
+                      }`}
+                      style={{
+                        width: `${Math.min(faceRepResult.currentValue * 100, 100)}%`,
+                      }}
+                    />
+                    <span
+                      className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] font-bold text-white drop-shadow"
+                      style={{ left: `${jawEnterThreshold * 100}%` }}
+                    >
+                      |
+                    </span>
+                  </div>
+                  <div className="mt-1 flex justify-between text-xs text-white/40">
+                    <span>{t.closed}</span>
+                    <span>{t.open}</span>
+                  </div>
+                </div>
+              )}
+
+              {isFaceExercise && faceRepResult?.isComplete && (
+                <div className="pointer-events-auto fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+                  <div className="overlay-panel flex max-w-sm flex-col items-center p-8">
+                    <div className="mb-2 text-4xl">✅</div>
+                    <div className="text-2xl font-bold text-white">
+                      {t.congratulations}
+                    </div>
+                    <div className="mt-2 text-center text-white/60">
+                      {faceRepResult.target} {t.repsCompleted}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        faceRepCounterRef.current?.reset();
+                        setFaceRepResult(null);
+                      }}
+                      className="mt-6 rounded-xl bg-green-500 px-6 py-2 font-medium text-white"
+                    >
+                      {t.tryAgain}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {!selectedPose || (!isFaceExercise && selectedRules.length === 0) ? (
                 <div className="pointer-events-none absolute bottom-16 left-1/2 z-20 max-w-sm -translate-x-1/2 px-4 text-center">
                   <p className="rounded-xl bg-black/55 px-4 py-2 text-xs text-white/95 backdrop-blur-sm md:text-sm">
                     {t.poseTestSelectPoseStart}
@@ -362,7 +607,11 @@ export default function PoseTestPage() {
                 </div>
               ) : null}
 
-              {selectedPose && selectedRules.length > 0 && !result && !visibilityWarning ? (
+              {!isFaceExercise &&
+                selectedPose &&
+                selectedRules.length > 0 &&
+                !result &&
+                !visibilityWarning ? (
                 <div className="pointer-events-none absolute bottom-16 left-1/2 z-20 -translate-x-1/2 px-4">
                   <p className="rounded-xl bg-black/50 px-3 py-2 text-xs text-white/90 backdrop-blur-sm">
                     {t.waitingForData}
@@ -370,7 +619,7 @@ export default function PoseTestPage() {
                 </div>
               ) : null}
 
-              {result && !visibilityWarning && (
+              {!isFaceExercise && result && !visibilityWarning && (
                 <div className="pointer-events-none absolute bottom-[4.5rem] left-1/2 z-20 flex max-w-xs -translate-x-1/2 flex-wrap justify-center gap-x-3 gap-y-1 text-[10px] text-white/90 md:text-xs">
                   <span>
                     {t.targetScore}: {result.target_score.toFixed(0)}%
@@ -381,7 +630,10 @@ export default function PoseTestPage() {
                 </div>
               )}
 
-              {result && !result.is_reliable && !visibilityWarning && (
+              {!isFaceExercise &&
+                result &&
+                !result.is_reliable &&
+                !visibilityWarning && (
                 <div className="pointer-events-none absolute bottom-28 left-1/2 z-20 max-w-sm -translate-x-1/2 px-4 text-center">
                   <p className="text-[10px] text-amber-200/95 md:text-xs">
                     {t.lowReliability}
@@ -389,6 +641,7 @@ export default function PoseTestPage() {
                 </div>
               )}
 
+              {!isFaceExercise && (
               <div
                 className={`absolute bottom-0 left-0 right-0 z-40 transition-transform duration-300 ease-out ${
                   rulesOpen ? "translate-y-0" : "translate-y-[calc(100%-2.75rem)]"
@@ -480,6 +733,7 @@ export default function PoseTestPage() {
                   )}
                 </div>
               </div>
+              )}
 
               {error && (
                 <div className="absolute left-4 right-4 top-20 z-[50] mx-auto max-w-lg rounded-xl border border-red-400/45 bg-red-950/85 px-4 py-3 text-sm text-red-100 backdrop-blur-md">
