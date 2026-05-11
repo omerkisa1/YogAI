@@ -19,11 +19,19 @@ interface FaceRepResult {
 const FACE_EXERCISE_CONFIGS: Record<string, FaceRepConfig> = {
   face_jaw_open: {
     blendshapeName: "jawOpen",
-    enterThreshold: 0.5,
-    exitThreshold: 0.15,
+    enterThreshold: 0.45,
+    exitThreshold: 0.08,
+    repTarget: 10,
+  },
+  face_brow_raise: {
+    blendshapeName: "browInnerUp",
+    enterThreshold: 0.35,
+    exitThreshold: 0.08,
     repTarget: 10,
   },
 };
+
+const MIN_REP_INTERVAL_MS = 400;
 
 function createFaceRepCounter(poseId: string, customTarget?: number) {
   const config = FACE_EXERCISE_CONFIGS[poseId];
@@ -34,7 +42,8 @@ function createFaceRepCounter(poseId: string, customTarget?: number) {
   let reps = 0;
   let currentValue = 0;
   let smoothedValue = 0;
-  const alpha = 0.3;
+  let lastRepTime = 0;
+  const alpha = 0.6;
 
   function update(blendshapes: Map<string, number>): FaceRepResult {
     const raw = blendshapes.get(config.blendshapeName) ?? 0;
@@ -51,7 +60,11 @@ function createFaceRepCounter(poseId: string, customTarget?: number) {
 
       case "open":
         if (smoothedValue < config.exitThreshold) {
-          reps++;
+          const now = Date.now();
+          if (now - lastRepTime > MIN_REP_INTERVAL_MS) {
+            reps++;
+            lastRepTime = now;
+          }
           state = reps >= target ? "idle" : "closing";
         }
         break;
@@ -76,6 +89,7 @@ function createFaceRepCounter(poseId: string, customTarget?: number) {
     reps = 0;
     currentValue = 0;
     smoothedValue = 0;
+    lastRepTime = 0;
   }
 
   return { update, reset, getConfig: () => config };

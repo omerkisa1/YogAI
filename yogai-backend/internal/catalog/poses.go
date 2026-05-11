@@ -471,6 +471,23 @@ var AllPoses = []Pose{
 		MetricType:        "reps",
 		RepTarget:         10,
 	},
+
+	{
+		PoseID:            "face_brow_raise",
+		NameEN:            "Eyebrow Raise",
+		NameTR:            "Kaş Kaldırma",
+		Category:          CategoryFace,
+		Difficulty:        1,
+		TargetArea:        "face",
+		InstructionsEN:    "Raise both eyebrows as high as possible, hold briefly, then relax. Repeat slowly.",
+		InstructionsTR:    "İki kaşınızı da olabildiğince yukarı kaldırın, kısa süre tutun, sonra gevşetin. Yavaşça tekrarlayın.",
+		Contraindications: []string{},
+		LandmarkRules:     []LandmarkRule{},
+		IsAnalyzable:      true,
+		AnalysisKind:      "face",
+		MetricType:        "reps",
+		RepTarget:         10,
+	},
 }
 
 var poseIndex map[string]*Pose

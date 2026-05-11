@@ -35,6 +35,11 @@ import {
 } from "@/lib/poseTestCameraTheme";
 import type { Pose } from "@/types/yoga";
 
+const FACE_BAR_LABELS: Record<string, "jawOpenLevel" | "browRaiseLevel"> = {
+  face_jaw_open: "jawOpenLevel",
+  face_brow_raise: "browRaiseLevel",
+};
+
 type ModelComplexity = 0 | 1 | 2;
 
 function formatElapsed(sec: number): string {
@@ -73,6 +78,8 @@ export default function PoseTestPage() {
   } = faceLandmarker;
   const faceRepCounterRef = useRef<ReturnType<typeof createFaceRepCounter>>(null);
   const [faceRepResult, setFaceRepResult] = useState<FaceRepResult | null>(null);
+  const [repPulse, setRepPulse] = useState(false);
+  const prevRepsRef = useRef(0);
 
   const { facePoses, bodyPoses } = useMemo(() => {
     const face: Pose[] = [];
@@ -233,6 +240,23 @@ export default function PoseTestPage() {
   }, [isFaceExercise, faceLmError]);
 
   useEffect(() => {
+    if (!faceRepResult) {
+      prevRepsRef.current = 0;
+      return;
+    }
+    if (faceRepResult.reps < prevRepsRef.current) {
+      prevRepsRef.current = faceRepResult.reps;
+      return;
+    }
+    if (faceRepResult.reps > prevRepsRef.current) {
+      prevRepsRef.current = faceRepResult.reps;
+      setRepPulse(true);
+      const id = window.setTimeout(() => setRepPulse(false), 300);
+      return () => window.clearTimeout(id);
+    }
+  }, [faceRepResult]);
+
+  useEffect(() => {
     rulesRef.current = selectedRules;
   }, [selectedRules]);
 
@@ -317,8 +341,10 @@ export default function PoseTestPage() {
 
   const accVal = result?.overall_accuracy ?? 0;
   const displayFps = isFaceExercise ? faceFps : fps;
-  const jawEnterThreshold =
-    FACE_EXERCISE_CONFIGS[selectedPose]?.enterThreshold ?? 0.5;
+  const faceEnterThreshold =
+    FACE_EXERCISE_CONFIGS[selectedPose]?.enterThreshold ?? 0.45;
+  const faceBarLabelKey = FACE_BAR_LABELS[selectedPose] ?? "jawOpenLevel";
+  const faceBarLabel = t[faceBarLabelKey];
 
   return (
     <div
@@ -534,7 +560,11 @@ export default function PoseTestPage() {
 
               {isFaceExercise && faceRepResult && (
                 <div className="pointer-events-none fixed top-1/3 left-1/2 z-20 flex max-w-[min(100vw-2rem,20rem)] -translate-x-1/2 -translate-y-1/2 flex-col items-center p-6 overlay-panel">
-                  <div className="text-5xl font-bold text-white">
+                  <div
+                    className={`text-5xl font-bold text-white transition-transform duration-200 ${
+                      repPulse ? "scale-125 text-green-400" : "scale-100"
+                    }`}
+                  >
                     {faceRepResult.reps} / {faceRepResult.target}
                   </div>
                   <div className="mt-1 text-sm text-white/60">{t.reps}</div>
@@ -549,11 +579,11 @@ export default function PoseTestPage() {
 
               {isFaceExercise && faceRepResult && (
                 <div className="pointer-events-none fixed bottom-24 left-1/2 z-20 w-64 max-w-[calc(100vw-2rem)] -translate-x-1/2 p-4 overlay-panel">
-                  <div className="mb-1 text-xs text-white/60">{t.jawOpenLevel}</div>
+                  <div className="mb-1 text-xs text-white/60">{faceBarLabel}</div>
                   <div className="relative h-3 w-full rounded-full bg-white/10">
                     <div
-                      className={`h-full rounded-full transition-all duration-100 ${
-                        faceRepResult.currentValue >= 0.5
+                      className={`h-full rounded-full transition-all duration-75 ${
+                        faceRepResult.currentValue >= faceEnterThreshold
                           ? "bg-green-400"
                           : "bg-amber-400"
                       }`}
@@ -561,12 +591,10 @@ export default function PoseTestPage() {
                         width: `${Math.min(faceRepResult.currentValue * 100, 100)}%`,
                       }}
                     />
-                    <span
-                      className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] font-bold text-white drop-shadow"
-                      style={{ left: `${jawEnterThreshold * 100}%` }}
-                    >
-                      |
-                    </span>
+                    <div
+                      className="absolute top-0 h-full w-0.5 bg-white/60"
+                      style={{ left: `${faceEnterThreshold * 100}%` }}
+                    />
                   </div>
                   <div className="mt-1 flex justify-between text-xs text-white/40">
                     <span>{t.closed}</span>
