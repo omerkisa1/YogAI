@@ -29,6 +29,67 @@ const FACE_EXERCISE_CONFIGS: Record<string, FaceRepConfig> = {
     exitThreshold: 0.08,
     repTarget: 10,
   },
+  face_wide_smile: {
+    blendshapeName: "mouthSmileLeft",
+    enterThreshold: 0.55,
+    exitThreshold: 0.12,
+    repTarget: 12,
+  },
+  face_lip_pucker: {
+    blendshapeName: "mouthPucker",
+    enterThreshold: 0.45,
+    exitThreshold: 0.1,
+    repTarget: 12,
+  },
+  face_eye_wide: {
+    blendshapeName: "eyeWideLeft",
+    enterThreshold: 0.4,
+    exitThreshold: 0.1,
+    repTarget: 10,
+  },
+  face_eye_squeeze: {
+    blendshapeName: "eyeSquintLeft",
+    enterThreshold: 0.55,
+    exitThreshold: 0.12,
+    repTarget: 10,
+  },
+  face_mouth_o: {
+    blendshapeName: "mouthFunnel",
+    enterThreshold: 0.4,
+    exitThreshold: 0.08,
+    repTarget: 10,
+  },
+  face_jaw_slide_right: {
+    blendshapeName: "jawRight",
+    enterThreshold: 0.3,
+    exitThreshold: 0.06,
+    repTarget: 8,
+  },
+  face_jaw_slide_left: {
+    blendshapeName: "jawLeft",
+    enterThreshold: 0.3,
+    exitThreshold: 0.06,
+    repTarget: 8,
+  },
+  face_brow_furrow: {
+    blendshapeName: "browDownLeft",
+    enterThreshold: 0.35,
+    exitThreshold: 0.08,
+    repTarget: 10,
+  },
+};
+
+const FACE_BAR_LABELS: Record<string, string> = {
+  face_jaw_open: "jawOpenLevel",
+  face_brow_raise: "browRaiseLevel",
+  face_wide_smile: "smileLevel",
+  face_lip_pucker: "puckerLevel",
+  face_eye_wide: "eyeWideLevel",
+  face_eye_squeeze: "eyeSqueezeLevel",
+  face_mouth_o: "mouthOLevel",
+  face_jaw_slide_right: "jawSlideLevel",
+  face_jaw_slide_left: "jawSlideLevel",
+  face_brow_furrow: "browFurrowLevel",
 };
 
 const MIN_REP_INTERVAL_MS = 400;
@@ -95,5 +156,5 @@ function createFaceRepCounter(poseId: string, customTarget?: number) {
   return { update, reset, getConfig: () => config };
 }
 
-export { createFaceRepCounter, FACE_EXERCISE_CONFIGS };
+export { createFaceRepCounter, FACE_EXERCISE_CONFIGS, FACE_BAR_LABELS };
 export type { FaceRepResult, FaceRepConfig };

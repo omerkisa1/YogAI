@@ -25,6 +25,7 @@ import { useFaceLandmarker } from "@/hooks/useFaceLandmarker";
 import {
   createFaceRepCounter,
   FACE_EXERCISE_CONFIGS,
+  FACE_BAR_LABELS,
   type FaceRepResult,
 } from "@/lib/faceRepCounter";
 import { PoseCameraStage } from "@/components/training/PoseCameraStage";
@@ -34,11 +35,7 @@ import {
   ruleOverlayClass,
 } from "@/lib/poseTestCameraTheme";
 import type { Pose } from "@/types/yoga";
-
-const FACE_BAR_LABELS: Record<string, "jawOpenLevel" | "browRaiseLevel"> = {
-  face_jaw_open: "jawOpenLevel",
-  face_brow_raise: "browRaiseLevel",
-};
+import type { Translations } from "@/lib/i18n";
 
 type ModelComplexity = 0 | 1 | 2;
 
@@ -341,9 +338,9 @@ export default function PoseTestPage() {
 
   const accVal = result?.overall_accuracy ?? 0;
   const displayFps = isFaceExercise ? faceFps : fps;
-  const faceEnterThreshold =
-    FACE_EXERCISE_CONFIGS[selectedPose]?.enterThreshold ?? 0.45;
-  const faceBarLabelKey = FACE_BAR_LABELS[selectedPose] ?? "jawOpenLevel";
+  const faceConfig = FACE_EXERCISE_CONFIGS[selectedPose];
+  const faceEnterThreshold = faceConfig?.enterThreshold ?? 0.45;
+  const faceBarLabelKey = (FACE_BAR_LABELS[selectedPose] ?? "jawOpenLevel") as keyof Translations;
   const faceBarLabel = t[faceBarLabelKey];
 
   return (
@@ -381,7 +378,7 @@ export default function PoseTestPage() {
                 >
                   <option value="">— {t.selectPose} —</option>
                   {facePoses.length > 0 && (
-                    <optgroup label={t.faceCategory}>
+                    <optgroup label={t.faceYoga}>
                       {facePoses.map((p) => (
                         <option key={p.pose_id} value={p.pose_id}>
                           {locale === "tr" ? p.name_tr : p.name_en}
@@ -390,7 +387,7 @@ export default function PoseTestPage() {
                     </optgroup>
                   )}
                   {bodyPoses.length > 0 && (
-                    <optgroup label={t.bodyCategory}>
+                    <optgroup label={t.bodyYoga}>
                       {bodyPoses.map((p) => (
                         <option key={p.pose_id} value={p.pose_id}>
                           {locale === "tr" ? p.name_tr : p.name_en}
@@ -450,7 +447,7 @@ export default function PoseTestPage() {
                 >
                   <option value="">— {t.selectPose} —</option>
                   {facePoses.length > 0 && (
-                    <optgroup label={t.faceCategory}>
+                    <optgroup label={t.faceYoga}>
                       {facePoses.map((p) => (
                         <option key={p.pose_id} value={p.pose_id}>
                           {locale === "tr" ? p.name_tr : p.name_en}
@@ -459,7 +456,7 @@ export default function PoseTestPage() {
                     </optgroup>
                   )}
                   {bodyPoses.length > 0 && (
-                    <optgroup label={t.bodyCategory}>
+                    <optgroup label={t.bodyYoga}>
                       {bodyPoses.map((p) => (
                         <option key={p.pose_id} value={p.pose_id}>
                           {locale === "tr" ? p.name_tr : p.name_en}
