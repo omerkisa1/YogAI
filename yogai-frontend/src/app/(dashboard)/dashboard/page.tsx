@@ -9,13 +9,8 @@ import { useApp } from "@/components/layout/AppProvider";
 import PlanCard from "@/components/yoga/PlanCard";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import type { TrainingSession } from "@/types/yoga";
-import { Flame } from "lucide-react";
-
-function accuracyBorder(acc: number): string {
-  if (acc >= 80) return "border-l-green-500";
-  if (acc >= 50) return "border-l-amber-500";
-  return "border-l-red-500";
-}
+import { Calendar, Clock, Flame, Timer } from "lucide-react";
+import { accuracyProgressBarClass, accuracyScoreTextClass } from "@/lib/trainingAccuracy";
 
 function RecentSessionCard({
   session,
@@ -34,30 +29,45 @@ function RecentSessionCard({
     minute: "2-digit",
   });
   const acc = session.average_accuracy ?? 0;
+  const accRounded = Math.round(acc);
   const durMin = Math.round((session.total_duration_sec || 0) / 60);
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`rounded-2xl border border-th-border bg-th-card shadow-sm ${accuracyBorder(acc)} border-l-4`}
+      className="card group ring-1 ring-transparent transition-all duration-200 hover:ring-sage-300/40 hover:shadow-md dark:hover:ring-sage-600/30"
     >
-      <Link href={`/training/${session.id}`} className="block p-4">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <p className="font-semibold text-th-text">{title}</p>
-            <p className="mt-1 text-xs text-th-text-mut">{dt}</p>
-            <p className="mt-2 text-sm text-th-text-sec">
-              {durMin}
-              {t.minutesShort} · {session.pose_count ?? 0} {t.sessionCardPoses}
-            </p>
+      <Link href={`/training/${session.id}`} className="block p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="line-clamp-2 text-base font-semibold leading-snug text-th-text">{title}</p>
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-th-text-mut">
+              <span className="inline-flex items-center gap-1">
+                <Calendar className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />
+                {dt}
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <Clock className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />
+                {durMin}
+                {t.minutesShort}
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <Timer className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />
+                {session.pose_count ?? 0} {t.sessionCardPoses}
+              </span>
+            </div>
           </div>
-          <span className="shrink-0 text-lg font-bold text-sage-600 dark:text-sage-400">%{Math.round(acc)}</span>
+          <span
+            className={`shrink-0 text-2xl font-bold tabular-nums tracking-tight ${accuracyScoreTextClass(acc)}`}
+          >
+            %{accRounded}
+          </span>
         </div>
-        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-th-muted">
+        <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-th-muted">
           <div
-            className={`h-full rounded-full ${acc >= 80 ? "bg-green-500" : acc >= 50 ? "bg-amber-500" : "bg-red-500"}`}
-            style={{ width: `${Math.min(100, Math.round(acc))}%` }}
+            className={`h-full rounded-full ${accuracyProgressBarClass(acc)}`}
+            style={{ width: `${Math.min(100, accRounded)}%` }}
           />
         </div>
       </Link>
