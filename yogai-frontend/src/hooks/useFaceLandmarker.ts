@@ -5,6 +5,7 @@ import { FaceLandmarker, FilesetResolver } from "@mediapipe/tasks-vision";
 
 interface FaceFrame {
   blendshapes: Map<string, number>;
+  faceLandmarks: { x: number; y: number; z: number }[] | null;
   timestamp: number;
   faceDetected: boolean;
 }
@@ -94,20 +95,30 @@ export function useFaceLandmarker(): UseFaceLandmarkerReturn {
 
         const result = landmarkerRef.current.detectForVideo(videoElement, now);
 
-        if (result.faceBlendshapes && result.faceBlendshapes.length > 0) {
-          const shapes = result.faceBlendshapes[0].categories;
+        const landmarksRaw = result.faceLandmarks?.[0];
+        const hasBlend = !!(result.faceBlendshapes && result.faceBlendshapes.length > 0);
+        const hasLandmarks = !!(landmarksRaw && landmarksRaw.length > 0);
+
+        if (hasBlend || hasLandmarks) {
           const map = new Map<string, number>();
-          for (const s of shapes) {
-            map.set(s.categoryName, s.score);
+          if (hasBlend) {
+            const shapes = result.faceBlendshapes![0].categories;
+            for (const s of shapes) {
+              map.set(s.categoryName, s.score);
+            }
           }
           setCurrentFrame({
             blendshapes: map,
+            faceLandmarks: landmarksRaw
+              ? landmarksRaw.map((l) => ({ x: l.x, y: l.y, z: l.z ?? 0 }))
+              : null,
             timestamp: now,
-            faceDetected: true,
+            faceDetected: hasBlend || hasLandmarks,
           });
         } else {
           setCurrentFrame({
             blendshapes: new Map(),
+            faceLandmarks: null,
             timestamp: now,
             faceDetected: false,
           });

@@ -2,9 +2,13 @@
 
 import { useApp } from "@/components/layout/AppProvider";
 import type { FaceFeedbackState } from "@/lib/faceRepCounter";
+import type { FaceHandFeedbackState } from "@/lib/faceHandRepCounter";
+
+export type FaceBannerVariant = "face" | "face_hand";
 
 interface Props {
-  feedbackState: FaceFeedbackState;
+  variant?: FaceBannerVariant;
+  feedbackState: FaceFeedbackState | FaceHandFeedbackState;
   feedbackKey: string;
 }
 
@@ -33,10 +37,10 @@ const FEEDBACK_MESSAGES: Record<
       hold: "Hold the pucker!",
       good: "Perfect!",
     },
-    feedbackEyeWide: {
-      guide: "Open your eyes wide, look surprised",
-      hold: "Hold them wide!",
-      good: "Great!",
+    feedbackFishLips: {
+      guide: "Suck in cheeks and push lips forward",
+      hold: "Hold the fish face!",
+      good: "Good one!",
     },
     feedbackEyeSqueeze: {
       guide: "Squeeze both eyes shut tightly",
@@ -85,9 +89,9 @@ const FEEDBACK_MESSAGES: Record<
       hold: "Büzmeyi tutun!",
       good: "Mükemmel!",
     },
-    feedbackEyeWide: {
-      guide: "Gözlerinizi şaşırmış gibi açın",
-      hold: "Açık tutun!",
+    feedbackFishLips: {
+      guide: "Yanaklarınızı çekin, dudaklarınızı öne itin",
+      hold: "Balık yüzünü tutun!",
       good: "Güzel!",
     },
     feedbackEyeSqueeze: {
@@ -118,12 +122,120 @@ const FEEDBACK_MESSAGES: Record<
   },
 };
 
-export default function FaceFeedbackBanner({ feedbackState, feedbackKey }: Props) {
+const HAND_FEEDBACK_MESSAGES: Record<
+  string,
+  Record<
+    string,
+    {
+      guide_hand: string;
+      guide_action: string;
+      hold: string;
+      good: string;
+    }
+  >
+> = {
+  en: {
+    feedbackCheekMassage: {
+      guide_hand: "Place your fingertips on your cheek",
+      guide_action: "Press gently",
+      hold: "Hold... keep pressing",
+      good: "Good rep!",
+    },
+    feedbackForeheadSmooth: {
+      guide_hand: "Place your palm on your forehead",
+      guide_action: "Apply gentle pressure",
+      hold: "Hold... smoothing",
+      good: "Nice!",
+    },
+    feedbackJawRelease: {
+      guide_hand: "Place your hand under your chin",
+      guide_action: "Now open your mouth",
+      hold: "Hold open with hand support",
+      good: "Well done!",
+    },
+  },
+  tr: {
+    feedbackCheekMassage: {
+      guide_hand: "Parmak uçlarınızı yanağınıza koyun",
+      guide_action: "Hafifçe bastırın",
+      hold: "Tutun... bastırmaya devam edin",
+      good: "Güzel tekrar!",
+    },
+    feedbackForeheadSmooth: {
+      guide_hand: "Avucunuzu alnınıza koyun",
+      guide_action: "Hafifçe bastırın",
+      hold: "Tutun... düzleştiriliyor",
+      good: "Güzel!",
+    },
+    feedbackJawRelease: {
+      guide_hand: "Elinizi çenenizin altına koyun",
+      guide_action: "Şimdi ağzınızı açın",
+      hold: "Elle destekleyerek açık tutun",
+      good: "Aferin!",
+    },
+  },
+};
+
+export default function FaceFeedbackBanner({
+  variant = "face",
+  feedbackState,
+  feedbackKey,
+}: Props) {
   const { locale } = useApp();
   const lang = locale === "tr" ? "tr" : "en";
-  const messages = FEEDBACK_MESSAGES[lang]?.[feedbackKey];
 
-  if (!messages || feedbackState === "complete") return null;
+  if (feedbackState === "complete") return null;
+
+  if (variant === "face_hand") {
+    const m = HAND_FEEDBACK_MESSAGES[lang]?.[feedbackKey];
+    if (!m) return null;
+    const text =
+      feedbackState === "guide_hand"
+        ? m.guide_hand
+        : feedbackState === "guide_action"
+          ? m.guide_action
+          : feedbackState === "hold"
+            ? m.hold
+            : feedbackState === "good"
+              ? m.good
+              : null;
+    if (!text) return null;
+
+    const bgColor =
+      feedbackState === "guide_hand"
+        ? "bg-white/10"
+        : feedbackState === "guide_action"
+          ? "bg-amber-500/20"
+          : feedbackState === "hold"
+            ? "bg-green-500/20"
+            : "bg-green-500/30";
+
+    const textColor =
+      feedbackState === "guide_hand"
+        ? "text-white/70"
+        : feedbackState === "guide_action"
+          ? "text-amber-200"
+          : "text-green-300";
+
+    const icon =
+      feedbackState === "guide_hand"
+        ? "👆"
+        : feedbackState === "guide_action"
+          ? "✋"
+          : feedbackState === "hold"
+            ? "✊"
+            : "✅";
+
+    return (
+      <div className={`flex items-center gap-3 rounded-xl px-4 py-2 ${bgColor}`}>
+        <span className="text-lg">{icon}</span>
+        <span className={`text-sm font-medium ${textColor}`}>{text}</span>
+      </div>
+    );
+  }
+
+  const messages = FEEDBACK_MESSAGES[lang]?.[feedbackKey];
+  if (!messages) return null;
 
   const text =
     feedbackState === "guide"
@@ -145,11 +257,9 @@ export default function FaceFeedbackBanner({ feedbackState, feedbackKey }: Props
   const icon = feedbackState === "guide" ? "👆" : feedbackState === "hold" ? "✊" : "✅";
 
   return (
-    <div
-      className={`flex items-center gap-3 rounded-xl px-4 py-2 transition-all duration-150 ${bgColor}`}
-    >
+    <div className={`flex items-center gap-3 rounded-xl px-4 py-2 ${bgColor}`}>
       <span className="text-lg">{icon}</span>
-      <span className={`text-sm font-medium transition-all duration-150 ${textColor}`}>{text}</span>
+      <span className={`text-sm font-medium ${textColor}`}>{text}</span>
     </div>
   );
 }

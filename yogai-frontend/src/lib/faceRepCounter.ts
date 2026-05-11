@@ -75,14 +75,14 @@ const FACE_EXERCISE_CONFIGS: Record<string, FaceRepConfig> = {
     feedbackKey: "feedbackLipPucker",
     barLabelKey: "puckerLevel",
   },
-  face_eye_wide: {
-    blendshapeNames: ["eyeWideLeft", "eyeWideRight"],
+  face_fish_lips: {
+    blendshapeNames: ["mouthPucker", "mouthShrugLower"],
     aggregation: "average",
-    enterThreshold: 0.3,
-    exitThreshold: 0.06,
+    enterThreshold: 0.35,
+    exitThreshold: 0.08,
     repTarget: 10,
-    feedbackKey: "feedbackEyeWide",
-    barLabelKey: "eyeWideLevel",
+    feedbackKey: "feedbackFishLips",
+    barLabelKey: "fishLipsLevel",
   },
   face_eye_squeeze: {
     blendshapeNames: ["eyeSquintLeft", "eyeSquintRight"],
@@ -140,16 +140,15 @@ function createFaceRepCounter(poseId: string, customTarget?: number) {
   const target = customTarget || config.repTarget;
   let state: RepState = "idle";
   let reps = 0;
-  let currentValue = 0;
   let smoothedValue = 0;
   let lastRepTime = 0;
-  const alpha = 0.75;
+  const smoothAlpha = 0.85;
 
   function update(blendshapes: Map<string, number>): FaceRepResult {
     const raw = readBlendshapeValue(blendshapes, config);
 
-    smoothedValue = smoothedValue * (1 - alpha) + raw * alpha;
-    currentValue = smoothedValue;
+    smoothedValue = smoothedValue * (1 - smoothAlpha) + raw * smoothAlpha;
+    const displayValue = raw;
 
     let feedbackState: FaceFeedbackState = "guide";
 
@@ -186,7 +185,7 @@ function createFaceRepCounter(poseId: string, customTarget?: number) {
     return {
       reps,
       target,
-      currentValue: smoothedValue,
+      currentValue: displayValue,
       state,
       isComplete: reps >= target,
       progress: Math.min(reps / target, 1),
@@ -199,7 +198,6 @@ function createFaceRepCounter(poseId: string, customTarget?: number) {
   function reset() {
     state = "idle";
     reps = 0;
-    currentValue = 0;
     smoothedValue = 0;
     lastRepTime = 0;
   }
