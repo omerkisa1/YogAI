@@ -1,10 +1,15 @@
 type RepState = "idle" | "open" | "closing";
 
+export type FaceFeedbackState = "guide" | "hold" | "good" | "complete";
+
 interface FaceRepConfig {
-  blendshapeName: string;
+  blendshapeNames: string[];
+  aggregation: "max" | "average";
   enterThreshold: number;
   exitThreshold: number;
   repTarget: number;
+  feedbackKey: string;
+  barLabelKey: string;
 }
 
 interface FaceRepResult {
@@ -14,82 +19,116 @@ interface FaceRepResult {
   state: RepState;
   isComplete: boolean;
   progress: number;
+  feedbackKey: string;
+  feedbackState: FaceFeedbackState;
+  barLabelKey: string;
+}
+
+function readBlendshapeValue(blendshapes: Map<string, number>, config: FaceRepConfig): number {
+  if (config.blendshapeNames.length === 1) {
+    return blendshapes.get(config.blendshapeNames[0]) ?? 0;
+  }
+
+  const values = config.blendshapeNames.map((name) => blendshapes.get(name) ?? 0);
+
+  if (config.aggregation === "max") {
+    return Math.max(...values);
+  }
+
+  return values.reduce((sum, v) => sum + v, 0) / values.length;
 }
 
 const FACE_EXERCISE_CONFIGS: Record<string, FaceRepConfig> = {
   face_jaw_open: {
-    blendshapeName: "jawOpen",
+    blendshapeNames: ["jawOpen"],
+    aggregation: "max",
     enterThreshold: 0.45,
     exitThreshold: 0.08,
     repTarget: 10,
+    feedbackKey: "feedbackJawOpen",
+    barLabelKey: "jawOpenLevel",
   },
   face_brow_raise: {
-    blendshapeName: "browInnerUp",
+    blendshapeNames: ["browInnerUp"],
+    aggregation: "max",
     enterThreshold: 0.35,
     exitThreshold: 0.08,
     repTarget: 10,
+    feedbackKey: "feedbackBrowRaise",
+    barLabelKey: "browRaiseLevel",
   },
   face_wide_smile: {
-    blendshapeName: "mouthSmileLeft",
-    enterThreshold: 0.55,
+    blendshapeNames: ["mouthSmileLeft", "mouthSmileRight"],
+    aggregation: "average",
+    enterThreshold: 0.5,
     exitThreshold: 0.12,
     repTarget: 12,
+    feedbackKey: "feedbackWideSmile",
+    barLabelKey: "smileLevel",
   },
   face_lip_pucker: {
-    blendshapeName: "mouthPucker",
-    enterThreshold: 0.45,
+    blendshapeNames: ["mouthPucker"],
+    aggregation: "max",
+    enterThreshold: 0.4,
     exitThreshold: 0.1,
     repTarget: 12,
+    feedbackKey: "feedbackLipPucker",
+    barLabelKey: "puckerLevel",
   },
   face_eye_wide: {
-    blendshapeName: "eyeWideLeft",
-    enterThreshold: 0.4,
-    exitThreshold: 0.1,
+    blendshapeNames: ["eyeWideLeft", "eyeWideRight"],
+    aggregation: "average",
+    enterThreshold: 0.3,
+    exitThreshold: 0.06,
     repTarget: 10,
+    feedbackKey: "feedbackEyeWide",
+    barLabelKey: "eyeWideLevel",
   },
   face_eye_squeeze: {
-    blendshapeName: "eyeSquintLeft",
-    enterThreshold: 0.55,
-    exitThreshold: 0.12,
+    blendshapeNames: ["eyeSquintLeft", "eyeSquintRight"],
+    aggregation: "average",
+    enterThreshold: 0.45,
+    exitThreshold: 0.1,
     repTarget: 10,
+    feedbackKey: "feedbackEyeSqueeze",
+    barLabelKey: "eyeSqueezeLevel",
   },
   face_mouth_o: {
-    blendshapeName: "mouthFunnel",
-    enterThreshold: 0.4,
-    exitThreshold: 0.08,
+    blendshapeNames: ["mouthFunnel", "mouthPucker"],
+    aggregation: "max",
+    enterThreshold: 0.3,
+    exitThreshold: 0.06,
     repTarget: 10,
+    feedbackKey: "feedbackMouthO",
+    barLabelKey: "mouthOLevel",
   },
   face_jaw_slide_right: {
-    blendshapeName: "jawRight",
-    enterThreshold: 0.3,
-    exitThreshold: 0.06,
+    blendshapeNames: ["jawRight"],
+    aggregation: "max",
+    enterThreshold: 0.18,
+    exitThreshold: 0.04,
     repTarget: 8,
+    feedbackKey: "feedbackJawSlideRight",
+    barLabelKey: "jawSlideLevel",
   },
   face_jaw_slide_left: {
-    blendshapeName: "jawLeft",
-    enterThreshold: 0.3,
-    exitThreshold: 0.06,
+    blendshapeNames: ["jawLeft"],
+    aggregation: "max",
+    enterThreshold: 0.18,
+    exitThreshold: 0.04,
     repTarget: 8,
+    feedbackKey: "feedbackJawSlideLeft",
+    barLabelKey: "jawSlideLevel",
   },
   face_brow_furrow: {
-    blendshapeName: "browDownLeft",
-    enterThreshold: 0.35,
-    exitThreshold: 0.08,
+    blendshapeNames: ["browDownLeft", "browDownRight"],
+    aggregation: "average",
+    enterThreshold: 0.3,
+    exitThreshold: 0.06,
     repTarget: 10,
+    feedbackKey: "feedbackBrowFurrow",
+    barLabelKey: "browFurrowLevel",
   },
-};
-
-const FACE_BAR_LABELS: Record<string, string> = {
-  face_jaw_open: "jawOpenLevel",
-  face_brow_raise: "browRaiseLevel",
-  face_wide_smile: "smileLevel",
-  face_lip_pucker: "puckerLevel",
-  face_eye_wide: "eyeWideLevel",
-  face_eye_squeeze: "eyeSqueezeLevel",
-  face_mouth_o: "mouthOLevel",
-  face_jaw_slide_right: "jawSlideLevel",
-  face_jaw_slide_left: "jawSlideLevel",
-  face_brow_furrow: "browFurrowLevel",
 };
 
 const MIN_REP_INTERVAL_MS = 400;
@@ -104,18 +143,23 @@ function createFaceRepCounter(poseId: string, customTarget?: number) {
   let currentValue = 0;
   let smoothedValue = 0;
   let lastRepTime = 0;
-  const alpha = 0.6;
+  const alpha = 0.75;
 
   function update(blendshapes: Map<string, number>): FaceRepResult {
-    const raw = blendshapes.get(config.blendshapeName) ?? 0;
+    const raw = readBlendshapeValue(blendshapes, config);
 
     smoothedValue = smoothedValue * (1 - alpha) + raw * alpha;
     currentValue = smoothedValue;
+
+    let feedbackState: FaceFeedbackState = "guide";
 
     switch (state) {
       case "idle":
         if (smoothedValue >= config.enterThreshold) {
           state = "open";
+          feedbackState = "hold";
+        } else {
+          feedbackState = "guide";
         }
         break;
 
@@ -127,11 +171,15 @@ function createFaceRepCounter(poseId: string, customTarget?: number) {
             lastRepTime = now;
           }
           state = reps >= target ? "idle" : "closing";
+          feedbackState = reps >= target ? "complete" : "good";
+        } else {
+          feedbackState = "hold";
         }
         break;
 
       case "closing":
         state = "idle";
+        feedbackState = "guide";
         break;
     }
 
@@ -142,6 +190,9 @@ function createFaceRepCounter(poseId: string, customTarget?: number) {
       state,
       isComplete: reps >= target,
       progress: Math.min(reps / target, 1),
+      feedbackKey: config.feedbackKey,
+      feedbackState,
+      barLabelKey: config.barLabelKey,
     };
   }
 
@@ -156,5 +207,5 @@ function createFaceRepCounter(poseId: string, customTarget?: number) {
   return { update, reset, getConfig: () => config };
 }
 
-export { createFaceRepCounter, FACE_EXERCISE_CONFIGS, FACE_BAR_LABELS };
+export { createFaceRepCounter, FACE_EXERCISE_CONFIGS };
 export type { FaceRepResult, FaceRepConfig };

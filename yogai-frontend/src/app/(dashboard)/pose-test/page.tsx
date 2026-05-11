@@ -25,9 +25,9 @@ import { useFaceLandmarker } from "@/hooks/useFaceLandmarker";
 import {
   createFaceRepCounter,
   FACE_EXERCISE_CONFIGS,
-  FACE_BAR_LABELS,
   type FaceRepResult,
 } from "@/lib/faceRepCounter";
+import FaceFeedbackBanner from "@/components/yoga/FaceFeedbackBanner";
 import { PoseCameraStage } from "@/components/training/PoseCameraStage";
 import {
   accuracyAccent,
@@ -340,8 +340,6 @@ export default function PoseTestPage() {
   const displayFps = isFaceExercise ? faceFps : fps;
   const faceConfig = FACE_EXERCISE_CONFIGS[selectedPose];
   const faceEnterThreshold = faceConfig?.enterThreshold ?? 0.45;
-  const faceBarLabelKey = (FACE_BAR_LABELS[selectedPose] ?? "jawOpenLevel") as keyof Translations;
-  const faceBarLabel = t[faceBarLabelKey];
 
   return (
     <div
@@ -576,16 +574,19 @@ export default function PoseTestPage() {
 
               {isFaceExercise && faceRepResult && (
                 <div className="pointer-events-none fixed bottom-24 left-1/2 z-20 w-64 max-w-[calc(100vw-2rem)] -translate-x-1/2 p-4 overlay-panel">
-                  <div className="mb-1 text-xs text-white/60">{faceBarLabel}</div>
+                  <div className="mb-1 text-xs text-white/60">
+                    {t[faceRepResult.barLabelKey as keyof Translations]}
+                  </div>
                   <div className="relative h-3 w-full rounded-full bg-white/10">
                     <div
-                      className={`h-full rounded-full transition-all duration-75 ${
-                        faceRepResult.currentValue >= faceEnterThreshold
+                      className={`h-full rounded-full ${
+                        faceRepResult.currentValue >= (faceConfig?.enterThreshold ?? 0.45)
                           ? "bg-green-400"
                           : "bg-amber-400"
                       }`}
                       style={{
                         width: `${Math.min(faceRepResult.currentValue * 100, 100)}%`,
+                        transition: "width 50ms linear, background-color 100ms ease",
                       }}
                     />
                     <div
@@ -597,6 +598,15 @@ export default function PoseTestPage() {
                     <span>{t.closed}</span>
                     <span>{t.open}</span>
                   </div>
+                </div>
+              )}
+
+              {isFaceExercise && faceRepResult && !faceRepResult.isComplete && (
+                <div className="pointer-events-none fixed left-1/2 top-[45%] z-20 mt-4 -translate-x-1/2 px-6 py-3 overlay-panel">
+                  <FaceFeedbackBanner
+                    feedbackState={faceRepResult.feedbackState}
+                    feedbackKey={faceRepResult.feedbackKey}
+                  />
                 </div>
               )}
 
