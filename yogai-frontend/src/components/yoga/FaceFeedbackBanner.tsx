@@ -87,21 +87,6 @@ const FEEDBACK_MESSAGES: Record<
       hold: "Hold the frown!",
       good: "Nice!",
     },
-    feedbackNoseScrunch: {
-      guide: "Wrinkle your nose upward",
-      hold: "Keep scrunching!",
-      good: "Well done!",
-    },
-    feedbackBrowOuterRaise: {
-      guide: "Lift only the outer parts of your brows",
-      hold: "Hold them up!",
-      good: "Good!",
-    },
-    feedbackMouthStretch: {
-      guide: "Stretch the corners of your mouth sideways",
-      hold: "Hold the stretch!",
-      good: "Nice stretch!",
-    },
     feedbackLipRoll: {
       guide: "Roll both lips inward over your teeth",
       hold: "Hold the roll!",
@@ -188,21 +173,6 @@ const FEEDBACK_MESSAGES: Record<
       guide: "Ağzınızın köşelerini aşağı çekin",
       hold: "Somurtmayı tutun!",
       good: "Güzel!",
-    },
-    feedbackNoseScrunch: {
-      guide: "Burnunuzu yukarı kıvırın",
-      hold: "Kıvırmayı tutun!",
-      good: "Aferin!",
-    },
-    feedbackBrowOuterRaise: {
-      guide: "Yalnızca kaşların dış kısmını kaldırın",
-      hold: "Yukarıda tutun!",
-      good: "İyi!",
-    },
-    feedbackMouthStretch: {
-      guide: "Ağzınızın köşelerini yanlara gerin",
-      hold: "Germeyi tutun!",
-      good: "İyi germe!",
     },
     feedbackLipRoll: {
       guide: "Dudakları dişlerin üzerine içeri yuvarlayın",
