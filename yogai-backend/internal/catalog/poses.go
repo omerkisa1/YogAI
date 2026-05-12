@@ -760,23 +760,6 @@ var AllPoses = []Pose{
 	},
 
 	{
-		PoseID:            "face_jaw_forward",
-		NameEN:            "Jaw Forward Thrust",
-		NameTR:            "Çene Öne Uzatma",
-		Category:          CategoryFace,
-		Difficulty:        2,
-		TargetArea:        "face",
-		InstructionsEN:    "Sit comfortably with your shoulders relaxed. Slowly slide your lower jaw forward so that your lower teeth come in front of your upper teeth — like an underbite position. Move only as far as is comfortable; do not force it. You should feel a stretch along the jaw muscles and the front of your neck. Hold for 2 seconds, then slowly glide your jaw back to neutral. This exercises the pterygoid muscles and helps relieve jaw tension. Repeat 8 times.",
-		InstructionsTR:    "Omuzlarınız gevşek şekilde rahatça oturun. Çenenizin ön dişlerini üst dişlerinizin önüne gelecek şekilde alt çenenizi yavaşça öne kaydırın — alt çene çıkıntısı gibi bir pozisyon. Yalnızca rahat hissettirdiğiniz kadar ilerleyin; zorlamayın. Çene kasları ve boynunuzun ön kısmı boyunca bir germe hissedeceksiniz. 2 saniye tutun, ardından çenenizi yavaşça nötral konumuna getirin. Bu hareket pterygoid kaslarını çalıştırır ve çene gerginliğini gidermeye yardımcı olur. 8 kez tekrarlayın.",
-		Contraindications: []string{"jaw_injury"},
-		LandmarkRules:     []LandmarkRule{},
-		IsAnalyzable:      true,
-		AnalysisKind:      "face",
-		MetricType:        "reps",
-		RepTarget:         8,
-	},
-
-	{
 		PoseID:            "face_upper_lip_raise",
 		NameEN:            "Upper Lip Raise",
 		NameTR:            "Üst Dudak Kaldırma",

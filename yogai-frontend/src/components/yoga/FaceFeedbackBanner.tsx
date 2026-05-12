@@ -92,11 +92,6 @@ const FEEDBACK_MESSAGES: Record<
       hold: "Hold the roll!",
       good: "Well done!",
     },
-    feedbackJawForward: {
-      guide: "Thrust your lower jaw forward",
-      hold: "Hold it forward!",
-      good: "Good!",
-    },
     feedbackUpperLipRaise: {
       guide: "Curl your upper lip upward",
       hold: "Hold it up!",
@@ -178,11 +173,6 @@ const FEEDBACK_MESSAGES: Record<
       guide: "Dudakları dişlerin üzerine içeri yuvarlayın",
       hold: "Yuvarlayı tutun!",
       good: "Aferin!",
-    },
-    feedbackJawForward: {
-      guide: "Alt çenenizi öne uzatın",
-      hold: "Öne tutun!",
-      good: "İyi!",
     },
     feedbackUpperLipRaise: {
       guide: "Üst dudağınızı yukarı kaldırın",
