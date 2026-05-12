@@ -188,8 +188,13 @@ export default function PoseTestPage() {
       ? resolvedPose.rep_target
       : undefined;
     if (analysisKind === "face") {
-      faceRepCounterRef.current = createFaceRepCounter(selectedPose, repTarget);
-      setFaceRepResult(null);
+      const counter = createFaceRepCounter(selectedPose, repTarget);
+      faceRepCounterRef.current = counter;
+      if (counter) {
+        setFaceRepResult(counter.update(new Map()));
+      } else {
+        setFaceRepResult(null);
+      }
       faceHandRepCounterRef.current = null;
       setFaceHandRepResult(null);
     } else if (analysisKind === "face_hand") {

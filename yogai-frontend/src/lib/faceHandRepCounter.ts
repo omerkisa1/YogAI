@@ -7,7 +7,22 @@ export type FaceHandFeedbackState =
 
 export interface FaceHandRepConfig {
   poseId: string;
-  handTarget: "cheek_left" | "cheek_right" | "forehead" | "chin" | "jaw_left" | "jaw_right";
+  handTarget:
+    | "cheek_left"
+    | "cheek_right"
+    | "forehead"
+    | "chin"
+    | "jaw_left"
+    | "jaw_right"
+    | "eye_left"
+    | "eye_right"
+    | "temple_left"
+    | "temple_right"
+    | "nose_bridge"
+    | "lips"
+    | "between_brows"
+    | "neck_left"
+    | "neck_right";
   requiredBlendshape?: string;
   blendshapeThreshold?: number;
   proximityThreshold: number;
@@ -37,6 +52,15 @@ const FACE_REGION_LANDMARKS: Record<string, number[]> = {
   chin: [152, 175, 199],
   jaw_left: [172, 136, 150],
   jaw_right: [397, 365, 379],
+  eye_left: [33, 133, 159],
+  eye_right: [263, 362, 386],
+  temple_left: [54, 103, 67],
+  temple_right: [284, 332, 297],
+  nose_bridge: [6, 197, 195],
+  lips: [13, 14, 0],
+  between_brows: [9, 168, 8],
+  neck_left: [234, 177, 147],
+  neck_right: [454, 401, 376],
 };
 
 const HAND_FINGERTIP_INDICES = [4, 8, 12, 16, 20];
@@ -120,6 +144,102 @@ export const FACE_HAND_EXERCISE_CONFIGS: Record<string, FaceHandRepConfig> = {
     repTarget: 5,
     feedbackKey: "feedbackJawRelease",
     barLabelKey: "jawReleaseLevel",
+  },
+  face_hand_eye_press: {
+    poseId: "face_hand_eye_press",
+    handTarget: "eye_left",
+    proximityThreshold: 0.08,
+    holdDurationMs: 2000,
+    repTarget: 5,
+    feedbackKey: "feedbackEyePress",
+    barLabelKey: "eyePressLevel",
+  },
+  face_hand_temple_massage: {
+    poseId: "face_hand_temple_massage",
+    handTarget: "temple_left",
+    proximityThreshold: 0.08,
+    holdDurationMs: 2500,
+    repTarget: 5,
+    feedbackKey: "feedbackTempleMassage",
+    barLabelKey: "templeMassageLevel",
+  },
+  face_hand_nose_bridge: {
+    poseId: "face_hand_nose_bridge",
+    handTarget: "nose_bridge",
+    proximityThreshold: 0.08,
+    holdDurationMs: 2000,
+    repTarget: 5,
+    feedbackKey: "feedbackNoseBridge",
+    barLabelKey: "noseBridgeLevel",
+  },
+  face_hand_chin_lift: {
+    poseId: "face_hand_chin_lift",
+    handTarget: "chin",
+    proximityThreshold: 0.08,
+    holdDurationMs: 3000,
+    repTarget: 5,
+    feedbackKey: "feedbackChinLift",
+    barLabelKey: "chinLiftLevel",
+  },
+  face_hand_lip_press: {
+    poseId: "face_hand_lip_press",
+    handTarget: "lips",
+    requiredBlendshape: "mouthPressLeft",
+    blendshapeThreshold: 0.25,
+    proximityThreshold: 0.08,
+    holdDurationMs: 2000,
+    repTarget: 5,
+    feedbackKey: "feedbackLipPress",
+    barLabelKey: "lipPressLevel",
+  },
+  face_hand_brow_smooth: {
+    poseId: "face_hand_brow_smooth",
+    handTarget: "between_brows",
+    proximityThreshold: 0.08,
+    holdDurationMs: 2500,
+    repTarget: 5,
+    feedbackKey: "feedbackBrowSmooth",
+    barLabelKey: "browSmoothLevel",
+  },
+  face_hand_neck_side: {
+    poseId: "face_hand_neck_side",
+    handTarget: "neck_left",
+    proximityThreshold: 0.1,
+    holdDurationMs: 3000,
+    repTarget: 5,
+    feedbackKey: "feedbackNeckSide",
+    barLabelKey: "neckSideLevel",
+  },
+  face_hand_cheek_lift: {
+    poseId: "face_hand_cheek_lift",
+    handTarget: "cheek_left",
+    proximityThreshold: 0.08,
+    holdDurationMs: 2500,
+    repTarget: 5,
+    feedbackKey: "feedbackCheekLift",
+    barLabelKey: "cheekLiftLevel",
+  },
+  face_hand_jaw_side: {
+    poseId: "face_hand_jaw_side",
+    handTarget: "jaw_left",
+    requiredBlendshape: "jawRight",
+    blendshapeThreshold: 0.12,
+    proximityThreshold: 0.08,
+    holdDurationMs: 2500,
+    repTarget: 5,
+    feedbackKey: "feedbackJawSide",
+    barLabelKey: "jawSideLevel",
+  },
+  face_hand_eye_brow_lift: {
+    poseId: "face_hand_eye_brow_lift",
+    handTarget: "forehead",
+    requiredBlendshape: "eyeWideLeft",
+    blendshapeThreshold: 0.3,
+    proximityThreshold: 0.08,
+    holdDurationMs: 2000,
+    repTarget: 5,
+    feedbackKey: "feedbackEyeBrowLift",
+    barLabelKey: "eyeBrowLiftLevel",
   },
 };
 
