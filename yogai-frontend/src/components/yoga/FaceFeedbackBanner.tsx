@@ -189,6 +189,7 @@ const HAND_FEEDBACK_MESSAGES: Record<
     {
       guide_hand: string;
       guide_action: string;
+      guide_motion: string;
       hold: string;
       good: string;
     }
@@ -198,160 +199,200 @@ const HAND_FEEDBACK_MESSAGES: Record<
     feedbackCheekMassage: {
       guide_hand: "Place your fingertips on your cheek",
       guide_action: "Press gently",
-      hold: "Hold... keep pressing",
+      guide_motion: "Now move in small circles",
+      hold: "Keep circling...",
       good: "Good rep!",
     },
     feedbackForeheadSmooth: {
-      guide_hand: "Place your palm on your forehead",
+      guide_hand: "Place your fingertips at the center of your forehead",
       guide_action: "Apply gentle pressure",
-      hold: "Hold... smoothing",
+      guide_motion: "Now sweep outward toward your temple",
+      hold: "Keep sweeping...",
       good: "Nice!",
     },
     feedbackJawRelease: {
       guide_hand: "Place your hand under your chin",
       guide_action: "Now open your mouth",
+      guide_motion: "Keep hand in place",
       hold: "Hold open with hand support",
       good: "Well done!",
     },
     feedbackEyePress: {
       guide_hand: "Place your fingertips around your eye area",
       guide_action: "Apply light pressure",
+      guide_motion: "Hold still...",
       hold: "Hold gently...",
       good: "Good rep!",
     },
     feedbackTempleMassage: {
-      guide_hand: "Place your fingertips on your temples",
-      guide_action: "Apply gentle circular pressure",
-      hold: "Hold and breathe...",
+      guide_hand: "Place your fingertips on your temple",
+      guide_action: "Apply gentle pressure",
+      guide_motion: "Now move in small circles",
+      hold: "Keep circling...",
       good: "Nice!",
     },
     feedbackNoseBridge: {
       guide_hand: "Place two fingers on your nose bridge",
       guide_action: "Apply gentle pressure",
+      guide_motion: "Hold still...",
       hold: "Hold the press...",
       good: "Well done!",
     },
     feedbackChinLift: {
       guide_hand: "Place your hand under your chin",
       guide_action: "Apply gentle upward pressure",
+      guide_motion: "Hold still...",
       hold: "Hold and lift...",
       good: "Good rep!",
     },
     feedbackLipPress: {
       guide_hand: "Place two fingers lightly on your lips",
       guide_action: "Press your lips against your fingers",
+      guide_motion: "Hold still...",
       hold: "Hold the press...",
       good: "Nice!",
     },
     feedbackBrowSmooth: {
       guide_hand: "Place your fingertips between your eyebrows",
-      guide_action: "Apply gentle outward pressure",
-      hold: "Hold and smooth...",
+      guide_action: "Apply gentle pressure",
+      guide_motion: "Now sweep outward toward your temple",
+      hold: "Keep sweeping...",
       good: "Well done!",
     },
     feedbackNeckSide: {
       guide_hand: "Place your hand on the side of your neck",
       guide_action: "Tilt your head gently away",
+      guide_motion: "Hold still...",
       hold: "Hold the stretch...",
       good: "Good stretch!",
     },
     feedbackCheekLift: {
       guide_hand: "Place your fingertips on your left cheek",
       guide_action: "Squint that eye slightly while pressing",
+      guide_motion: "Hold still...",
       hold: "Hold and lift...",
       good: "Nice rep!",
     },
     feedbackJawSide: {
       guide_hand: "Place your hand on the right side of your jaw",
       guide_action: "Slide jaw right against your hand",
+      guide_motion: "Hold still...",
       hold: "Hold the position...",
       good: "Well done!",
     },
     feedbackEyeBrowLift: {
       guide_hand: "Place your palm on your forehead",
       guide_action: "Open your eyes wide while pressing up",
+      guide_motion: "Hold still...",
       hold: "Hold wide-eyed...",
       good: "Great!",
+    },
+    feedbackJawlineSculpt: {
+      guide_hand: "Place your fist under your chin",
+      guide_action: "Apply firm pressure",
+      guide_motion: "Now sweep along your jawline toward your ear",
+      hold: "Keep sweeping...",
+      good: "Nice sculpt!",
     },
   },
   tr: {
     feedbackCheekMassage: {
       guide_hand: "Parmak uçlarınızı yanağınıza koyun",
       guide_action: "Hafifçe bastırın",
-      hold: "Tutun... bastırmaya devam edin",
+      guide_motion: "Şimdi küçük daireler çizin",
+      hold: "Dairesel harekete devam edin...",
       good: "Güzel tekrar!",
     },
     feedbackForeheadSmooth: {
-      guide_hand: "Avucunuzu alnınıza koyun",
+      guide_hand: "Parmak uçlarınızı alnınızın ortasına koyun",
       guide_action: "Hafifçe bastırın",
-      hold: "Tutun... düzleştiriliyor",
+      guide_motion: "Şimdi şakağınıza doğru kaydırın",
+      hold: "Kaydırmaya devam edin...",
       good: "Güzel!",
     },
     feedbackJawRelease: {
       guide_hand: "Elinizi çenenizin altına koyun",
       guide_action: "Şimdi ağzınızı açın",
+      guide_motion: "Elinizi tutun...",
       hold: "Elle destekleyerek açık tutun",
       good: "Aferin!",
     },
     feedbackEyePress: {
       guide_hand: "Parmak uçlarınızı göz çevrenize koyun",
       guide_action: "Hafif baskı uygulayın",
+      guide_motion: "Sabit tutun...",
       hold: "Nazikçe tutun...",
       good: "Güzel tekrar!",
     },
     feedbackTempleMassage: {
-      guide_hand: "Parmak uçlarınızı şakaklarınıza koyun",
-      guide_action: "Nazik dairesel baskı uygulayın",
-      hold: "Tutun ve nefes alın...",
+      guide_hand: "Parmak uçlarınızı şakağınıza koyun",
+      guide_action: "Hafifçe bastırın",
+      guide_motion: "Şimdi küçük daireler çizin",
+      hold: "Dairesel harekete devam edin...",
       good: "Güzel!",
     },
     feedbackNoseBridge: {
       guide_hand: "İki parmağınızı burun kemiğinize koyun",
       guide_action: "Hafifçe bastırın",
+      guide_motion: "Sabit tutun...",
       hold: "Bastırmayı tutun...",
       good: "Aferin!",
     },
     feedbackChinLift: {
       guide_hand: "Elinizi çenenizin altına koyun",
       guide_action: "Hafifçe yukarı bastırın",
+      guide_motion: "Sabit tutun...",
       hold: "Tutun ve kaldırın...",
       good: "Güzel tekrar!",
     },
     feedbackLipPress: {
       guide_hand: "İki parmağınızı dudaklarınıza koyun",
       guide_action: "Dudaklarınızı parmaklarınıza bastırın",
+      guide_motion: "Sabit tutun...",
       hold: "Bastırmayı tutun...",
       good: "Güzel!",
     },
     feedbackBrowSmooth: {
       guide_hand: "Parmak uçlarınızı kaşlar arasına koyun",
-      guide_action: "Hafifçe dışa doğru bastırın",
-      hold: "Tutun ve düzleştirin...",
+      guide_action: "Hafifçe bastırın",
+      guide_motion: "Şimdi şakağınıza doğru kaydırın",
+      hold: "Kaydırmaya devam edin...",
       good: "Aferin!",
     },
     feedbackNeckSide: {
       guide_hand: "Elinizi boynunuzun yan tarafına koyun",
       guide_action: "Başınızı nazikçe karşı tarafa eğin",
+      guide_motion: "Sabit tutun...",
       hold: "Germeyi tutun...",
       good: "İyi germe!",
     },
     feedbackCheekLift: {
       guide_hand: "Parmak uçlarınızı sol yanağınıza koyun",
       guide_action: "O gözü hafifçe kısarken yukarı itin",
+      guide_motion: "Sabit tutun...",
       hold: "Tutun ve kaldırın...",
       good: "Güzel tekrar!",
     },
     feedbackJawSide: {
       guide_hand: "Elinizi çenenizin sağ tarafına koyun",
       guide_action: "Çeneyi elinize karşı sağa kaydırın",
+      guide_motion: "Sabit tutun...",
       hold: "Pozisyonu tutun...",
       good: "Aferin!",
     },
     feedbackEyeBrowLift: {
       guide_hand: "Avucunuzu alnınıza koyun",
       guide_action: "Yukarı basarken gözlerinizi geniş açın",
+      guide_motion: "Sabit tutun...",
       hold: "Geniş gözlü tutun...",
       good: "Harika!",
+    },
+    feedbackJawlineSculpt: {
+      guide_hand: "Yumruğunuzu çenenizin altına koyun",
+      guide_action: "Sıkı baskı uygulayın",
+      guide_motion: "Şimdi kulağınıza doğru jawline boyunca kaydırın",
+      hold: "Kaydırmaya devam edin...",
+      good: "Güzel şekillendirme!",
     },
   },
 };
@@ -374,11 +415,13 @@ export default function FaceFeedbackBanner({
         ? m.guide_hand
         : feedbackState === "guide_action"
           ? m.guide_action
-          : feedbackState === "hold"
-            ? m.hold
-            : feedbackState === "good"
-              ? m.good
-              : null;
+          : feedbackState === "guide_motion"
+            ? m.guide_motion
+            : feedbackState === "hold"
+              ? m.hold
+              : feedbackState === "good"
+                ? m.good
+                : null;
     if (!text) return null;
 
     const bgColor =
@@ -386,25 +429,31 @@ export default function FaceFeedbackBanner({
         ? "bg-white/10"
         : feedbackState === "guide_action"
           ? "bg-amber-500/20"
-          : feedbackState === "hold"
-            ? "bg-green-500/20"
-            : "bg-green-500/30";
+          : feedbackState === "guide_motion"
+            ? "bg-blue-500/20"
+            : feedbackState === "hold"
+              ? "bg-green-500/20"
+              : "bg-green-500/30";
 
     const textColor =
       feedbackState === "guide_hand"
         ? "text-white/70"
         : feedbackState === "guide_action"
           ? "text-amber-200"
-          : "text-green-300";
+          : feedbackState === "guide_motion"
+            ? "text-blue-300"
+            : "text-green-300";
 
     const icon =
       feedbackState === "guide_hand"
         ? "👆"
         : feedbackState === "guide_action"
           ? "✋"
-          : feedbackState === "hold"
-            ? "✊"
-            : "✅";
+          : feedbackState === "guide_motion"
+            ? "🔄"
+            : feedbackState === "hold"
+              ? "✊"
+              : "✅";
 
     return (
       <div className={`flex items-center gap-3 rounded-xl px-4 py-2 ${bgColor}`}>
