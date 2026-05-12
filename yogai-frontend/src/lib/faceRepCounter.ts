@@ -105,8 +105,8 @@ const FACE_EXERCISE_CONFIGS: Record<string, FaceRepConfig> = {
   face_jaw_slide_right: {
     blendshapeNames: ["jawRight"],
     aggregation: "max",
-    enterThreshold: 0.02,
-    exitThreshold: 0.005,
+    enterThreshold: 0.006,
+    exitThreshold: 0.002,
     repTarget: 8,
     feedbackKey: "feedbackJawSlideRight",
     barLabelKey: "jawSlideLevel",
@@ -114,8 +114,8 @@ const FACE_EXERCISE_CONFIGS: Record<string, FaceRepConfig> = {
   face_jaw_slide_left: {
     blendshapeNames: ["jawLeft"],
     aggregation: "max",
-    enterThreshold: 0.02,
-    exitThreshold: 0.005,
+    enterThreshold: 0.006,
+    exitThreshold: 0.002,
     repTarget: 8,
     feedbackKey: "feedbackJawSlideLeft",
     barLabelKey: "jawSlideLevel",
