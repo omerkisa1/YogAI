@@ -145,6 +145,20 @@ function createFaceRepCounter(poseId: string, customTarget?: number) {
   const smoothAlpha = 0.85;
 
   function update(blendshapes: Map<string, number>): FaceRepResult {
+    if (reps >= target) {
+      return {
+        reps: target,
+        target,
+        currentValue: 0,
+        state: "idle",
+        isComplete: true,
+        progress: 1,
+        feedbackKey: config.feedbackKey,
+        feedbackState: "complete",
+        barLabelKey: config.barLabelKey,
+      };
+    }
+
     const raw = readBlendshapeValue(blendshapes, config);
 
     smoothedValue = smoothedValue * (1 - smoothAlpha) + raw * smoothAlpha;

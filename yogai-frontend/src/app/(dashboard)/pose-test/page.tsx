@@ -30,6 +30,7 @@ import {
 } from "@/lib/faceRepCounter";
 import {
   createFaceHandRepCounter,
+  FACE_HAND_EXERCISE_CONFIGS,
   type FaceHandRepResult,
 } from "@/lib/faceHandRepCounter";
 import FaceFeedbackBanner from "@/components/yoga/FaceFeedbackBanner";
@@ -64,9 +65,18 @@ export default function PoseTestPage() {
   const poseDetail = poseQuery.data;
   const rulesLoading = !!selectedPose && poseQuery.isLoading;
   const poseLoadError = poseQuery.isError;
+  const listPose = useMemo(
+    () => poses.find((p) => p.pose_id === selectedPose),
+    [poses, selectedPose],
+  );
   const resolvedPose =
-    poseDetail && poseDetail.pose_id === selectedPose ? poseDetail : undefined;
-  const analysisKind = resolvedPose?.analysis_kind ?? "body";
+    poseDetail && poseDetail.pose_id === selectedPose ? poseDetail : listPose;
+  const analysisKind: "body" | "face" | "face_hand" =
+    FACE_HAND_EXERCISE_CONFIGS[selectedPose]
+      ? "face_hand"
+      : FACE_EXERCISE_CONFIGS[selectedPose]
+        ? "face"
+        : resolvedPose?.analysis_kind ?? "body";
   const isFaceExercise = analysisKind === "face";
   const isFaceHandExercise = analysisKind === "face_hand";
 
@@ -101,7 +111,11 @@ export default function PoseTestPage() {
     const faceHand: Pose[] = [];
     const body: Pose[] = [];
     for (const p of poses) {
-      const kind = p.analysis_kind ?? "body";
+      const kind: "body" | "face" | "face_hand" = FACE_HAND_EXERCISE_CONFIGS[p.pose_id]
+        ? "face_hand"
+        : FACE_EXERCISE_CONFIGS[p.pose_id]
+          ? "face"
+          : p.analysis_kind ?? "body";
       if (kind === "face") face.push(p);
       else if (kind === "face_hand") faceHand.push(p);
       else body.push(p);
@@ -169,23 +183,25 @@ export default function PoseTestPage() {
   });
 
   useEffect(() => {
-    if (!resolvedPose) return;
-    if (resolvedPose.analysis_kind === "face") {
-      faceRepCounterRef.current = createFaceRepCounter(
-        resolvedPose.pose_id,
-        resolvedPose.rep_target > 0 ? resolvedPose.rep_target : undefined,
-      );
+    if (!selectedPose) return;
+    const repTarget = resolvedPose?.rep_target && resolvedPose.rep_target > 0
+      ? resolvedPose.rep_target
+      : undefined;
+    if (analysisKind === "face") {
+      faceRepCounterRef.current = createFaceRepCounter(selectedPose, repTarget);
       setFaceRepResult(null);
       faceHandRepCounterRef.current = null;
       setFaceHandRepResult(null);
-    } else if (resolvedPose.analysis_kind === "face_hand") {
+    } else if (analysisKind === "face_hand") {
       faceRepCounterRef.current = null;
       setFaceRepResult(null);
-      faceHandRepCounterRef.current = createFaceHandRepCounter(
-        resolvedPose.pose_id,
-        resolvedPose.rep_target > 0 ? resolvedPose.rep_target : undefined,
-      );
-      setFaceHandRepResult(null);
+      const counter = createFaceHandRepCounter(selectedPose, repTarget);
+      faceHandRepCounterRef.current = counter;
+      if (counter) {
+        setFaceHandRepResult(counter.update([], [], new Map()));
+      } else {
+        setFaceHandRepResult(null);
+      }
     } else {
       stopFaceLandmarker();
       faceRepCounterRef.current = null;
@@ -193,7 +209,7 @@ export default function PoseTestPage() {
       faceHandRepCounterRef.current = null;
       setFaceHandRepResult(null);
     }
-  }, [resolvedPose?.pose_id, resolvedPose?.analysis_kind, stopFaceLandmarker]);
+  }, [selectedPose, analysisKind, resolvedPose?.rep_target, stopFaceLandmarker]);
 
   useEffect(() => {
     if (!isAnalyzing || (!isFaceExercise && !isFaceHandExercise)) return;
@@ -284,24 +300,21 @@ export default function PoseTestPage() {
     if (!isFaceExercise || !faceFrame || !faceRepCounterRef.current) return;
     if (!faceFrame.faceDetected) return;
     if (faceFrame.blendshapes.size === 0) return;
-    if (faceRepResult?.isComplete) return;
-    const result = faceRepCounterRef.current.update(faceFrame.blendshapes);
-    setFaceRepResult(result);
-  }, [isFaceExercise, faceFrame, faceRepResult?.isComplete]);
+    const r = faceRepCounterRef.current.update(faceFrame.blendshapes);
+    setFaceRepResult(r);
+  }, [isFaceExercise, faceFrame]);
 
   useEffect(() => {
-    if (!isFaceHandExercise || !faceFrame || !faceHandRepCounterRef.current) return;
-    const lms = faceFrame.faceLandmarks;
-    if (!lms || lms.length === 0) return;
-    if (faceHandRepResult?.isComplete) return;
+    if (!isFaceHandExercise || !faceHandRepCounterRef.current) return;
+    const lms = faceFrame?.faceLandmarks ?? [];
     const handsPayload = (handFrame?.hands ?? []).map((h) => ({ landmarks: h.landmarks }));
-    const result = faceHandRepCounterRef.current.update(
+    const r = faceHandRepCounterRef.current.update(
       handsPayload,
       lms,
-      faceFrame.blendshapes,
+      faceFrame?.blendshapes,
     );
-    setFaceHandRepResult(result);
-  }, [isFaceHandExercise, faceFrame, handFrame, faceHandRepResult?.isComplete]);
+    setFaceHandRepResult(r);
+  }, [isFaceHandExercise, faceFrame, handFrame]);
 
   useEffect(() => {
     if ((isFaceExercise || isFaceHandExercise) && faceLmError) setError(faceLmError);
@@ -424,8 +437,7 @@ export default function PoseTestPage() {
   const canStart =
     !!selectedPose &&
     !rulesLoading &&
-    !!resolvedPose &&
-    (isFaceExercise || isFaceHandExercise || selectedRules.length > 0) &&
+    (isFaceExercise || isFaceHandExercise || (!!resolvedPose && selectedRules.length > 0)) &&
     !isAnalyzing;
 
   const ruleCount = result?.rules?.length ?? 0;

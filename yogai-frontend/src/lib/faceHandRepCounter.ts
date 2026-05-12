@@ -138,6 +138,21 @@ function createFaceHandRepCounter(poseId: string, customRepTarget?: number) {
     faceLandmarks: { x: number; y: number; z: number }[],
     blendshapes?: Map<string, number>,
   ): FaceHandRepResult {
+    if (reps >= target) {
+      return {
+        reps: target,
+        target,
+        handNearFace: false,
+        holdProgress: 1,
+        isComplete: true,
+        progress: 1,
+        feedbackKey: config.feedbackKey,
+        feedbackState: "complete",
+        currentProximity: 0,
+        barLabelKey: config.barLabelKey,
+      };
+    }
+
     const closest = getClosestHandToFaceRegion(hands, faceLandmarks, config.handTarget);
     currentProximity = closest ? 1 - Math.min(closest.distance / 0.2, 1) : 0;
 
