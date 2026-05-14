@@ -397,9 +397,9 @@ export const FACE_HAND_EXERCISE_CONFIGS: Record<string, FaceHandRepConfig> = {
     feedbackKey: "feedbackJawlineSculpt",
     barLabelKey: "jawlineSculptLevel",
     motionType: "sweep",
-    sweepDistanceRatio: 0.50,
+    sweepDistanceRatio: 0.60,
     acceptBothHands: true,
-    stabilizeMs: 300,
+    stabilizeMs: 500,
     cooldownMs: 800,
     headTiltRequired: "any",
     headTiltMinDeviation: 0.08,
@@ -424,7 +424,7 @@ function createFaceHandRepCounter(poseId: string, customRepTarget?: number) {
   let cumulativeAngleDeg = 0;
 
   let sweepStartPos: Point2D | null = null;
-  let maxSweepDist = 0;
+  let sweepBaselineDist = 0;
   let sweepComplete = false;
 
   // Locked landmark tracking for sweep: once active, we follow the same
@@ -439,7 +439,7 @@ function createFaceHandRepCounter(poseId: string, customRepTarget?: number) {
     prevAngleRad = null;
     cumulativeAngleDeg = 0;
     sweepStartPos = null;
-    maxSweepDist = 0;
+    sweepBaselineDist = 0;
     sweepComplete = false;
     lockedHandIdx = null;
     lockedLandmarkIdx = null;
@@ -475,6 +475,14 @@ function createFaceHandRepCounter(poseId: string, customRepTarget?: number) {
       sweepStartPos =
         getFaceRegionCenter(faceLandmarks, config.handTarget) ??
         (lock ? lock.point : { x: fallbackPoint.x, y: fallbackPoint.y });
+
+      // Record how far the locked hand point already is from the anchor at rest.
+      // Subtracting this baseline from every subsequent measurement gives pure
+      // travel distance, so a hand resting at chin-center starts at netDist = 0.
+      const lockedPt = getLockedPoint(hands);
+      if (lockedPt && sweepStartPos) {
+        sweepBaselineDist = calculateDistance2D(lockedPt, sweepStartPos);
+      }
     }
     if (motionType === "hold") {
       holdStartTime = Date.now();
@@ -547,10 +555,14 @@ function createFaceHandRepCounter(poseId: string, customRepTarget?: number) {
         const sweepRatio = config.sweepDistanceRatio ?? 0.25;
         const sweepThreshold = Math.max(faceWidth * sweepRatio, 0.05);
 
+        // netDist: how far the hand has actually MOVED from its resting position.
+        // Subtracting the baseline eliminates the initial offset between the hand
+        // and the face-region anchor, so the counter can only fire after genuine
+        // travel — not just because the fingertip started a few pixels away.
         const dist = calculateDistance2D(trackedPoint, sweepStartPos);
-        if (dist > maxSweepDist) maxSweepDist = dist;
+        const netDist = Math.max(dist - sweepBaselineDist, 0);
 
-        if (!sweepComplete && maxSweepDist >= sweepThreshold) {
+        if (!sweepComplete && netDist >= sweepThreshold) {
           sweepComplete = true;
           reps++;
         }
@@ -574,7 +586,7 @@ function createFaceHandRepCounter(poseId: string, customRepTarget?: number) {
           };
         }
 
-        const holdProgress = sweepThreshold > 0 ? Math.min(maxSweepDist / sweepThreshold, 1) : 0;
+        const holdProgress = sweepThreshold > 0 ? Math.min(netDist / sweepThreshold, 1) : 0;
         return {
           reps,
           target,
@@ -585,7 +597,7 @@ function createFaceHandRepCounter(poseId: string, customRepTarget?: number) {
           feedbackKey: config.feedbackKey,
           feedbackState: sweepComplete
             ? "good"
-            : maxSweepDist > 0.008
+            : netDist > 0.01
               ? "hold"
               : "guide_motion",
           currentProximity,
