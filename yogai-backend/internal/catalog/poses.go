@@ -777,6 +777,23 @@ var AllPoses = []Pose{
 	},
 
 	{
+		PoseID:            "face_chin_up_kiss",
+		NameEN:            "Chin-Up Kiss",
+		NameTR:            "Çene Kaldırma Öpücüğü",
+		Category:          CategoryFace,
+		Difficulty:        2,
+		TargetArea:        "face",
+		InstructionsEN:    "Stand or sit tall. Slowly tilt your head back so your chin points toward the ceiling — you should feel your throat and the muscles under your chin stretch. Once your chin is raised, pucker your lips as if blowing a kiss upward to the ceiling. Hold the pucker for 2 seconds while keeping your chin up, then gently lower your head and relax your lips. This movement tones the platysma muscle along the neck and firms the area under the chin. Do not strain your neck — the movement should feel like a comfortable stretch. Repeat 10 times.",
+		InstructionsTR:    "Dik durun veya oturun. Çeneniz tavana doğru bakacak şekilde başınızı yavaşça geriye doğru eğin — boğazınızın ve çenenizin altındaki kasların gerildiğini hissedeceksiniz. Çeneniz kalkık haldeyken, sanki tavana öpücük gönderiyormuşsunuz gibi dudaklarınızı büzün. Çenenizi kalkık tutarken büzmeyi 2 saniye boyunca tutun, ardından başınızı nazikçe aşağı indirin ve dudaklarınızı gevşetin. Bu hareket boyun boyunca uzanan platysma kasını sıkılaştırır ve çenenin altındaki bölgeyi güçlendirir. Boynunuzu zorlamayın — hareket rahat bir germe hissi gibi olmalıdır. 10 kez tekrarlayın.",
+		Contraindications: []string{},
+		LandmarkRules:     []LandmarkRule{},
+		IsAnalyzable:      true,
+		AnalysisKind:      "face",
+		MetricType:        "reps",
+		RepTarget:         10,
+	},
+
+	{
 		PoseID:            "face_hand_eye_press",
 		NameEN:            "Eye Area Press",
 		NameTR:            "Göz Çevresi Baskı",

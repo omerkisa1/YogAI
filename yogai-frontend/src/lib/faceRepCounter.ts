@@ -2,6 +2,8 @@ type RepState = "idle" | "open" | "closing";
 
 export type FaceFeedbackState = "guide" | "hold" | "good" | "complete";
 
+type Landmark = { x: number; y: number; z: number };
+
 interface FaceRepConfig {
   blendshapeNames: string[];
   aggregation: "max" | "average";
@@ -10,6 +12,8 @@ interface FaceRepConfig {
   repTarget: number;
   feedbackKey: string;
   barLabelKey: string;
+  headPitchCheck?: "up";
+  headPitchMinScore?: number;
 }
 
 interface FaceRepResult {
@@ -22,6 +26,17 @@ interface FaceRepResult {
   feedbackKey: string;
   feedbackState: FaceFeedbackState;
   barLabelKey: string;
+}
+
+// Scores 0–1: how much the chin is elevated toward the ceiling.
+// When the user tilts their chin up, the chin landmark becomes closer to the
+// camera (smaller z in MediaPipe convention) and the forehead moves farther away.
+function detectChinUp(faceLandmarks: Landmark[]): number {
+  const chin = faceLandmarks[152];
+  const forehead = faceLandmarks[10];
+  if (!chin || !forehead) return 0;
+  const diff = forehead.z - chin.z;
+  return Math.min(Math.max(diff / 0.10, 0), 1);
 }
 
 function readBlendshapeValue(blendshapes: Map<string, number>, config: FaceRepConfig): number {
@@ -183,6 +198,17 @@ const FACE_EXERCISE_CONFIGS: Record<string, FaceRepConfig> = {
     feedbackKey: "feedbackUpperLipRaise",
     barLabelKey: "upperLipRaiseLevel",
   },
+  face_chin_up_kiss: {
+    blendshapeNames: ["mouthPucker"],
+    aggregation: "max",
+    enterThreshold: 0.35,
+    exitThreshold: 0.08,
+    repTarget: 10,
+    feedbackKey: "feedbackChinUpKiss",
+    barLabelKey: "chinUpKissLevel",
+    headPitchCheck: "up",
+    headPitchMinScore: 0.35,
+  },
 };
 
 const MIN_REP_INTERVAL_MS = 400;
@@ -198,7 +224,7 @@ function createFaceRepCounter(poseId: string, customTarget?: number) {
   let lastRepTime = 0;
   const smoothAlpha = 0.85;
 
-  function update(blendshapes: Map<string, number>): FaceRepResult {
+  function update(blendshapes: Map<string, number>, faceLandmarks?: Landmark[]): FaceRepResult {
     if (reps >= target) {
       return {
         reps: target,
@@ -213,7 +239,20 @@ function createFaceRepCounter(poseId: string, customTarget?: number) {
       };
     }
 
-    const raw = readBlendshapeValue(blendshapes, config);
+    let raw = readBlendshapeValue(blendshapes, config);
+
+    // If this exercise requires a head-pitch condition, zero the blendshape signal
+    // and reset state when the pose is not met. This forces the user to maintain
+    // the correct head angle throughout the movement.
+    if (config.headPitchCheck === "up" && faceLandmarks && faceLandmarks.length > 0) {
+      const score = detectChinUp(faceLandmarks);
+      const minScore = config.headPitchMinScore ?? 0.35;
+      if (score < minScore) {
+        raw = 0;
+        state = "idle";
+        smoothedValue = 0;
+      }
+    }
 
     smoothedValue = smoothedValue * (1 - smoothAlpha) + raw * smoothAlpha;
     const displayValue = raw;

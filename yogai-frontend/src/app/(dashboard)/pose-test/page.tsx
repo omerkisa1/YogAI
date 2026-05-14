@@ -305,7 +305,10 @@ export default function PoseTestPage() {
     if (!isFaceExercise || !faceFrame || !faceRepCounterRef.current) return;
     if (!faceFrame.faceDetected) return;
     if (faceFrame.blendshapes.size === 0) return;
-    const r = faceRepCounterRef.current.update(faceFrame.blendshapes);
+    const r = faceRepCounterRef.current.update(
+      faceFrame.blendshapes,
+      faceFrame.faceLandmarks ?? undefined,
+    );
     setFaceRepResult(r);
   }, [isFaceExercise, faceFrame]);
 

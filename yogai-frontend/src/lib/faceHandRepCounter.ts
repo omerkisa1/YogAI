@@ -1,4 +1,5 @@
 export type FaceHandFeedbackState =
+  | "guide_tilt"
   | "guide_hand"
   | "guide_action"
   | "guide_motion"
@@ -38,6 +39,8 @@ export interface FaceHandRepConfig {
   acceptBothHands?: boolean;
   stabilizeMs?: number;
   cooldownMs?: number;
+  headTiltRequired?: "left" | "right" | "any";
+  headTiltMinDeviation?: number;
 }
 
 export interface FaceHandRepResult {
@@ -73,15 +76,18 @@ const FACE_REGION_LANDMARKS: Record<string, number[]> = {
 
 const HAND_FINGERTIP_INDICES = [4, 8, 12, 16, 20];
 const HAND_PALM_INDEX = 0;
+const ALL_HAND_INDICES = [...HAND_FINGERTIP_INDICES, HAND_PALM_INDEX];
+
+const CIRCULAR_NOISE_GATE_DEG = 1.5;
+const CIRCULAR_MIN_RADIUS = 0.012;
+const MOTION_GRACE_MS = 500;
+const SWEEP_LIFT_THRESHOLD = 0.30;
 
 type Point2D = { x: number; y: number };
 type Landmark = { x: number; y: number; z: number };
 type HandPayload = { landmarks: Landmark[] };
 
-type InternalPhase = "guide_hand" | "stabilizing" | "active" | "cooldown";
-
-const CIRCULAR_NOISE_GATE_DEG = 1.5;
-const CIRCULAR_MIN_RADIUS = 0.015;
+type InternalPhase = "guide_hand" | "stabilizing" | "active" | "cooldown" | "returning";
 
 function calculateDistance2D(p1: Point2D, p2: Point2D): number {
   return Math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2);
@@ -103,11 +109,72 @@ function getFaceWidth(faceLandmarks: Landmark[]): number {
   return Math.max(calculateDistance2D(left, right), 0.05);
 }
 
+// Returns true when any tracked hand point is within SWEEP_LIFT_THRESHOLD of the nose bridge.
+// Used to detect "hand still on face" vs "hand lifted away".
+function isHandNearFaceGeneral(hands: HandPayload[], faceLandmarks: Landmark[]): boolean {
+  if (hands.length === 0 || faceLandmarks.length === 0) return false;
+  const nose = faceLandmarks[168];
+  if (!nose) return false;
+  const nosePos: Point2D = { x: nose.x, y: nose.y };
+  for (const hand of hands) {
+    for (const idx of ALL_HAND_INDICES) {
+      const tip = hand.landmarks[idx];
+      if (!tip) continue;
+      if (calculateDistance2D(tip, nosePos) < SWEEP_LIFT_THRESHOLD) return true;
+    }
+  }
+  return false;
+}
+
+// Returns true when point is inside the face bounding box (landmarks 10=top, 152=bottom,
+// 234=left-ear, 454=right-ear) plus margin. Used to keep tracking during a full sweep.
+function isPointInsideFaceBox(
+  point: Point2D,
+  faceLandmarks: Landmark[],
+  margin: number,
+): boolean {
+  const top = faceLandmarks[10];
+  const bottom = faceLandmarks[152];
+  const left = faceLandmarks[234];
+  const right = faceLandmarks[454];
+  if (!top || !bottom || !left || !right) return false;
+  return (
+    point.x >= left.x - margin &&
+    point.x <= right.x + margin &&
+    point.y >= top.y - margin &&
+    point.y <= bottom.y + margin
+  );
+}
+
+// Estimates head yaw: 0.5 = straight, >0.58 = turned left, <0.42 = turned right.
+function estimateHeadYaw(faceLandmarks: Landmark[]): number {
+  const nose = faceLandmarks[1];
+  const leftEar = faceLandmarks[234];
+  const rightEar = faceLandmarks[454];
+  if (!nose || !leftEar || !rightEar) return 0.5;
+  const earWidth = rightEar.x - leftEar.x;
+  if (Math.abs(earWidth) < 0.01) return 0.5;
+  return (nose.x - leftEar.x) / earWidth;
+}
+
+function isHeadTilted(
+  faceLandmarks: Landmark[],
+  required: "left" | "right" | "any",
+  minDeviation = 0.08,
+): boolean {
+  if (faceLandmarks.length === 0) return true;
+  const yaw = estimateHeadYaw(faceLandmarks);
+  const dev = Math.abs(yaw - 0.5);
+  if (required === "any") return dev >= minDeviation;
+  if (required === "left") return yaw < 0.5 - minDeviation;
+  return yaw > 0.5 + minDeviation;
+}
+
 function getClosestHandInfo(
   hands: HandPayload[],
   faceLandmarks: Landmark[],
   region: string,
-): { distance: number; handIndex: number; point: Point2D } | null {
+): { distance: number; handIndex: number; landmarkIndex: number; point: Point2D } | null {
   const regionIndices = FACE_REGION_LANDMARKS[region];
   if (!regionIndices || hands.length === 0 || faceLandmarks.length === 0) return null;
 
@@ -118,39 +185,32 @@ function getClosestHandInfo(
 
   let minDist = Infinity;
   let bestHand = 0;
+  let bestLandmark = HAND_PALM_INDEX;
   let bestPoint: Point2D = { x: 0, y: 0 };
 
   for (let h = 0; h < hands.length; h++) {
     const hand = hands[h];
-    for (const tipIdx of HAND_FINGERTIP_INDICES) {
-      const tip = hand.landmarks[tipIdx];
+    for (const lmIdx of ALL_HAND_INDICES) {
+      const tip = hand.landmarks[lmIdx];
       if (!tip) continue;
       const dist = calculateDistance2D(tip, regionCenter);
       if (dist < minDist) {
         minDist = dist;
         bestHand = h;
+        bestLandmark = lmIdx;
         bestPoint = { x: tip.x, y: tip.y };
-      }
-    }
-    const palm = hand.landmarks[HAND_PALM_INDEX];
-    if (palm) {
-      const dist = calculateDistance2D(palm, regionCenter);
-      if (dist < minDist) {
-        minDist = dist;
-        bestHand = h;
-        bestPoint = { x: palm.x, y: palm.y };
       }
     }
   }
 
-  return { distance: minDist, handIndex: bestHand, point: bestPoint };
+  return { distance: minDist, handIndex: bestHand, landmarkIndex: bestLandmark, point: bestPoint };
 }
 
 export const FACE_HAND_EXERCISE_CONFIGS: Record<string, FaceHandRepConfig> = {
   face_hand_cheek_massage: {
     poseId: "face_hand_cheek_massage",
     handTarget: "cheek_right",
-    proximityThreshold: 0.09,
+    proximityThreshold: 0.15,
     holdDurationMs: 2000,
     repTarget: 5,
     feedbackKey: "feedbackCheekMassage",
@@ -164,13 +224,12 @@ export const FACE_HAND_EXERCISE_CONFIGS: Record<string, FaceHandRepConfig> = {
   face_hand_forehead_smooth: {
     poseId: "face_hand_forehead_smooth",
     handTarget: "forehead",
-    proximityThreshold: 0.09,
+    proximityThreshold: 0.13,
     holdDurationMs: 3000,
     repTarget: 5,
     feedbackKey: "feedbackForeheadSmooth",
     barLabelKey: "foreheadSmoothLevel",
     motionType: "sweep",
-    sweepTarget: "temple_left",
     sweepDistanceRatio: 0.28,
     acceptBothHands: true,
     stabilizeMs: 300,
@@ -181,7 +240,7 @@ export const FACE_HAND_EXERCISE_CONFIGS: Record<string, FaceHandRepConfig> = {
     handTarget: "chin",
     requiredBlendshape: "jawOpen",
     blendshapeThreshold: 0.3,
-    proximityThreshold: 0.08,
+    proximityThreshold: 0.09,
     holdDurationMs: 2500,
     repTarget: 5,
     feedbackKey: "feedbackJawRelease",
@@ -207,7 +266,7 @@ export const FACE_HAND_EXERCISE_CONFIGS: Record<string, FaceHandRepConfig> = {
   face_hand_temple_massage: {
     poseId: "face_hand_temple_massage",
     handTarget: "temple_left",
-    proximityThreshold: 0.09,
+    proximityThreshold: 0.15,
     holdDurationMs: 2500,
     repTarget: 5,
     feedbackKey: "feedbackTempleMassage",
@@ -262,13 +321,12 @@ export const FACE_HAND_EXERCISE_CONFIGS: Record<string, FaceHandRepConfig> = {
   face_hand_brow_smooth: {
     poseId: "face_hand_brow_smooth",
     handTarget: "between_brows",
-    proximityThreshold: 0.09,
+    proximityThreshold: 0.13,
     holdDurationMs: 2500,
     repTarget: 5,
     feedbackKey: "feedbackBrowSmooth",
     barLabelKey: "browSmoothLevel",
     motionType: "sweep",
-    sweepTarget: "temple_left",
     sweepDistanceRatio: 0.28,
     acceptBothHands: true,
     stabilizeMs: 300,
@@ -333,17 +391,18 @@ export const FACE_HAND_EXERCISE_CONFIGS: Record<string, FaceHandRepConfig> = {
   face_hand_jawline_sculpt: {
     poseId: "face_hand_jawline_sculpt",
     handTarget: "chin",
-    proximityThreshold: 0.10,
+    proximityThreshold: 0.13,
     holdDurationMs: 2000,
     repTarget: 8,
     feedbackKey: "feedbackJawlineSculpt",
     barLabelKey: "jawlineSculptLevel",
     motionType: "sweep",
-    sweepTarget: "jaw_right",
-    sweepDistanceRatio: 0.25,
+    sweepDistanceRatio: 0.50,
     acceptBothHands: true,
     stabilizeMs: 300,
     cooldownMs: 800,
+    headTiltRequired: "any",
+    headTiltMinDeviation: 0.08,
   },
 };
 
@@ -365,20 +424,57 @@ function createFaceHandRepCounter(poseId: string, customRepTarget?: number) {
   let cumulativeAngleDeg = 0;
 
   let sweepStartPos: Point2D | null = null;
+  let maxSweepDist = 0;
+  let sweepComplete = false;
+
+  // Locked landmark tracking for sweep: once active, we follow the same
+  // specific fingertip/palm across frames to prevent fingertip-switching jumps.
+  let lockedHandIdx: number | null = null;
+  let lockedLandmarkIdx: number | null = null;
 
   let holdStartTime = 0;
+  let graceStartTime = 0;
 
   function resetMotionState() {
     prevAngleRad = null;
     cumulativeAngleDeg = 0;
     sweepStartPos = null;
+    maxSweepDist = 0;
+    sweepComplete = false;
+    lockedHandIdx = null;
+    lockedLandmarkIdx = null;
     holdStartTime = 0;
+    graceStartTime = 0;
   }
 
-  function initActivePhase(handPoint: Point2D) {
+  // Returns the current position of the locked landmark, or null if lost.
+  function getLockedPoint(hands: HandPayload[]): Point2D | null {
+    if (lockedHandIdx === null || lockedLandmarkIdx === null) return null;
+    const hand = hands[lockedHandIdx];
+    if (!hand) return null;
+    const lm = hand.landmarks[lockedLandmarkIdx];
+    if (!lm) return null;
+    return { x: lm.x, y: lm.y };
+  }
+
+  function initActivePhase(
+    hands: HandPayload[],
+    faceLandmarks: Landmark[],
+    fallbackPoint: Point2D,
+  ) {
     resetMotionState();
     if (motionType === "sweep") {
-      sweepStartPos = { x: handPoint.x, y: handPoint.y };
+      const lock = getClosestHandInfo(hands, faceLandmarks, config.handTarget);
+      if (lock) {
+        lockedHandIdx = lock.handIndex;
+        lockedLandmarkIdx = lock.landmarkIndex;
+      }
+      // Anchor sweep measurement to the face region center, not the hand position.
+      // This guarantees the user must sweep the full distance from the anatomical
+      // target (e.g. chin) regardless of where they placed their hand.
+      sweepStartPos =
+        getFaceRegionCenter(faceLandmarks, config.handTarget) ??
+        (lock ? lock.point : { x: fallbackPoint.x, y: fallbackPoint.y });
     }
     if (motionType === "hold") {
       holdStartTime = Date.now();
@@ -416,13 +512,148 @@ function createFaceHandRepCounter(poseId: string, customRepTarget?: number) {
     }
 
     const conditionMet = handNearFace && blendshapeOk;
+    const now = Date.now();
 
-    if (!conditionMet) {
-      if (phase === "cooldown") {
+    // Head-tilt gate: only active in guide_hand phase, before user places hand.
+    if (
+      config.headTiltRequired &&
+      phase === "guide_hand" &&
+      faceLandmarks.length > 0 &&
+      !isHeadTilted(faceLandmarks, config.headTiltRequired, config.headTiltMinDeviation)
+    ) {
+      return {
+        reps,
+        target,
+        handNearFace,
+        holdProgress: 0,
+        isComplete: false,
+        progress: reps / target,
+        feedbackKey: config.feedbackKey,
+        feedbackState: "guide_tilt",
+        currentProximity,
+        barLabelKey: config.barLabelKey,
+      };
+    }
+
+    // ── SWEEP: dedicated branch — handles full start→sweep→lift→return cycle ──
+    if (motionType === "sweep" && phase === "active") {
+      const trackedPoint = getLockedPoint(hands) ?? closest?.point ?? null;
+      const handOnFace =
+        trackedPoint !== null && isPointInsideFaceBox(trackedPoint, faceLandmarks, 0.06);
+      const handNearFaceGeneral = isHandNearFaceGeneral(hands, faceLandmarks);
+
+      if (handOnFace && sweepStartPos && trackedPoint) {
+        const faceWidth = getFaceWidth(faceLandmarks);
+        const sweepRatio = config.sweepDistanceRatio ?? 0.25;
+        const sweepThreshold = Math.max(faceWidth * sweepRatio, 0.05);
+
+        const dist = calculateDistance2D(trackedPoint, sweepStartPos);
+        if (dist > maxSweepDist) maxSweepDist = dist;
+
+        if (!sweepComplete && maxSweepDist >= sweepThreshold) {
+          sweepComplete = true;
+          reps++;
+        }
+
+        if (sweepComplete && !handNearFaceGeneral) {
+          const done = reps >= target;
+          resetMotionState();
+          phase = done ? "guide_hand" : "returning";
+          phaseStart = now;
+          return {
+            reps,
+            target,
+            handNearFace,
+            holdProgress: 1,
+            isComplete: done,
+            progress: Math.min(reps / target, 1),
+            feedbackKey: config.feedbackKey,
+            feedbackState: done ? "complete" : "good",
+            currentProximity,
+            barLabelKey: config.barLabelKey,
+          };
+        }
+
+        const holdProgress = sweepThreshold > 0 ? Math.min(maxSweepDist / sweepThreshold, 1) : 0;
+        return {
+          reps,
+          target,
+          handNearFace,
+          holdProgress,
+          isComplete: reps >= target,
+          progress: Math.min(reps / target, 1),
+          feedbackKey: config.feedbackKey,
+          feedbackState: sweepComplete
+            ? "good"
+            : maxSweepDist > 0.008
+              ? "hold"
+              : "guide_motion",
+          currentProximity,
+          barLabelKey: config.barLabelKey,
+        };
+      }
+
+      // Hand left the face bounding box
+      if (sweepComplete && !handNearFaceGeneral) {
+        const done = reps >= target;
+        resetMotionState();
+        phase = done ? "guide_hand" : "returning";
+        phaseStart = now;
+        return {
+          reps,
+          target,
+          handNearFace: false,
+          holdProgress: 1,
+          isComplete: done,
+          progress: Math.min(reps / target, 1),
+          feedbackKey: config.feedbackKey,
+          feedbackState: done ? "complete" : "good",
+          currentProximity,
+          barLabelKey: config.barLabelKey,
+        };
+      }
+
+      if (!sweepComplete) {
         phase = "guide_hand";
         phaseStart = 0;
         resetMotionState();
-      } else if (phase !== "guide_hand") {
+      }
+
+      return {
+        reps,
+        target,
+        handNearFace,
+        holdProgress: sweepComplete ? 1 : 0,
+        isComplete: false,
+        progress: reps / target,
+        feedbackKey: config.feedbackKey,
+        feedbackState: sweepComplete ? "good" : "guide_hand",
+        currentProximity,
+        barLabelKey: config.barLabelKey,
+      };
+    }
+    // ── END SWEEP BRANCH ──────────────────────────────────────────────────────
+
+    if (!conditionMet) {
+      if (phase === "active" && motionType === "circular") {
+        if (graceStartTime === 0) graceStartTime = now;
+        if (now - graceStartTime < MOTION_GRACE_MS) {
+          return {
+            reps,
+            target,
+            handNearFace: false,
+            holdProgress: Math.min(cumulativeAngleDeg / (config.motionAngleTarget ?? 330), 1),
+            isComplete: false,
+            progress: reps / target,
+            feedbackKey: config.feedbackKey,
+            feedbackState: "hold",
+            currentProximity,
+            barLabelKey: config.barLabelKey,
+          };
+        }
+      }
+
+      if (phase !== "guide_hand") {
         phase = "guide_hand";
         phaseStart = 0;
         resetMotionState();
@@ -445,7 +676,7 @@ function createFaceHandRepCounter(poseId: string, customRepTarget?: number) {
       };
     }
 
-    const now = Date.now();
+    graceStartTime = 0;
 
     if (phase === "guide_hand") {
       phase = "stabilizing";
@@ -470,7 +701,7 @@ function createFaceHandRepCounter(poseId: string, customRepTarget?: number) {
       }
       phase = "active";
       phaseStart = now;
-      initActivePhase(closest!.point);
+      initActivePhase(hands, faceLandmarks, closest.point);
     }
 
     if (phase === "cooldown") {
@@ -490,7 +721,31 @@ function createFaceHandRepCounter(poseId: string, customRepTarget?: number) {
       }
       phase = "active";
       phaseStart = now;
-      initActivePhase(closest!.point);
+      initActivePhase(hands, faceLandmarks, closest.point);
+    }
+
+    if (phase === "returning") {
+      const regionCenter = getFaceRegionCenter(faceLandmarks, config.handTarget);
+      const distToOrigin = regionCenter
+        ? calculateDistance2D(closest.point, regionCenter)
+        : Infinity;
+      if (distToOrigin < config.proximityThreshold * 0.85) {
+        phase = "stabilizing";
+        phaseStart = now;
+        resetMotionState();
+      }
+      return {
+        reps,
+        target,
+        handNearFace,
+        holdProgress: 0,
+        isComplete: false,
+        progress: reps / target,
+        feedbackKey: config.feedbackKey,
+        feedbackState: "guide_hand",
+        currentProximity,
+        barLabelKey: config.barLabelKey,
+      };
     }
 
     let holdProgress = 0;
@@ -511,7 +766,7 @@ function createFaceHandRepCounter(poseId: string, customRepTarget?: number) {
       }
     } else if (motionType === "circular") {
       const center = getFaceRegionCenter(faceLandmarks, config.handTarget);
-      if (center && closest) {
+      if (center) {
         const { point } = closest;
         const radius = calculateDistance2D(point, center);
         const currentAngle = Math.atan2(point.y - center.y, point.x - center.x);
@@ -541,31 +796,6 @@ function createFaceHandRepCounter(poseId: string, customRepTarget?: number) {
         } else {
           feedbackState = "guide_motion";
         }
-      }
-    } else if (motionType === "sweep") {
-      if (closest && sweepStartPos) {
-        const { point } = closest;
-        const currentDist = calculateDistance2D(point, sweepStartPos);
-
-        const faceWidth = getFaceWidth(faceLandmarks);
-        const sweepRatio = config.sweepDistanceRatio ?? 0.25;
-        const sweepThreshold = faceWidth * sweepRatio;
-
-        holdProgress = sweepThreshold > 0 ? Math.min(currentDist / sweepThreshold, 1) : 0;
-
-        if (currentDist >= sweepThreshold) {
-          reps++;
-          phase = "cooldown";
-          phaseStart = now;
-          resetMotionState();
-          feedbackState = reps >= target ? "complete" : "good";
-        } else if (currentDist > 0.008) {
-          feedbackState = "hold";
-        } else {
-          feedbackState = "guide_motion";
-        }
-      } else {
-        feedbackState = "guide_motion";
       }
     }
 

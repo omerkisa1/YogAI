@@ -97,6 +97,11 @@ const FEEDBACK_MESSAGES: Record<
       hold: "Hold it up!",
       good: "Nice!",
     },
+    feedbackChinUpKiss: {
+      guide: "Tilt your chin up toward the ceiling, then blow a kiss",
+      hold: "Hold the kiss — stretch that throat!",
+      good: "Beautiful neck stretch!",
+    },
   },
   tr: {
     feedbackJawOpen: {
@@ -179,6 +184,11 @@ const FEEDBACK_MESSAGES: Record<
       hold: "Yukarıda tutun!",
       good: "Güzel!",
     },
+    feedbackChinUpKiss: {
+      guide: "Çenenizi tavana doğru kaldırın, ardından öpücük gönderin",
+      hold: "Öpücüğü tutun — boğazı gerin!",
+      good: "Harika boyun gerimi!",
+    },
   },
 };
 
@@ -187,6 +197,7 @@ const HAND_FEEDBACK_MESSAGES: Record<
   Record<
     string,
     {
+      guide_tilt?: string;
       guide_hand: string;
       guide_action: string;
       guide_motion: string;
@@ -288,6 +299,7 @@ const HAND_FEEDBACK_MESSAGES: Record<
       good: "Great!",
     },
     feedbackJawlineSculpt: {
+      guide_tilt: "Tilt your head slightly to the side to expose your jawline",
       guide_hand: "Place your fist under your chin",
       guide_action: "Apply firm pressure",
       guide_motion: "Now sweep along your jawline toward your ear",
@@ -388,6 +400,7 @@ const HAND_FEEDBACK_MESSAGES: Record<
       good: "Harika!",
     },
     feedbackJawlineSculpt: {
+      guide_tilt: "Jawline'inizi açığa çıkarmak için başınızı hafifçe yana çevirin",
       guide_hand: "Yumruğunuzu çenenizin altına koyun",
       guide_action: "Sıkı baskı uygulayın",
       guide_motion: "Şimdi kulağınıza doğru jawline boyunca kaydırın",
@@ -411,49 +424,57 @@ export default function FaceFeedbackBanner({
     const m = HAND_FEEDBACK_MESSAGES[lang]?.[feedbackKey];
     if (!m) return null;
     const text =
-      feedbackState === "guide_hand"
-        ? m.guide_hand
-        : feedbackState === "guide_action"
-          ? m.guide_action
-          : feedbackState === "guide_motion"
-            ? m.guide_motion
-            : feedbackState === "hold"
-              ? m.hold
-              : feedbackState === "good"
-                ? m.good
-                : null;
+      feedbackState === "guide_tilt"
+        ? (m.guide_tilt ?? "Tilt your head slightly to the side")
+        : feedbackState === "guide_hand"
+          ? m.guide_hand
+          : feedbackState === "guide_action"
+            ? m.guide_action
+            : feedbackState === "guide_motion"
+              ? m.guide_motion
+              : feedbackState === "hold"
+                ? m.hold
+                : feedbackState === "good"
+                  ? m.good
+                  : null;
     if (!text) return null;
 
     const bgColor =
-      feedbackState === "guide_hand"
-        ? "bg-white/10"
-        : feedbackState === "guide_action"
-          ? "bg-amber-500/20"
-          : feedbackState === "guide_motion"
-            ? "bg-blue-500/20"
-            : feedbackState === "hold"
-              ? "bg-green-500/20"
-              : "bg-green-500/30";
+      feedbackState === "guide_tilt"
+        ? "bg-purple-500/20"
+        : feedbackState === "guide_hand"
+          ? "bg-white/10"
+          : feedbackState === "guide_action"
+            ? "bg-amber-500/20"
+            : feedbackState === "guide_motion"
+              ? "bg-blue-500/20"
+              : feedbackState === "hold"
+                ? "bg-green-500/20"
+                : "bg-green-500/30";
 
     const textColor =
-      feedbackState === "guide_hand"
-        ? "text-white/70"
-        : feedbackState === "guide_action"
-          ? "text-amber-200"
-          : feedbackState === "guide_motion"
-            ? "text-blue-300"
-            : "text-green-300";
+      feedbackState === "guide_tilt"
+        ? "text-purple-300"
+        : feedbackState === "guide_hand"
+          ? "text-white/70"
+          : feedbackState === "guide_action"
+            ? "text-amber-200"
+            : feedbackState === "guide_motion"
+              ? "text-blue-300"
+              : "text-green-300";
 
     const icon =
-      feedbackState === "guide_hand"
-        ? "👆"
-        : feedbackState === "guide_action"
-          ? "✋"
-          : feedbackState === "guide_motion"
-            ? "🔄"
-            : feedbackState === "hold"
-              ? "✊"
-              : "✅";
+      feedbackState === "guide_tilt"
+        ? "↩️"
+        : feedbackState === "guide_hand"
+          ? "👆"
+          : feedbackState === "guide_action"
+            ? "✋"
+            : feedbackState === "guide_motion"
+              ? "🔄"
+              : feedbackState === "hold"
+                ? "✊"
+                : "✅";
 
     return (
       <div className={`flex items-center gap-3 rounded-xl px-4 py-2 ${bgColor}`}>
