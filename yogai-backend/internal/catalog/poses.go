@@ -979,6 +979,176 @@ var AllPoses = []Pose{
 		MetricType:        "reps",
 		RepTarget:         8,
 	},
+
+	{
+		PoseID:            "face_nose_scrunch",
+		NameEN:            "Nose Scrunch",
+		NameTR:            "Burun Kıvırma",
+		Category:          CategoryFace,
+		Difficulty:        1,
+		TargetArea:        "face",
+		InstructionsEN:    "Relax your face completely, then wrinkle your nose as if you smell something unpleasant — scrunch the nostrils and the bridge of your nose upward together. You should feel the nasalis muscle and the upper lip area activate. Hold the scrunch for 2 seconds, then release fully and let the nose relax. This is the only exercise that directly targets the nasalis muscle along the nasolabial area, helping reduce the appearance of bunny lines on the nose sides. Repeat 10 times.",
+		InstructionsTR:    "Yüzünüzü tamamen gevşetin, ardından hoş olmayan bir koku alıyormuşsunuz gibi burnunuzu kıvırın — burun deliklerini ve burun köprüsünü birlikte yukarı büzün. Nasalis kasının ve üst dudak bölgesinin aktive olduğunu hissedeceksiniz. Kıvırmayı 2 saniye tutun, ardından tamamen bırakın ve burnun gevşemesine izin verin. Bu, burun yanlarındaki tavşan çizgilerinin görünümünü azaltmaya yardımcı olan nasalis kasını doğrudan hedefleyen tek egzersizdir. 10 kez tekrarlayın.",
+		Contraindications: []string{},
+		LandmarkRules:     []LandmarkRule{},
+		IsAnalyzable:      true,
+		AnalysisKind:      "face",
+		MetricType:        "reps",
+		RepTarget:         10,
+	},
+
+	{
+		PoseID:            "face_mouth_stretch",
+		NameEN:            "Wide Mouth Stretch",
+		NameTR:            "Geniş Ağız Gerimi",
+		Category:          CategoryFace,
+		Difficulty:        1,
+		TargetArea:        "face",
+		InstructionsEN:    "Open your mouth wide and simultaneously pull the corners of your mouth downward and outward — like an exaggerated frown while stretching the jaw open. You should feel a strong stretch along the sides of your neck (platysma) and at the jaw corners. This is different from a simple jaw open: you are pulling the mouth corners down and wide, not just dropping the jaw. Hold for 2 seconds, then relax. This tones the platysma and the jaw depressor muscles. Repeat 10 times.",
+		InstructionsTR:    "Ağzınızı geniş açın ve aynı anda ağız köşelerinizi aşağıya ve dışarıya doğru çekin — çenenizi açık tutarken abartılı bir somurtma gibi. Boynunuzun yanları (platysma) ve çene köşelerinde güçlü bir gerim hissedeceksiniz. Bu basit bir ağız açmadan farklıdır: sadece çeneyi indirmiyorsunuz, ağız köşelerini aşağıya ve yana çekiyorsunuz. 2 saniye tutun, ardından gevşetin. Bu, platysma ve çene düşürücü kaslarını tonlar. 10 kez tekrarlayın.",
+		Contraindications: []string{},
+		LandmarkRules:     []LandmarkRule{},
+		IsAnalyzable:      true,
+		AnalysisKind:      "face",
+		MetricType:        "reps",
+		RepTarget:         10,
+	},
+
+	{
+		PoseID:            "face_dimple_maker",
+		NameEN:            "Dimple Maker",
+		NameTR:            "Gamze Yapıcı",
+		Category:          CategoryFace,
+		Difficulty:        1,
+		TargetArea:        "face",
+		InstructionsEN:    "Close your mouth gently and pull both cheeks inward — suck them in slightly as if sucking on a straw, creating a slight indent on each side. You should feel the buccinator (cheek) muscle working along the inside of your cheeks. Unlike cheek puffing (which pushes air outward) or smiling (which pulls corners up), this is a pure inward compression of the cheek flesh. Hold for 2 seconds, then release. This tones the buccinator and helps define the cheekbone shadow. Repeat 10 times.",
+		InstructionsTR:    "Ağzınızı hafifçe kapatın ve her iki yanağınızı içeri çekin — bir pipetten emer gibi hafifçe içeri çekerek her iki yanda hafif bir çukur oluşturun. Yanakların içinde buccinator (yanak) kasının çalıştığını hissedeceksiniz. Bu, hava fışkırtan yanak şişirmeden (dışarı iter) veya gülümsemeden (köşeleri yukarı çeker) farklıdır — bu, yanak etinin saf bir içe sıkıştırmasıdır. 2 saniye tutun, ardından bırakın. Bu, buccinatoru tonlar ve elmacık kemiği gölgesini belirginleştirmeye yardımcı olur. 10 kez tekrarlayın.",
+		Contraindications: []string{},
+		LandmarkRules:     []LandmarkRule{},
+		IsAnalyzable:      true,
+		AnalysisKind:      "face",
+		MetricType:        "reps",
+		RepTarget:         10,
+	},
+
+	{
+		PoseID:            "face_brow_outer_lift",
+		NameEN:            "Outer Brow Lift",
+		NameTR:            "Dış Kaş Kaldırma",
+		Category:          CategoryFace,
+		Difficulty:        1,
+		TargetArea:        "face",
+		InstructionsEN:    "Look straight ahead with a relaxed face. Now raise only the outer thirds of your eyebrows — the tails closest to your temples — while keeping the inner brows as still as possible. This is the opposite of the worried-brow look; you are lifting the arch and outer corner of each brow upward. You will feel the lateral frontalis muscle activating near your temples. Hold for 2 seconds, then lower. This targets the outer brow area that creates a lifted, youthful eye shape, which is different from the inner-brow raise you may already practice. Repeat 10 times.",
+		InstructionsTR:    "Gevşek bir yüzle düz bakın. Şimdi sadece kaşlarınızın dış üçte birini — şakaklara en yakın kuyruk kısmını — kaldırın; iç kaşları mümkün olduğunca sabit tutun. Bu, endişeli kaş görünümünün tersidir; her kaşın kemeri ve dış köşesini yukarı kaldırıyorsunuz. Şakaklarınızın yakınında lateral frontalis kasının aktive olduğunu hissedeceksiniz. 2 saniye tutun, ardından indirin. Bu, kaldırılmış, genç bir göz şekli oluşturan dış kaş bölgesini hedefler; bu, halihazırda uyguluyor olabileceğiniz iç kaş kaldırmadan farklıdır. 10 kez tekrarlayın.",
+		Contraindications: []string{},
+		LandmarkRules:     []LandmarkRule{},
+		IsAnalyzable:      true,
+		AnalysisKind:      "face",
+		MetricType:        "reps",
+		RepTarget:         10,
+	},
+
+	{
+		PoseID:            "face_mouth_shift",
+		NameEN:            "Mouth Side Shift",
+		NameTR:            "Ağız Yana Kaydırma",
+		Category:          CategoryFace,
+		Difficulty:        2,
+		TargetArea:        "face",
+		InstructionsEN:    "Keep your jaw relaxed and teeth lightly together. Slide your closed mouth and lips as far to the right as you can — feel the left side of your mouth stretching — hold 1 second, then slide all the way to the left — feel the right side stretching — hold 1 second. One right + one left movement counts as one repetition. This lateral mouth shift exercises the orbicularis oris and buccinator bilaterally, unlike jaw slides which move the lower jaw bone. Focus on moving the soft tissue of your lips, not your chin. Repeat 8 times.",
+		InstructionsTR:    "Çenenizi gevşetin ve dişlerinizi hafifçe bir arada tutun. Kapalı ağzınızı ve dudaklarınızı olabildiğince sağa kaydırın — sol tarafın gerildiğini hissedin — 1 saniye tutun, ardından sola kaydırın — sağ tarafın gerildiğini hissedin — 1 saniye tutun. Bir sağ + bir sol hareket bir tekrar sayılır. Bu yanal ağız kayması, alt çene kemiğini hareket ettiren çene kaymalarından farklı olarak orbicularis oris'i ve buccinator'ı her iki yönde de çalıştırır. Çenenizi değil, dudaklarınızın yumuşak dokusunu hareket ettirmeye odaklanın. 8 kez tekrarlayın.",
+		Contraindications: []string{},
+		LandmarkRules:     []LandmarkRule{},
+		IsAnalyzable:      true,
+		AnalysisKind:      "face",
+		MetricType:        "reps",
+		RepTarget:         8,
+	},
+
+	{
+		PoseID:            "face_hand_under_eye_tap",
+		NameEN:            "Under-Eye Gentle Tap",
+		NameTR:            "Göz Altı Hafif Vurma",
+		Category:          CategoryFace,
+		Difficulty:        1,
+		TargetArea:        "face",
+		InstructionsEN:    "Close your eyes softly. Using the ring finger of either hand — the weakest finger, which applies the safest pressure — place it gently under your eye at the inner corner. Make small, light circular tapping motions moving outward from the nose corner toward the temple, then back again. Perform slow, gentle circles for one full rotation to count a rep. This stimulates lymphatic drainage under the eye, reduces puffiness, and improves circulation in the thin skin of the periorbital area. Never press hard under the eye. Use either hand. Repeat 5 times.",
+		InstructionsTR:    "Gözlerinizi hafifçe kapatın. Her iki elinizden birinin yüzük parmağını kullanın — en zayıf parmak, en güvenli basıncı uygular — ve gözünüzün altına iç köşeden nazikçe koyun. Burun köşesinden şakağa doğru ve geri hareket eden küçük, hafif dairesel vurma hareketleri yapın. Bir tekrar saymak için yavaş, nazik daireler yapın. Bu, göz altında lenfatik drenajı uyarır, şişliği azaltır ve periorbital bölgenin ince derisinde dolaşımı iyileştirir. Göz altına asla sert basmayın. Her iki elinizi kullanabilirsiniz. 5 kez tekrarlayın.",
+		Contraindications: []string{},
+		LandmarkRules:     []LandmarkRule{},
+		IsAnalyzable:      true,
+		AnalysisKind:      "face_hand",
+		MetricType:        "reps",
+		RepTarget:         5,
+	},
+
+	{
+		PoseID:            "face_hand_nasolabial_smooth",
+		NameEN:            "Nasolabial Fold Smooth",
+		NameTR:            "Nasolabial Kıvrım Düzleştirme",
+		Category:          CategoryFace,
+		Difficulty:        1,
+		TargetArea:        "face",
+		InstructionsEN:    "Place the fingertips of two or three fingers at the side of your nose where the nasolabial fold (smile line) begins. Apply gentle but firm upward-and-outward pressure and sweep outward along the fold toward your cheekbone. The motion goes from beside the nose to the outer cheek — a diagonal outward sweep. This directly targets the nasolabial fold (smile lines from nose to mouth corners), an area no other exercise in this program addresses. Repeat on both sides, or alternate. Repeat 5 times per side.",
+		InstructionsTR:    "İki veya üç parmağınızın uçlarını nasolabial kıvrımın (gülümseme çizgisi) başladığı burun kenarına yerleştirin. Hafif ama güçlü yukarı ve dışa doğru baskı uygulayarak kıvrım boyunca elmacık kemiğinize doğru dışarı kaydırın. Hareket burnun yanından dış yanağa — diyagonal dışa doğru bir kayma. Bu, programdaki başka hiçbir egzersizin hedeflememediği nasolabial kıvrımı (burundan ağız köşelerine uzanan gülümseme çizgileri) doğrudan hedefler. Her iki tarafta tekrarlayın. Her taraf için 5 kez tekrarlayın.",
+		Contraindications: []string{},
+		LandmarkRules:     []LandmarkRule{},
+		IsAnalyzable:      true,
+		AnalysisKind:      "face_hand",
+		MetricType:        "reps",
+		RepTarget:         5,
+	},
+
+	{
+		PoseID:            "face_hand_forehead_tap",
+		NameEN:            "Forehead Percussion Tap",
+		NameTR:            "Alın Perküsyon Vurma",
+		Category:          CategoryFace,
+		Difficulty:        1,
+		TargetArea:        "face",
+		InstructionsEN:    "With both hands or one hand, use your fingertips to perform light, rhythmic circular tapping motions across your forehead. Move in small circles from the center of your forehead outward toward each temple. Unlike the forehead smoothing sweep which glides across the skin, this is a gentle percussion technique — quick taps in a circular pattern — designed to stimulate blood flow and the frontalis muscle from above. One full circular pass counts as one rep. Keep the touch light and springy, never hard. Repeat 5 times.",
+		InstructionsTR:    "Her iki elinizi veya bir elinizi kullanarak parmak uçlarınızla alnınız üzerinde hafif, ritmik dairesel vurma hareketleri yapın. Alnınızın merkezinden her şakağa doğru küçük daireler yaparak ilerleyin. Derinin üzerinde kayan alın düzleştirme süpürmesinden farklı olarak, bu nazik bir perküsyon tekniğidir — dairesel bir desende hızlı vurmalar — yukarıdan kan akışını ve frontalis kasını uyarmak için tasarlanmıştır. Bir tam dairesel geçiş bir tekrar sayılır. Dokunuşu hafif ve elastik tutun, asla sert olmayın. 5 kez tekrarlayın.",
+		Contraindications: []string{},
+		LandmarkRules:     []LandmarkRule{},
+		IsAnalyzable:      true,
+		AnalysisKind:      "face_hand",
+		MetricType:        "reps",
+		RepTarget:         5,
+	},
+
+	{
+		PoseID:            "face_hand_chin_circular",
+		NameEN:            "Chin Circular Massage",
+		NameTR:            "Çene Dairesel Masajı",
+		Category:          CategoryFace,
+		Difficulty:        1,
+		TargetArea:        "face",
+		InstructionsEN:    "Place your knuckles or flat fingers under your chin at the center. Apply firm upward pressure and make slow, deliberate circular massage movements — rotating the pressure around the chin area in full circles. Unlike the jawline sculpt (which sweeps from chin to ear) or the chin lift (which holds still), this circular motion directly targets the submental area under the chin to reduce double chin appearance and stimulate the digastric muscle. One full circle counts as one rep. Repeat 5 times.",
+		InstructionsTR:    "Eklemlerinizi veya düz parmaklarınızı çenenizin altına merkeze koyun. Güçlü yukarı baskı uygulayın ve yavaş, kasıtlı dairesel masaj hareketleri yapın — baskıyı çene bölgesinin etrafında tam daireler yaparak döndürün. Çene şekillendirmeden (çenden kulağa süpürür) veya çene kaldırmadan (sabit tutar) farklı olarak, bu dairesel hareket çift çene görünümünü azaltmak ve digastrik kası uyarmak için doğrudan çenin altındaki submental bölgeyi hedefler. Bir tam daire bir tekrar sayılır. 5 kez tekrarlayın.",
+		Contraindications: []string{},
+		LandmarkRules:     []LandmarkRule{},
+		IsAnalyzable:      true,
+		AnalysisKind:      "face_hand",
+		MetricType:        "reps",
+		RepTarget:         5,
+	},
+
+	{
+		PoseID:            "face_hand_ear_to_shoulder",
+		NameEN:            "Ear-to-Shoulder Neck Release",
+		NameTR:            "Kulaktan Omuza Boyun Gerimi",
+		Category:          CategoryFace,
+		Difficulty:        2,
+		TargetArea:        "face",
+		InstructionsEN:    "Place one hand on the side of your neck — right hand on right side or left hand on left side. Apply gentle downward pressure with your palm. Now slowly tilt your head to the opposite side, bringing your ear toward your shoulder while your hand maintains light resistance. You will feel a deep stretch along the sternocleidomastoid and scalene muscles of your neck. Hold for 3 seconds, then return to center. Tilt your head right first, then repeat on the left side. The system will guide you with a head-tilt indicator. Repeat 5 times per side.",
+		InstructionsTR:    "Bir elinizi boynunuzun yanına koyun — sağ eli sağ tarafa veya sol eli sol tarafa. Avucunuzla hafif aşağı baskı uygulayın. Şimdi eliniz hafif direnç uygularken başınızı yavaşça karşı tarafa eğin, kulağınızı omzunuza doğru yaklaştırın. Boynunuzun sternocleidomastoid ve scalene kaslarında derin bir gerim hissedeceksiniz. 3 saniye tutun, ardından merkeze dönün. Önce başınızı sağa eğin, ardından sol tarafta tekrarlayın. Sistem sizi baş eğme göstergesiyle yönlendirecektir. Her taraf için 5 kez tekrarlayın.",
+		Contraindications: []string{"neck_injury"},
+		LandmarkRules:     []LandmarkRule{},
+		IsAnalyzable:      true,
+		AnalysisKind:      "face_hand",
+		MetricType:        "reps",
+		RepTarget:         5,
+	},
 }
 
 var poseIndex map[string]*Pose
@@ -1093,6 +1263,67 @@ func GetPosesByMaxDifficulty(poseIDs []string, maxDifficulty int) []string {
 	for _, id := range poseIDs {
 		pose, ok := GetPoseByID(id)
 		if ok && pose.Difficulty <= maxDifficulty {
+			filtered = append(filtered, id)
+		}
+	}
+	return filtered
+}
+
+func GetFaceYogaPoseIDs() []string {
+	var ids []string
+	for _, p := range AllPoses {
+		if p.AnalysisKind == "face" || p.AnalysisKind == "face_hand" {
+			ids = append(ids, p.PoseID)
+		}
+	}
+	return ids
+}
+
+func GetBodyYogaPoseIDs() []string {
+	var ids []string
+	for _, p := range AllPoses {
+		if p.AnalysisKind == "body" {
+			ids = append(ids, p.PoseID)
+		}
+	}
+	return ids
+}
+
+func IsFaceYogaPose(poseID string) bool {
+	p, ok := poseIndex[poseID]
+	if !ok {
+		return false
+	}
+	return p.AnalysisKind == "face" || p.AnalysisKind == "face_hand"
+}
+
+func FilterByAnalysisKind(poseIDs []string, kind string) []string {
+	var filtered []string
+	for _, id := range poseIDs {
+		pose, ok := GetPoseByID(id)
+		if ok && pose.AnalysisKind == kind {
+			filtered = append(filtered, id)
+		}
+	}
+	return filtered
+}
+
+func FilterToFaceYoga(poseIDs []string) []string {
+	var filtered []string
+	for _, id := range poseIDs {
+		pose, ok := GetPoseByID(id)
+		if ok && (pose.AnalysisKind == "face" || pose.AnalysisKind == "face_hand") {
+			filtered = append(filtered, id)
+		}
+	}
+	return filtered
+}
+
+func FilterToBodyYoga(poseIDs []string) []string {
+	var filtered []string
+	for _, id := range poseIDs {
+		pose, ok := GetPoseByID(id)
+		if ok && pose.AnalysisKind == "body" {
 			filtered = append(filtered, id)
 		}
 	}

@@ -102,6 +102,31 @@ const FEEDBACK_MESSAGES: Record<
       hold: "Hold the kiss — stretch that throat!",
       good: "Beautiful neck stretch!",
     },
+    feedbackNoseScrunch: {
+      guide: "Scrunch your nose as if smelling something unpleasant",
+      hold: "Hold the scrunch!",
+      good: "Nasalis activated!",
+    },
+    feedbackMouthStretch: {
+      guide: "Open wide and pull mouth corners down and outward",
+      hold: "Hold the stretch — feel the neck!",
+      good: "Great platysma stretch!",
+    },
+    feedbackDimpleMaker: {
+      guide: "Suck your cheeks inward toward your teeth",
+      hold: "Hold the hollow — buccinator working!",
+      good: "Cheekbones defined!",
+    },
+    feedbackBrowOuterLift: {
+      guide: "Lift only the outer tails of your eyebrows toward your temples",
+      hold: "Hold the outer lift!",
+      good: "Lateral frontalis activated!",
+    },
+    feedbackMouthShift: {
+      guide: "Slide your closed lips as far as you can to each side",
+      hold: "Hold the stretch!",
+      good: "Great side shift!",
+    },
   },
   tr: {
     feedbackJawOpen: {
@@ -188,6 +213,31 @@ const FEEDBACK_MESSAGES: Record<
       guide: "Çenenizi tavana doğru kaldırın, ardından öpücük gönderin",
       hold: "Öpücüğü tutun — boğazı gerin!",
       good: "Harika boyun gerimi!",
+    },
+    feedbackNoseScrunch: {
+      guide: "Hoş olmayan bir koku alıyormuşsunuz gibi burnunuzu kıvırın",
+      hold: "Kıvırmayı tutun!",
+      good: "Nasalis aktive oldu!",
+    },
+    feedbackMouthStretch: {
+      guide: "Ağzı geniş açın ve köşeleri aşağıya ve dışarıya çekin",
+      hold: "Gerimi tutun — boynu hissedin!",
+      good: "Harika platysma gerimi!",
+    },
+    feedbackDimpleMaker: {
+      guide: "Yanakları dişlere doğru içeri çekin",
+      hold: "Oyuğu tutun — buccinator çalışıyor!",
+      good: "Elmacık kemikleri belirginleşiyor!",
+    },
+    feedbackBrowOuterLift: {
+      guide: "Sadece kaşların dış kuyruk kısmını şakaklara doğru kaldırın",
+      hold: "Dış kaldırmayı tutun!",
+      good: "Lateral frontalis aktive oldu!",
+    },
+    feedbackMouthShift: {
+      guide: "Kapalı dudaklarınızı her iki yana olabildiğince kaydırın",
+      hold: "Gerilmeyi tutun!",
+      good: "Güzel yana kayma!",
     },
   },
 };
@@ -306,6 +356,42 @@ const HAND_FEEDBACK_MESSAGES: Record<
       hold: "Keep sweeping...",
       good: "Nice sculpt!",
     },
+    feedbackUnderEyeTap: {
+      guide_hand: "Place your ring finger gently under your eye at the inner corner",
+      guide_action: "Use the lightest touch — ring finger only",
+      guide_motion: "Make small circular tapping motions outward toward the temple",
+      hold: "Continue tapping in circles...",
+      good: "Nice depuffing circle!",
+    },
+    feedbackNasolabialSmooth: {
+      guide_hand: "Place fingertips beside your nose at the smile line",
+      guide_action: "Apply gentle upward pressure",
+      guide_motion: "Sweep outward and up toward your cheekbone",
+      hold: "Keep sweeping outward...",
+      good: "Smile line smoothed!",
+    },
+    feedbackForeheadTap: {
+      guide_hand: "Place fingertips at the center of your forehead",
+      guide_action: "Use a light springy touch",
+      guide_motion: "Tap in small circles from center toward temples",
+      hold: "Keep tapping in circles...",
+      good: "Nice circulation boost!",
+    },
+    feedbackChinCircular: {
+      guide_hand: "Place knuckles or flat fingers under your chin at center",
+      guide_action: "Apply firm upward pressure",
+      guide_motion: "Rotate in a full circle under the chin",
+      hold: "Continue the circular massage...",
+      good: "Great submental massage!",
+    },
+    feedbackEarToShoulder: {
+      guide_tilt: "Tilt your head toward your shoulder for the neck stretch",
+      guide_hand: "Place your hand on the side of your neck",
+      guide_action: "Apply gentle downward pressure with your palm",
+      guide_motion: "Hold while feeling the neck stretch",
+      hold: "Hold the stretch...",
+      good: "Deep neck release!",
+    },
   },
   tr: {
     feedbackCheekMassage: {
@@ -406,6 +492,42 @@ const HAND_FEEDBACK_MESSAGES: Record<
       guide_motion: "Şimdi kulağınıza doğru jawline boyunca kaydırın",
       hold: "Kaydırmaya devam edin...",
       good: "Güzel şekillendirme!",
+    },
+    feedbackUnderEyeTap: {
+      guide_hand: "Yüzük parmağınızı nazikçe göz altına iç köşeye koyun",
+      guide_action: "En hafif dokunuşu kullanın — sadece yüzük parmağı",
+      guide_motion: "Şakağa doğru dışarı küçük dairesel vurma hareketleri yapın",
+      hold: "Dairesel vurmalara devam edin...",
+      good: "Güzel şişlik giderici daire!",
+    },
+    feedbackNasolabialSmooth: {
+      guide_hand: "Parmak uçlarınızı gülümseme çizgisinde burnun yanına koyun",
+      guide_action: "Hafif yukarı baskı uygulayın",
+      guide_motion: "Elmacık kemiğine doğru dışarı ve yukarı kaydırın",
+      hold: "Dışarı kaydırmaya devam edin...",
+      good: "Gülümseme çizgisi düzleşti!",
+    },
+    feedbackForeheadTap: {
+      guide_hand: "Parmak uçlarınızı alnınızın merkezine koyun",
+      guide_action: "Hafif ve elastik bir dokunuş kullanın",
+      guide_motion: "Merkezden şakaklara doğru küçük daireler yaparak vurun",
+      hold: "Dairesel vurmaya devam edin...",
+      good: "Harika kan dolaşımı!",
+    },
+    feedbackChinCircular: {
+      guide_hand: "Eklemlerinizi veya düz parmaklarınızı çene altına merkeze koyun",
+      guide_action: "Güçlü yukarı baskı uygulayın",
+      guide_motion: "Çene altında tam daire yapın",
+      hold: "Dairesel masaja devam edin...",
+      good: "Harika submental masaj!",
+    },
+    feedbackEarToShoulder: {
+      guide_tilt: "Boyun gerimi için başınızı omzunuza doğru eğin",
+      guide_hand: "Elinizi boynunuzun yanına koyun",
+      guide_action: "Avucunuzla hafif aşağı baskı uygulayın",
+      guide_motion: "Boyun gerimini hissederek tutun",
+      hold: "Germeyi tutun...",
+      good: "Derin boyun gevşemesi!",
     },
   },
 };

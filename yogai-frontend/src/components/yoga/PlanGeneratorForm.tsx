@@ -6,13 +6,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useCreatePlan } from "@/hooks/usePlans";
 import { useProfile } from "@/hooks/useProfile";
 import { useApp } from "@/components/layout/AppProvider";
-import { focusAreaKeys } from "@/lib/i18n";
+import { focusAreaKeys, faceFocusAreaKeys } from "@/lib/i18n";
 import type { GeneratePlanRequest } from "@/types/yoga";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 
-const durations = [10, 15, 20, 25, 30, 35, 45, 60];
+const bodyDurations = [10, 15, 20, 25, 30, 35, 45, 60];
+const faceDurations = [5, 10, 15, 20];
 
 function formatPlanErrorMessage(
   details: Record<string, unknown> | undefined,
@@ -45,12 +46,13 @@ export default function PlanGeneratorForm({
   presetFocus,
 }: PlanGeneratorFormProps) {
   const [step, setStep] = useState(0);
+  const [planType, setPlanType] = useState<"body" | "face">("body");
   const router = useRouter();
   const createPlan = useCreatePlan();
   const { data: profile } = useProfile();
   const { t } = useApp();
   const { setValue, watch, getValues } = useForm<GeneratePlanRequest>({
-    defaultValues: { level: "", duration: 30, focus_area: "", preferences: "" },
+    defaultValues: { level: "", duration: 15, focus_area: "", preferences: "" },
   });
 
   useEffect(() => {
@@ -68,8 +70,11 @@ export default function PlanGeneratorForm({
     if (presetDuration != null && Number.isFinite(presetDuration) && presetDuration > 0) {
       setValue("duration", presetDuration);
     }
-    if (presetFocus && focusAreaKeys.some((a) => a.value === presetFocus)) {
+    if (presetFocus && [...focusAreaKeys, ...faceFocusAreaKeys].some((a) => a.value === presetFocus)) {
       setValue("focus_area", presetFocus);
+      if (faceFocusAreaKeys.some((a) => a.value === presetFocus)) {
+        setPlanType("face");
+      }
     }
   }, [presetLevel, presetDuration, presetFocus, setValue]);
 
@@ -78,6 +83,7 @@ export default function PlanGeneratorForm({
   const selectedFocus = watch("focus_area");
 
   const steps = [
+    t.chooseDomain,
     t.chooseLevel.split(" ")[0],
     t.sessionDuration.split(" ")[0],
     t.focusArea.split(" ")[0],
@@ -89,15 +95,30 @@ export default function PlanGeneratorForm({
     { value: "advanced", label: t.advanced, desc: t.advancedDesc },
   ];
 
+  const domains: { value: "body" | "face"; label: string; desc: string; emoji: string }[] = [
+    { value: "body", label: t.bodyYoga, desc: t.bodyYogaDesc, emoji: "🧘" },
+    { value: "face", label: t.faceYoga, desc: t.faceYogaDesc, emoji: "✨" },
+  ];
+
+  const currentFocusKeys = planType === "face" ? faceFocusAreaKeys : focusAreaKeys;
+  const currentDurations = planType === "face" ? faceDurations : bodyDurations;
+
+  const handleDomainSelect = (d: "body" | "face") => {
+    setPlanType(d);
+    setValue("focus_area", "");
+    setValue("duration", d === "face" ? 10 : 30);
+  };
+
   const handleGenerate = async () => {
     if (createPlan.isPending) return;
     try {
       const values = getValues();
       await createPlan.mutateAsync({
         ...values,
+        plan_type: planType,
         injuries: profile?.injuries?.length ? [...profile.injuries] : undefined,
       });
-      toast.success(t.planCreated);
+      toast.success(planType === "face" ? t.facePlanCreated : t.planCreated);
       router.push("/dashboard");
     } catch (e) {
       const details = (e as Error & { apiDetails?: Record<string, unknown> }).apiDetails;
@@ -106,8 +127,9 @@ export default function PlanGeneratorForm({
   };
 
   const canProceed = () => {
-    if (step === 0) return !!selectedLevel;
-    if (step === 1) return !!selectedDuration;
+    if (step === 0) return true;
+    if (step === 1) return !!selectedLevel;
+    if (step === 2) return !!selectedDuration;
     return true;
   };
 
@@ -143,7 +165,39 @@ export default function PlanGeneratorForm({
         <AnimatePresence mode="wait">
           {step === 0 && (
             <motion.div
-              key="step-0"
+              key="step-domain"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-3"
+            >
+              <h2 className="text-lg font-semibold text-th-text">{t.chooseDomain}</h2>
+              <div className="mt-4 space-y-3">
+                {domains.map((d) => (
+                  <button
+                    key={d.value}
+                    type="button"
+                    onClick={() => handleDomainSelect(d.value)}
+                    className={`flex w-full cursor-pointer items-start gap-4 rounded-xl border-2 p-4 text-left transition-all ${
+                      planType === d.value
+                        ? "border-sage-400 bg-sage-400/5 dark:bg-sage-400/10"
+                        : "border-th-border hover:border-th-muted"
+                    }`}
+                  >
+                    <span className="text-3xl">{d.emoji}</span>
+                    <div>
+                      <p className="text-sm font-semibold text-th-text">{d.label}</p>
+                      <p className="text-xs text-th-text-mut">{d.desc}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {step === 1 && (
+            <motion.div
+              key="step-1"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
@@ -184,9 +238,9 @@ export default function PlanGeneratorForm({
             </motion.div>
           )}
 
-          {step === 1 && (
+          {step === 2 && (
             <motion.div
-              key="step-1"
+              key="step-2"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
@@ -194,8 +248,11 @@ export default function PlanGeneratorForm({
             >
               <h2 className="text-lg font-semibold text-th-text">{t.sessionDuration}</h2>
               <p className="text-sm text-th-text-mut">{t.durationDesc}</p>
-              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {durations.map((d) => (
+              {planType === "face" && (
+                <p className="text-xs text-purple-700 dark:text-purple-300">{t.faceSessionDuration}</p>
+              )}
+              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {currentDurations.map((d) => (
                   <button
                     key={d}
                     type="button"
@@ -214,9 +271,9 @@ export default function PlanGeneratorForm({
             </motion.div>
           )}
 
-          {step === 2 && (
+          {step === 3 && (
             <motion.div
-              key="step-2"
+              key="step-3"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
@@ -225,7 +282,7 @@ export default function PlanGeneratorForm({
               <h2 className="text-lg font-semibold text-th-text">{t.focusArea}</h2>
               <p className="text-sm text-th-text-mut">{t.focusAreaDesc}</p>
               <div className="mt-4 flex flex-wrap gap-2">
-                {focusAreaKeys.map((area) => (
+                {currentFocusKeys.map((area) => (
                   <button
                     key={area.value}
                     type="button"

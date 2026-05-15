@@ -24,7 +24,11 @@ export interface FaceHandRepConfig {
     | "lips"
     | "between_brows"
     | "neck_left"
-    | "neck_right";
+    | "neck_right"
+    | "under_eye_left"
+    | "under_eye_right"
+    | "nasolabial_left"
+    | "nasolabial_right";
   requiredBlendshape?: string;
   blendshapeThreshold?: number;
   proximityThreshold: number;
@@ -72,6 +76,10 @@ const FACE_REGION_LANDMARKS: Record<string, number[]> = {
   between_brows: [9, 168, 8],
   neck_left: [234, 177, 147],
   neck_right: [454, 401, 376],
+  under_eye_left: [133, 173, 155],
+  under_eye_right: [362, 398, 384],
+  nasolabial_left: [37, 72, 38],
+  nasolabial_right: [267, 302, 268],
 };
 
 const HAND_FINGERTIP_INDICES = [4, 8, 12, 16, 20];
@@ -402,6 +410,77 @@ export const FACE_HAND_EXERCISE_CONFIGS: Record<string, FaceHandRepConfig> = {
     stabilizeMs: 500,
     cooldownMs: 800,
     headTiltRequired: "any",
+    headTiltMinDeviation: 0.08,
+  },
+  face_hand_under_eye_tap: {
+    poseId: "face_hand_under_eye_tap",
+    handTarget: "under_eye_left",
+    proximityThreshold: 0.10,
+    holdDurationMs: 2500,
+    repTarget: 5,
+    feedbackKey: "feedbackUnderEyeTap",
+    barLabelKey: "underEyeTapLevel",
+    motionType: "circular",
+    motionAngleTarget: 270,
+    acceptBothHands: true,
+    stabilizeMs: 300,
+    cooldownMs: 800,
+  },
+  face_hand_nasolabial_smooth: {
+    poseId: "face_hand_nasolabial_smooth",
+    handTarget: "nasolabial_right",
+    proximityThreshold: 0.12,
+    holdDurationMs: 2000,
+    repTarget: 5,
+    feedbackKey: "feedbackNasolabialSmooth",
+    barLabelKey: "nasolabialSmoothLevel",
+    motionType: "sweep",
+    sweepDistanceRatio: 0.40,
+    acceptBothHands: true,
+    stabilizeMs: 400,
+    cooldownMs: 800,
+  },
+  face_hand_forehead_tap: {
+    poseId: "face_hand_forehead_tap",
+    handTarget: "forehead",
+    proximityThreshold: 0.13,
+    holdDurationMs: 2000,
+    repTarget: 5,
+    feedbackKey: "feedbackForeheadTap",
+    barLabelKey: "foreheadTapLevel",
+    motionType: "circular",
+    motionAngleTarget: 270,
+    acceptBothHands: true,
+    stabilizeMs: 300,
+    cooldownMs: 800,
+  },
+  face_hand_chin_circular: {
+    poseId: "face_hand_chin_circular",
+    handTarget: "chin",
+    proximityThreshold: 0.10,
+    holdDurationMs: 2500,
+    repTarget: 5,
+    feedbackKey: "feedbackChinCircular",
+    barLabelKey: "chinCircularLevel",
+    motionType: "circular",
+    motionAngleTarget: 330,
+    acceptBothHands: true,
+    stabilizeMs: 300,
+    cooldownMs: 800,
+  },
+  face_hand_ear_to_shoulder: {
+    poseId: "face_hand_ear_to_shoulder",
+    handTarget: "neck_right",
+    proximityThreshold: 0.12,
+    holdDurationMs: 3000,
+    repTarget: 5,
+    feedbackKey: "feedbackEarToShoulder",
+    barLabelKey: "earToShoulderLevel",
+    motionType: "hold",
+    acceptBothHands: true,
+    stabilizeMs: 400,
+    cooldownMs: 600,
+    headTiltRequired: "right",
     headTiltMinDeviation: 0.08,
   },
 };

@@ -1,4 +1,4 @@
-type RepState = "idle" | "open" | "closing";
+type RepState = "idle" | "open" | "closing" | "alt_first_done";
 
 export type FaceFeedbackState = "guide" | "hold" | "good" | "complete";
 
@@ -6,6 +6,7 @@ type Landmark = { x: number; y: number; z: number };
 
 interface FaceRepConfig {
   blendshapeNames: string[];
+  blendshapeNamesB?: string[];
   aggregation: "max" | "average";
   enterThreshold: number;
   exitThreshold: number;
@@ -14,6 +15,7 @@ interface FaceRepConfig {
   barLabelKey: string;
   headPitchCheck?: "up";
   headPitchMinScore?: number;
+  alternating?: boolean;
 }
 
 interface FaceRepResult {
@@ -209,9 +211,65 @@ const FACE_EXERCISE_CONFIGS: Record<string, FaceRepConfig> = {
     headPitchCheck: "up",
     headPitchMinScore: 0.35,
   },
+  face_nose_scrunch: {
+    blendshapeNames: ["noseSneerLeft", "noseSneerRight"],
+    aggregation: "average",
+    enterThreshold: 0.25,
+    exitThreshold: 0.06,
+    repTarget: 10,
+    feedbackKey: "feedbackNoseScrunch",
+    barLabelKey: "noseScrunchLevel",
+  },
+  face_mouth_stretch: {
+    blendshapeNames: ["mouthStretchLeft", "mouthStretchRight"],
+    aggregation: "average",
+    enterThreshold: 0.3,
+    exitThreshold: 0.07,
+    repTarget: 10,
+    feedbackKey: "feedbackMouthStretch",
+    barLabelKey: "mouthStretchLevel",
+  },
+  face_dimple_maker: {
+    blendshapeNames: ["mouthDimpleLeft", "mouthDimpleRight"],
+    aggregation: "average",
+    enterThreshold: 0.2,
+    exitThreshold: 0.05,
+    repTarget: 10,
+    feedbackKey: "feedbackDimpleMaker",
+    barLabelKey: "dimpleMakerLevel",
+  },
+  face_brow_outer_lift: {
+    blendshapeNames: ["browOuterUpLeft", "browOuterUpRight"],
+    aggregation: "average",
+    enterThreshold: 0.3,
+    exitThreshold: 0.07,
+    repTarget: 10,
+    feedbackKey: "feedbackBrowOuterLift",
+    barLabelKey: "browOuterLiftLevel",
+  },
+  face_mouth_shift: {
+    blendshapeNames: ["mouthLeft"],
+    blendshapeNamesB: ["mouthRight"],
+    aggregation: "max",
+    enterThreshold: 0.3,
+    exitThreshold: 0.07,
+    repTarget: 8,
+    feedbackKey: "feedbackMouthShift",
+    barLabelKey: "mouthShiftLevel",
+    alternating: true,
+  },
 };
 
 const MIN_REP_INTERVAL_MS = 400;
+
+function readBlendshapeValueB(blendshapes: Map<string, number>, config: FaceRepConfig): number {
+  const names = config.blendshapeNamesB;
+  if (!names || names.length === 0) return 0;
+  if (names.length === 1) return blendshapes.get(names[0]) ?? 0;
+  const values = names.map((n) => blendshapes.get(n) ?? 0);
+  if (config.aggregation === "max") return Math.max(...values);
+  return values.reduce((s, v) => s + v, 0) / values.length;
+}
 
 function createFaceRepCounter(poseId: string, customTarget?: number) {
   const config = FACE_EXERCISE_CONFIGS[poseId];
@@ -223,6 +281,10 @@ function createFaceRepCounter(poseId: string, customTarget?: number) {
   let smoothedValue = 0;
   let lastRepTime = 0;
   const smoothAlpha = 0.85;
+
+  let altPhase: "A" | "B" = "A";
+  let altSmoothedA = 0;
+  let altSmoothedB = 0;
 
   function update(blendshapes: Map<string, number>, faceLandmarks?: Landmark[]): FaceRepResult {
     if (reps >= target) {
@@ -239,11 +301,69 @@ function createFaceRepCounter(poseId: string, customTarget?: number) {
       };
     }
 
+    if (config.alternating) {
+      const rawA = readBlendshapeValue(blendshapes, config);
+      const rawB = readBlendshapeValueB(blendshapes, config);
+      altSmoothedA = altSmoothedA * (1 - smoothAlpha) + rawA * smoothAlpha;
+      altSmoothedB = altSmoothedB * (1 - smoothAlpha) + rawB * smoothAlpha;
+
+      const activeSmoothed = altPhase === "A" ? altSmoothedA : altSmoothedB;
+      const displayValue = altPhase === "A" ? rawA : rawB;
+      let feedbackState: FaceFeedbackState = "guide";
+
+      if (state === "idle") {
+        if (activeSmoothed >= config.enterThreshold) {
+          state = "open";
+          feedbackState = "hold";
+        } else {
+          feedbackState = "guide";
+        }
+      } else if (state === "open") {
+        if (activeSmoothed < config.exitThreshold) {
+          if (altPhase === "A") {
+            altPhase = "B";
+            state = "alt_first_done";
+            feedbackState = "good";
+          } else {
+            const now = Date.now();
+            if (now - lastRepTime > MIN_REP_INTERVAL_MS) {
+              reps++;
+              lastRepTime = now;
+            }
+            altPhase = "A";
+            state = reps >= target ? "idle" : "closing";
+            feedbackState = reps >= target ? "complete" : "good";
+          }
+        } else {
+          feedbackState = "hold";
+        }
+      } else if (state === "alt_first_done") {
+        if (altSmoothedB >= config.enterThreshold) {
+          state = "open";
+          feedbackState = "hold";
+        } else {
+          feedbackState = "guide";
+        }
+      } else if (state === "closing") {
+        state = "idle";
+        feedbackState = "guide";
+      }
+
+      return {
+        reps,
+        target,
+        currentValue: displayValue,
+        state,
+        isComplete: reps >= target,
+        progress: Math.min(reps / target, 1),
+        feedbackKey: config.feedbackKey,
+        feedbackState,
+        barLabelKey: config.barLabelKey,
+      };
+    }
+
     let raw = readBlendshapeValue(blendshapes, config);
 
-    // If this exercise requires a head-pitch condition, zero the blendshape signal
-    // and reset state when the pose is not met. This forces the user to maintain
-    // the correct head angle throughout the movement.
     if (config.headPitchCheck === "up" && faceLandmarks && faceLandmarks.length > 0) {
       const score = detectChinUp(faceLandmarks);
       const minScore = config.headPitchMinScore ?? 0.35;
@@ -287,6 +407,11 @@ function createFaceRepCounter(poseId: string, customTarget?: number) {
         state = "idle";
         feedbackState = "guide";
         break;
+
+      case "alt_first_done":
+        state = "idle";
+        feedbackState = "guide";
+        break;
     }
 
     return {
@@ -307,6 +432,9 @@ function createFaceRepCounter(poseId: string, customTarget?: number) {
     reps = 0;
     smoothedValue = 0;
     lastRepTime = 0;
+    altPhase = "A";
+    altSmoothedA = 0;
+    altSmoothedB = 0;
   }
 
   return { update, reset, getConfig: () => config };

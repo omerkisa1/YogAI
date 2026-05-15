@@ -56,6 +56,10 @@ function PoseGridCard({ pose, locale, t }: { pose: Pose; locale: string; t: Tran
   );
 }
 
+function analysisDomain(p: Pose): "body" | "face" {
+  return p.analysis_kind === "face" || p.analysis_kind === "face_hand" ? "face" : "body";
+}
+
 export default function ExplorePage() {
   const { t, locale } = useApp();
   const { data: poses = [], isLoading, error, refetch, isError } = useAllPoses();
@@ -63,6 +67,7 @@ export default function ExplorePage() {
   const [cat, setCat] = useState<string>("");
   const [diff, setDiff] = useState<number | "">("");
   const [area, setArea] = useState<string>("");
+  const [practiceDomain, setPracticeDomain] = useState<"" | "body" | "face">("");
 
   const categories = useMemo(() => {
     const s = new Set<string>();
@@ -86,12 +91,13 @@ export default function ExplorePage() {
         const tr = p.name_tr.toLowerCase();
         if (!en.includes(ql) && !tr.includes(ql)) return false;
       }
+      if (practiceDomain && analysisDomain(p) !== practiceDomain) return false;
       if (cat && p.category.toLowerCase() !== cat.toLowerCase()) return false;
       if (diff !== "" && p.difficulty !== diff) return false;
       if (area && p.target_area !== area) return false;
       return true;
     });
-  }, [poses, q, cat, diff, area]);
+  }, [poses, q, practiceDomain, cat, diff, area]);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 md:px-6 md:py-10">
@@ -116,6 +122,33 @@ export default function ExplorePage() {
           className="input-field w-full pl-10"
           aria-label={t.searchPoses}
         />
+      </div>
+
+      <div className="mb-4">
+        <p className="mb-2 text-xs font-medium text-th-text-mut">{t.chooseDomain}</p>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setPracticeDomain("")}
+            className={`rounded-full px-3 py-1.5 text-xs font-medium ${practiceDomain === "" ? "bg-sage-400 text-white" : "border border-th-border bg-th-card"}`}
+          >
+            {t.categoryAll}
+          </button>
+          <button
+            type="button"
+            onClick={() => setPracticeDomain("body")}
+            className={`rounded-full px-3 py-1.5 text-xs font-medium ${practiceDomain === "body" ? "bg-sage-400 text-white" : "border border-th-border bg-th-card"}`}
+          >
+            {t.bodyYoga}
+          </button>
+          <button
+            type="button"
+            onClick={() => setPracticeDomain("face")}
+            className={`rounded-full px-3 py-1.5 text-xs font-medium ${practiceDomain === "face" ? "bg-purple-600 text-white dark:bg-purple-700" : "border border-th-border bg-th-card"}`}
+          >
+            {t.categoryFace}
+          </button>
+        </div>
       </div>
 
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:flex-wrap lg:items-end">

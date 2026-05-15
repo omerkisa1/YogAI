@@ -14,8 +14,13 @@ import { colors } from "@/lib/colors";
 import { categoryBorder } from "@/lib/exploreMeta";
 import type { Translations } from "@/lib/i18n";
 import { CheckSquare, Plus, Search, Square, Trash2 } from "lucide-react";
+import type { Pose } from "@/types/yoga";
 
 type Entry = { pose_id: string; duration_min: number };
+
+function poseAnalysisDomain(p: Pose): "face" | "body" {
+  return p.analysis_kind === "face" || p.analysis_kind === "face_hand" ? "face" : "body";
+}
 
 function catLabel(c: string, t: Translations): string {
   const k = c.toLowerCase();
@@ -44,17 +49,31 @@ export default function CreateCustomPlanPage() {
 
   const addParam = searchParams.get("add");
 
+  const poseMap = useMemo(() => Object.fromEntries(poses.map((p) => [p.pose_id, p])), [poses]);
+
+  const planDomain = useMemo((): "face" | "body" | null => {
+    for (const e of entries) {
+      const p = poseMap[e.pose_id];
+      if (p) return poseAnalysisDomain(p);
+    }
+    return null;
+  }, [entries, poseMap]);
+
   useEffect(() => {
     if (!addParam || !poses.length) return;
-    const exists = poses.some((p) => p.pose_id === addParam);
-    if (!exists) return;
+    const pose = poses.find((p) => p.pose_id === addParam);
+    if (!pose) return;
     setEntries((prev) => {
       if (prev.some((e) => e.pose_id === addParam)) return prev;
+      if (prev.length > 0) {
+        const firstPose = poseMap[prev[0].pose_id];
+        if (firstPose && poseAnalysisDomain(firstPose) !== poseAnalysisDomain(pose)) {
+          return prev;
+        }
+      }
       return [...prev, { pose_id: addParam, duration_min: 3 }];
     });
-  }, [addParam, poses]);
-
-  const poseMap = useMemo(() => Object.fromEntries(poses.map((p) => [p.pose_id, p])), [poses]);
+  }, [addParam, poses, poseMap]);
 
   const injuryOverlap = useMemo(() => {
     const inj = profile?.injuries ?? [];
@@ -76,6 +95,7 @@ export default function CreateCustomPlanPage() {
   const modalFiltered = useMemo(() => {
     const ql = mq.trim().toLowerCase();
     return poses.filter((p) => {
+      if (planDomain && poseAnalysisDomain(p) !== planDomain) return false;
       if (mcat && p.category.toLowerCase() !== mcat.toLowerCase()) return false;
       if (ql) {
         const en = p.name_en.toLowerCase();
@@ -84,9 +104,21 @@ export default function CreateCustomPlanPage() {
       }
       return true;
     });
-  }, [poses, mq, mcat]);
+  }, [poses, mq, mcat, planDomain]);
+
+  const modalCategories = useMemo(() => {
+    const filtered = planDomain
+      ? poses.filter((p) => poseAnalysisDomain(p) === planDomain)
+      : poses;
+    return Array.from(new Set(filtered.map((p) => p.category))).sort();
+  }, [poses, planDomain]);
 
   const toggleSel = (id: string) => {
+    const p = poseMap[id];
+    if (p && planDomain && poseAnalysisDomain(p) !== planDomain) {
+      toast.error(t.cannotMixCategories);
+      return;
+    }
     setSelectedIds((prev) => {
       const n = new Set(prev);
       if (n.has(id)) n.delete(id);
@@ -96,6 +128,14 @@ export default function CreateCustomPlanPage() {
   };
 
   const addSelected = () => {
+    const incompatible = Array.from(selectedIds).find((id) => {
+      const p = poseMap[id];
+      return p && planDomain && poseAnalysisDomain(p) !== planDomain;
+    });
+    if (incompatible) {
+      toast.error(t.cannotMixCategories);
+      return;
+    }
     setEntries((prev) => {
       const next = [...prev];
       selectedIds.forEach((id) => {
@@ -144,7 +184,20 @@ export default function CreateCustomPlanPage() {
         {t.back}
       </BackLink>
 
-      <h1 className="text-2xl font-bold text-th-text">{t.customPlanPageTitle}</h1>
+      <div className="flex items-center gap-3">
+        <h1 className="text-2xl font-bold text-th-text">{t.customPlanPageTitle}</h1>
+        {planDomain && (
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-semibold ${
+              planDomain === "face"
+                ? "bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300"
+                : "bg-sage-100 text-sage-700 dark:bg-sage-950/40 dark:text-sage-300"
+            }`}
+          >
+            {planDomain === "face" ? t.faceYoga : t.bodyYoga}
+          </span>
+        )}
+      </div>
 
       <label className="mt-6 block">
         <span className="mb-2 block text-sm font-medium text-th-text">{t.trainingNameLabel}</span>
@@ -242,7 +295,23 @@ export default function CreateCustomPlanPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="border-b border-th-border px-4 py-3">
-              <h3 className="font-semibold text-th-text">{t.selectPoses}</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-th-text">{t.selectPoses}</h3>
+                {planDomain && (
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                      planDomain === "face"
+                        ? "bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300"
+                        : "bg-sage-100 text-sage-700 dark:bg-sage-950/40 dark:text-sage-300"
+                    }`}
+                  >
+                    {planDomain === "face" ? t.faceYoga : t.bodyYoga}
+                  </span>
+                )}
+              </div>
+              {planDomain && (
+                <p className="mt-1 text-xs text-th-text-mut">{t.cannotMixCategories}</p>
+              )}
               <div className="relative mt-3">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-th-text-mut" strokeWidth={2} aria-hidden />
                 <input
@@ -254,13 +323,11 @@ export default function CreateCustomPlanPage() {
               </div>
               <select value={mcat} onChange={(e) => setMcat(e.target.value)} className="input-field mt-2 w-full text-sm">
                 <option value="">{t.categoryAll}</option>
-                {Array.from(new Set(poses.map((p) => p.category)))
-                  .sort()
-                  .map((c) => (
-                    <option key={c} value={c}>
-                      {catLabel(c, t)}
-                    </option>
-                  ))}
+                {modalCategories.map((c) => (
+                  <option key={c} value={c}>
+                    {catLabel(c, t)}
+                  </option>
+                ))}
               </select>
             </div>
             <div className="max-h-[45vh] overflow-y-auto px-2 py-2">

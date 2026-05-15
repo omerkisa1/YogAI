@@ -54,6 +54,7 @@ export interface GeneratePlanRequest {
   focus_area: string;
   preferences?: string;
   injuries?: string[];
+  plan_type?: "body" | "face";
 }
 
 export interface CustomPlanRequest {

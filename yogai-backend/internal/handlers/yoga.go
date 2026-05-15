@@ -34,6 +34,7 @@ type GeneratePlanRequest struct {
 	FocusArea   string   `json:"focus_area"`
 	Preferences string   `json:"preferences"`
 	Injuries    []string `json:"injuries"`
+	PlanType    string   `json:"plan_type"`
 }
 
 type UpdatePlanMetaRequest struct {
@@ -264,9 +265,20 @@ func (h *YogaHandler) GeneratePlan(c *gin.Context) {
 
 	safePoseIDs := catalog.GetSafePoseIDs(mergedInjuries)
 
+	// Filter safe poses to the requested domain (face yoga vs body yoga).
+	planType := req.PlanType
+	if planType != "face" {
+		planType = "body"
+	}
+	if planType == "face" {
+		safePoseIDs = catalog.FilterToFaceYoga(safePoseIDs)
+	} else {
+		safePoseIDs = catalog.FilterToBodyYoga(safePoseIDs)
+	}
+
 	// PRE-VALIDATION: check if enough poses exist for the requested filters
 	// before wasting a Gemini API call that would timeout or produce garbage.
-	availableCount, maxDur, err := preValidatePlanRequest(req.Level, req.Duration, req.FocusArea, mergedInjuries)
+	availableCount, maxDur, err := preValidatePlanRequest(req.Level, req.Duration, req.FocusArea, mergedInjuries, planType)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error":           err.Error(),
@@ -279,9 +291,9 @@ func (h *YogaHandler) GeneratePlan(c *gin.Context) {
 
 	poseIDList := strings.Join(safePoseIDs, ", ")
 
-	prompt := buildBilingualPlanPrompt(req, mergedInjuries, poseIDList)
+	prompt := buildBilingualPlanPrompt(req, mergedInjuries, poseIDList, planType)
 
-	result, err := h.aiService.GenerateYogaPlan(c.Request.Context(), prompt)
+	result, err := h.aiService.GenerateYogaPlan(c.Request.Context(), prompt, planType)
 	if err != nil {
 		log.Printf("[ERROR] gemini GenerateYogaPlan failed for uid=%s: %v", uid, err)
 		models.ErrorResponse(c, http.StatusInternalServerError, "failed to generate yoga plan")
@@ -494,12 +506,19 @@ func (h *YogaHandler) HealthCheck(c *gin.Context) {
 // preValidatePlanRequest checks if a valid plan can be generated with the given filters
 // before wasting a Gemini API call. Returns available pose count, max achievable duration,
 // and an error with a user-friendly message if validation fails.
-func preValidatePlanRequest(level string, duration int, focusArea string, injuries []string) (availablePoseCount int, maxDuration int, err error) {
+func preValidatePlanRequest(level string, duration int, focusArea string, injuries []string, planType string) (availablePoseCount int, maxDuration int, err error) {
 	// Start with injury-safe poses
 	filteredIDs := catalog.GetSafePoseIDs(injuries)
 
+	// Apply domain filter first
+	if planType == "face" {
+		filteredIDs = catalog.FilterToFaceYoga(filteredIDs)
+	} else {
+		filteredIDs = catalog.FilterToBodyYoga(filteredIDs)
+	}
+
 	// Filter by focus area if specified
-	if focusArea != "" && focusArea != "full_body" {
+	if focusArea != "" && focusArea != "full_body" && focusArea != "full_face" {
 		filteredIDs = catalog.GetPosesByTargetArea(filteredIDs, focusArea)
 	}
 
@@ -561,14 +580,23 @@ func isContraindicated(pose *catalog.Pose, injuries []string) bool {
 	return false
 }
 
-func buildBilingualPlanPrompt(req GeneratePlanRequest, injuries []string, poseIDList string) string {
-	prompt := "Generate a bilingual yoga plan with these parameters: " +
+func buildBilingualPlanPrompt(req GeneratePlanRequest, injuries []string, poseIDList string, planType string) string {
+	planKind := "yoga"
+	if planType == "face" {
+		planKind = "face yoga"
+	}
+
+	prompt := "Generate a bilingual " + planKind + " plan with these parameters: " +
 		"Level: " + req.Level + ". " +
 		"Total duration: exactly " + fmt.Sprintf("%d", req.Duration) + " minutes."
 
+	if planType == "face" {
+		prompt += " IMPORTANT: This is a FACE YOGA plan. All exercises target facial and neck muscles. Duration per exercise should be 1-3 minutes (face exercises are shorter by nature). Focus on variety across face regions (forehead, eyes, cheeks, mouth, jawline, neck)."
+	}
+
 	prompt += " ALLOWED POSE IDS (you MUST only pick from this list): [" + poseIDList + "]."
 
-	if req.FocusArea != "" {
+	if req.FocusArea != "" && req.FocusArea != "full_face" && req.FocusArea != "full_body" {
 		prompt += " Focus area: " + req.FocusArea + "." +
 			" ALL exercises MUST directly target this focus. If it is a pain condition, use only therapeutic movements."
 	}
@@ -636,6 +664,28 @@ func (h *YogaHandler) CreateCustomPlan(c *gin.Context) {
 	totalDuration := 0
 	analyzableCount := 0
 	maxDifficulty := 0
+
+	// Determine the domain of the first exercise to enforce no mixing.
+	var planDomain string
+	for _, ex := range req.Exercises {
+		pose, exists := catalog.GetPoseByID(ex.PoseID)
+		if !exists {
+			models.ErrorResponse(c, http.StatusBadRequest, "unknown pose_id: "+ex.PoseID)
+			return
+		}
+		kind := pose.AnalysisKind
+		if kind == "face" || kind == "face_hand" {
+			kind = "face"
+		} else {
+			kind = "body"
+		}
+		if planDomain == "" {
+			planDomain = kind
+		} else if planDomain != kind {
+			models.ErrorResponse(c, http.StatusBadRequest, "Yüz yogası hareketleri ile normal yoga hareketleri aynı planda birleştirilemez. Lütfen tek bir tür seçin.")
+			return
+		}
+	}
 
 	for _, ex := range req.Exercises {
 		pose, exists := catalog.GetPoseByID(ex.PoseID)
