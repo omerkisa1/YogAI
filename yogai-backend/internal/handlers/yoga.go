@@ -93,7 +93,36 @@ func (h *YogaHandler) getUserID(c *gin.Context) (string, bool) {
 	return uid.(string), true
 }
 
-func validateAndEnrich(raw string, userInjuries []string) (*BilingualPlan, error) {
+func normalizePlanType(planType string) string {
+	switch planType {
+	case "face", "face_hand":
+		return planType
+	default:
+		return "body"
+	}
+}
+
+func filterPosesByPlanType(poseIDs []string, planType string) []string {
+	switch planType {
+	case "face":
+		return catalog.FilterByAnalysisKind(poseIDs, "face")
+	case "face_hand":
+		return catalog.FilterByAnalysisKind(poseIDs, "face_hand")
+	default:
+		return catalog.FilterToBodyYoga(poseIDs)
+	}
+}
+
+func posePlanDomain(analysisKind string) string {
+	switch analysisKind {
+	case "face", "face_hand":
+		return analysisKind
+	default:
+		return "body"
+	}
+}
+
+func validateAndEnrich(raw string, userInjuries []string, expectedPlanType string) (*BilingualPlan, error) {
 	userInjuries = catalog.NormalizeInjuries(userInjuries)
 	var llmResp services.LLMPlanResponse
 	if err := json.Unmarshal([]byte(raw), &llmResp); err != nil {
@@ -137,6 +166,11 @@ func validateAndEnrich(raw string, userInjuries []string) (*BilingualPlan, error
 		// it can still hallucinate contraindicated poses. This is the safety net.
 		if isContraindicated(pose, userInjuries) {
 			log.Printf("[WARN] LLM returned contraindicated pose_id %q for injuries %v — skipping", ex.PoseID, userInjuries)
+			continue
+		}
+
+		if expectedPlanType != "" && pose.AnalysisKind != expectedPlanType {
+			log.Printf("[WARN] LLM returned pose_id %q with analysis_kind %q, expected %q — skipping", ex.PoseID, pose.AnalysisKind, expectedPlanType)
 			continue
 		}
 
@@ -222,6 +256,7 @@ func planToResponse(p *repository.YogaPlan) gin.H {
 		"level":       p.Level,
 		"duration":    p.Duration,
 		"focus_area":  p.FocusArea,
+		"plan_type":   p.PlanType,
 		"source":      p.Source,
 		"is_favorite": p.IsFavorite,
 		"is_pinned":   p.IsPinned,
@@ -236,6 +271,7 @@ func bilingualPlanToResponse(p *repository.YogaPlan, bilingual *BilingualPlan) g
 		"level":       p.Level,
 		"duration":    p.Duration,
 		"focus_area":  p.FocusArea,
+		"plan_type":   p.PlanType,
 		"source":      p.Source,
 		"is_favorite": p.IsFavorite,
 		"is_pinned":   p.IsPinned,
@@ -265,16 +301,8 @@ func (h *YogaHandler) GeneratePlan(c *gin.Context) {
 
 	safePoseIDs := catalog.GetSafePoseIDs(mergedInjuries)
 
-	// Filter safe poses to the requested domain (face yoga vs body yoga).
-	planType := req.PlanType
-	if planType != "face" {
-		planType = "body"
-	}
-	if planType == "face" {
-		safePoseIDs = catalog.FilterToFaceYoga(safePoseIDs)
-	} else {
-		safePoseIDs = catalog.FilterToBodyYoga(safePoseIDs)
-	}
+	planType := normalizePlanType(req.PlanType)
+	safePoseIDs = filterPosesByPlanType(safePoseIDs, planType)
 
 	// PRE-VALIDATION: check if enough poses exist for the requested filters
 	// before wasting a Gemini API call that would timeout or produce garbage.
@@ -300,7 +328,7 @@ func (h *YogaHandler) GeneratePlan(c *gin.Context) {
 		return
 	}
 
-	bilingual, err := validateAndEnrich(result, mergedInjuries)
+	bilingual, err := validateAndEnrich(result, mergedInjuries, planType)
 	if err != nil {
 		log.Printf("[ERROR] plan validation/enrichment failed for uid=%s: %v | raw_response_length=%d", uid, err, len(result))
 		models.ErrorResponse(c, http.StatusInternalServerError, "AI produced invalid plan data: "+err.Error())
@@ -316,6 +344,7 @@ func (h *YogaHandler) GeneratePlan(c *gin.Context) {
 		Level:     req.Level,
 		Duration:  req.Duration,
 		FocusArea: req.FocusArea,
+		PlanType:  planType,
 		Source:    "ai",
 	}
 
@@ -510,12 +539,7 @@ func preValidatePlanRequest(level string, duration int, focusArea string, injuri
 	// Start with injury-safe poses
 	filteredIDs := catalog.GetSafePoseIDs(injuries)
 
-	// Apply domain filter first
-	if planType == "face" {
-		filteredIDs = catalog.FilterToFaceYoga(filteredIDs)
-	} else {
-		filteredIDs = catalog.FilterToBodyYoga(filteredIDs)
-	}
+	filteredIDs = filterPosesByPlanType(filteredIDs, normalizePlanType(planType))
 
 	// Filter by focus area if specified
 	if focusArea != "" && focusArea != "full_body" && focusArea != "full_face" {
@@ -581,17 +605,23 @@ func isContraindicated(pose *catalog.Pose, injuries []string) bool {
 }
 
 func buildBilingualPlanPrompt(req GeneratePlanRequest, injuries []string, poseIDList string, planType string) string {
-	planKind := "yoga"
-	if planType == "face" {
-		planKind = "face yoga"
+	planKind := "body yoga"
+	switch planType {
+	case "face":
+		planKind = "face yoga (facial muscle exercises only, no hand-touch poses)"
+	case "face_hand":
+		planKind = "face yoga with hands (gentle hand-guided facial massage, face_hand poses only)"
 	}
 
 	prompt := "Generate a bilingual " + planKind + " plan with these parameters: " +
 		"Level: " + req.Level + ". " +
 		"Total duration: exactly " + fmt.Sprintf("%d", req.Duration) + " minutes."
 
-	if planType == "face" {
-		prompt += " IMPORTANT: This is a FACE YOGA plan. All exercises target facial and neck muscles. Duration per exercise should be 1-3 minutes (face exercises are shorter by nature). Focus on variety across face regions (forehead, eyes, cheeks, mouth, jawline, neck)."
+	switch planType {
+	case "face":
+		prompt += " IMPORTANT: This is a PURE FACE YOGA plan (blendshape facial exercises). All exercises target facial and neck muscles without hand contact. Duration per exercise should be 1-3 minutes. Focus on variety across face regions (forehead, eyes, cheeks, mouth, jawline, neck). Do NOT use face_hand_* pose_ids."
+	case "face_hand":
+		prompt += " IMPORTANT: This is a FACE+HAND YOGA plan. All exercises use gentle hand contact on the face (massage, sculpting, lymph flow). Duration per exercise should be 1-3 minutes. Focus on variety across face regions. Only use face_hand_* style poses from the allowed list."
 	}
 
 	prompt += " ALLOWED POSE IDS (you MUST only pick from this list): [" + poseIDList + "]."
@@ -673,16 +703,15 @@ func (h *YogaHandler) CreateCustomPlan(c *gin.Context) {
 			models.ErrorResponse(c, http.StatusBadRequest, "unknown pose_id: "+ex.PoseID)
 			return
 		}
-		kind := pose.AnalysisKind
-		if kind == "face" || kind == "face_hand" {
-			kind = "face"
-		} else {
-			kind = "body"
-		}
+		kind := posePlanDomain(pose.AnalysisKind)
 		if planDomain == "" {
 			planDomain = kind
 		} else if planDomain != kind {
-			models.ErrorResponse(c, http.StatusBadRequest, "Yüz yogası hareketleri ile normal yoga hareketleri aynı planda birleştirilemez. Lütfen tek bir tür seçin.")
+			if planDomain == "body" || kind == "body" {
+				models.ErrorResponse(c, http.StatusBadRequest, "Yüz yogası hareketleri ile normal yoga hareketleri aynı planda birleştirilemez. Lütfen tek bir tür seçin.")
+			} else {
+				models.ErrorResponse(c, http.StatusBadRequest, "Yüz yogası ile elle yüz yogası aynı planda birleştirilemez. Lütfen tek bir tür seçin.")
+			}
 			return
 		}
 	}
@@ -736,10 +765,15 @@ func (h *YogaHandler) CreateCustomPlan(c *gin.Context) {
 		difficultyLabel = "Intermediate"
 	}
 
+	focusArea := "full_body"
+	if planDomain == "face" || planDomain == "face_hand" {
+		focusArea = "full_face"
+	}
+
 	bilingual := &BilingualPlan{
 		TitleEN:             req.Title,
 		TitleTR:             req.Title,
-		FocusArea:           "full_body",
+		FocusArea:           focusArea,
 		Difficulty:          difficultyLabel,
 		TotalDurationMin:    totalDuration,
 		DescriptionEN:       "Custom plan created by user.",
@@ -758,7 +792,8 @@ func (h *YogaHandler) CreateCustomPlan(c *gin.Context) {
 		PlanTR:    planJSON,
 		Level:     level,
 		Duration:  totalDuration,
-		FocusArea: "full_body",
+		FocusArea: focusArea,
+		PlanType:  planDomain,
 		Source:    "custom",
 	}
 

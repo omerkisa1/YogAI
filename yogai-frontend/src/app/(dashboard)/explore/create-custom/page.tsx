@@ -14,13 +14,16 @@ import { colors } from "@/lib/colors";
 import { categoryBorder } from "@/lib/exploreMeta";
 import type { Translations } from "@/lib/i18n";
 import { CheckSquare, Plus, Search, Square, Trash2 } from "lucide-react";
-import type { Pose } from "@/types/yoga";
+import type { PlanType } from "@/types/yoga";
+import {
+  domainBadgeClass,
+  domainBadgeLabel,
+  domainsCompatible,
+  mixDomainErrorMessage,
+  poseAnalysisDomain,
+} from "@/lib/poseDomain";
 
 type Entry = { pose_id: string; duration_min: number };
-
-function poseAnalysisDomain(p: Pose): "face" | "body" {
-  return p.analysis_kind === "face" || p.analysis_kind === "face_hand" ? "face" : "body";
-}
 
 function catLabel(c: string, t: Translations): string {
   const k = c.toLowerCase();
@@ -51,7 +54,7 @@ export default function CreateCustomPlanPage() {
 
   const poseMap = useMemo(() => Object.fromEntries(poses.map((p) => [p.pose_id, p])), [poses]);
 
-  const planDomain = useMemo((): "face" | "body" | null => {
+  const planDomain = useMemo((): PlanType | null => {
     for (const e of entries) {
       const p = poseMap[e.pose_id];
       if (p) return poseAnalysisDomain(p);
@@ -67,7 +70,10 @@ export default function CreateCustomPlanPage() {
       if (prev.some((e) => e.pose_id === addParam)) return prev;
       if (prev.length > 0) {
         const firstPose = poseMap[prev[0].pose_id];
-        if (firstPose && poseAnalysisDomain(firstPose) !== poseAnalysisDomain(pose)) {
+        if (
+          firstPose &&
+          !domainsCompatible(poseAnalysisDomain(firstPose), poseAnalysisDomain(pose))
+        ) {
           return prev;
         }
       }
@@ -115,8 +121,8 @@ export default function CreateCustomPlanPage() {
 
   const toggleSel = (id: string) => {
     const p = poseMap[id];
-    if (p && planDomain && poseAnalysisDomain(p) !== planDomain) {
-      toast.error(t.cannotMixCategories);
+    if (p && planDomain && !domainsCompatible(poseAnalysisDomain(p), planDomain)) {
+      toast.error(mixDomainErrorMessage(planDomain, poseAnalysisDomain(p), t));
       return;
     }
     setSelectedIds((prev) => {
@@ -130,10 +136,13 @@ export default function CreateCustomPlanPage() {
   const addSelected = () => {
     const incompatible = Array.from(selectedIds).find((id) => {
       const p = poseMap[id];
-      return p && planDomain && poseAnalysisDomain(p) !== planDomain;
+      return p && planDomain && !domainsCompatible(poseAnalysisDomain(p), planDomain);
     });
     if (incompatible) {
-      toast.error(t.cannotMixCategories);
+      const p = poseMap[incompatible];
+      if (p && planDomain) {
+        toast.error(mixDomainErrorMessage(planDomain, poseAnalysisDomain(p), t));
+      }
       return;
     }
     setEntries((prev) => {
@@ -187,14 +196,8 @@ export default function CreateCustomPlanPage() {
       <div className="flex items-center gap-3">
         <h1 className="text-2xl font-bold text-th-text">{t.customPlanPageTitle}</h1>
         {planDomain && (
-          <span
-            className={`rounded-full px-3 py-1 text-xs font-semibold ${
-              planDomain === "face"
-                ? "bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300"
-                : "bg-sage-100 text-sage-700 dark:bg-sage-950/40 dark:text-sage-300"
-            }`}
-          >
-            {planDomain === "face" ? t.faceYoga : t.bodyYoga}
+          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${domainBadgeClass(planDomain)}`}>
+            {domainBadgeLabel(planDomain, t)}
           </span>
         )}
       </div>
@@ -298,19 +301,15 @@ export default function CreateCustomPlanPage() {
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-th-text">{t.selectPoses}</h3>
                 {planDomain && (
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                      planDomain === "face"
-                        ? "bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300"
-                        : "bg-sage-100 text-sage-700 dark:bg-sage-950/40 dark:text-sage-300"
-                    }`}
-                  >
-                    {planDomain === "face" ? t.faceYoga : t.bodyYoga}
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${domainBadgeClass(planDomain)}`}>
+                    {domainBadgeLabel(planDomain, t)}
                   </span>
                 )}
               </div>
               {planDomain && (
-                <p className="mt-1 text-xs text-th-text-mut">{t.cannotMixCategories}</p>
+                <p className="mt-1 text-xs text-th-text-mut">
+                  {planDomain === "body" ? t.cannotMixCategories : t.cannotMixFaceTypes}
+                </p>
               )}
               <div className="relative mt-3">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-th-text-mut" strokeWidth={2} aria-hidden />

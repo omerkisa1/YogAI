@@ -6,6 +6,12 @@ import { useSearchParams } from "next/navigation";
 import { useApp } from "@/components/layout/AppProvider";
 import PlanGeneratorForm from "@/components/yoga/PlanGeneratorForm";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
+import type { PlanType } from "@/types/yoga";
+
+function parsePlanType(raw: string | null): PlanType | undefined {
+  if (raw === "body" || raw === "face" || raw === "face_hand") return raw;
+  return undefined;
+}
 
 function CreatePlanContent() {
   const { t } = useApp();
@@ -13,6 +19,7 @@ function CreatePlanContent() {
   const level = searchParams.get("level") ?? undefined;
   const durationRaw = searchParams.get("duration");
   const focus = searchParams.get("focus_area") ?? undefined;
+  const presetPlanType = parsePlanType(searchParams.get("plan_type"));
   const duration =
     durationRaw != null && durationRaw !== ""
       ? Number.parseInt(durationRaw, 10)
@@ -34,6 +41,7 @@ function CreatePlanContent() {
         presetLevel={level}
         presetDuration={presetDuration}
         presetFocus={focus}
+        presetPlanType={presetPlanType}
       />
     </div>
   );

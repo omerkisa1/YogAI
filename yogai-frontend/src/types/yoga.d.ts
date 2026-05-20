@@ -43,10 +43,13 @@ export interface YogaPlan {
   level?: string;
   duration?: number;
   focus_area?: string;
+  plan_type?: PlanType;
   source?: string;
   is_favorite?: boolean;
   is_pinned?: boolean;
 }
+
+export type PlanType = "body" | "face" | "face_hand";
 
 export interface GeneratePlanRequest {
   level: string;
@@ -54,7 +57,7 @@ export interface GeneratePlanRequest {
   focus_area: string;
   preferences?: string;
   injuries?: string[];
-  plan_type?: "body" | "face";
+  plan_type?: PlanType;
 }
 
 export interface CustomPlanRequest {

@@ -39,7 +39,7 @@ func TestValidateAndEnrichValidJSON(t *testing.T) {
 		]
 	}`
 
-	plan, err := validateAndEnrich(raw, nil)
+	plan, err := validateAndEnrich(raw, nil, "body")
 	if err != nil {
 		t.Fatalf("validateAndEnrich failed: %v", err)
 	}
@@ -105,7 +105,7 @@ func TestValidateAndEnrichInvalidPoseID(t *testing.T) {
 		]
 	}`
 
-	_, err := validateAndEnrich(raw, nil)
+	_, err := validateAndEnrich(raw, nil, "body")
 	if err == nil {
 		t.Fatal("validateAndEnrich should fail for fabricated pose_id")
 	}
@@ -113,7 +113,7 @@ func TestValidateAndEnrichInvalidPoseID(t *testing.T) {
 }
 
 func TestValidateAndEnrichInvalidJSON(t *testing.T) {
-	_, err := validateAndEnrich("this is not json at all", nil)
+	_, err := validateAndEnrich("this is not json at all", nil, "body")
 	if err == nil {
 		t.Fatal("validateAndEnrich should fail for invalid JSON")
 	}
@@ -132,7 +132,7 @@ func TestValidateAndEnrichEmptyExercises(t *testing.T) {
 		"exercises": []
 	}`
 
-	_, err := validateAndEnrich(raw, nil)
+	_, err := validateAndEnrich(raw, nil, "body")
 	if err == nil {
 		t.Fatal("validateAndEnrich should fail for empty exercises")
 	}
@@ -151,7 +151,7 @@ func TestValidateAndEnrichMissingTitle(t *testing.T) {
 		"exercises": [{"pose_id": "mountain", "duration_min": 3, "benefit_en": "t", "benefit_tr": "t"}]
 	}`
 
-	_, err := validateAndEnrich(raw, nil)
+	_, err := validateAndEnrich(raw, nil, "body")
 	if err == nil {
 		t.Fatal("validateAndEnrich should fail for missing title")
 	}
@@ -170,7 +170,7 @@ func TestValidateAndEnrichZeroDuration(t *testing.T) {
 		"exercises": [{"pose_id": "mountain", "duration_min": 0, "benefit_en": "t", "benefit_tr": "t"}]
 	}`
 
-	_, err := validateAndEnrich(raw, nil)
+	_, err := validateAndEnrich(raw, nil, "body")
 	if err == nil {
 		t.Fatal("validateAndEnrich should fail for zero duration exercise")
 	}
@@ -395,7 +395,7 @@ func TestValidateAndEnrich_ReTest1_ContradictedPoseStripped(t *testing.T) {
 	}`
 
 	injuries := []string{"knee_injury", "ankle_injury"}
-	plan, err := validateAndEnrich(raw, injuries)
+	plan, err := validateAndEnrich(raw, injuries, "body")
 
 	// List returned pose IDs
 	var poseIDs []string
@@ -445,7 +445,7 @@ func TestValidateAndEnrich_DuplicateLimit(t *testing.T) {
 		]
 	}`
 
-	plan, err := validateAndEnrich(raw, nil)
+	plan, err := validateAndEnrich(raw, nil, "body")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -481,7 +481,7 @@ func TestValidateAndEnrich_DurationCapping(t *testing.T) {
 		]
 	}`
 
-	plan, err := validateAndEnrich(raw, nil)
+	plan, err := validateAndEnrich(raw, nil, "body")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -515,7 +515,7 @@ func TestValidateAndEnrich_IsAnalyzable(t *testing.T) {
 		]
 	}`
 
-	plan, err := validateAndEnrich(raw, nil)
+	plan, err := validateAndEnrich(raw, nil, "body")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -529,4 +529,118 @@ func TestValidateAndEnrich_IsAnalyzable(t *testing.T) {
 
 	t.Logf("✅ IsAnalyzable populated correctly for all exercises")
 	t.Logf("   Plan summary: total=%d, analyzable=%d", plan.TotalPoseCount, plan.AnalyzablePoseCount)
+}
+
+
+func TestNormalizePlanType(t *testing.T) {
+	if normalizePlanType("face") != "face" {
+		t.Error("face")
+	}
+	if normalizePlanType("face_hand") != "face_hand" {
+		t.Error("face_hand")
+	}
+	if normalizePlanType("invalid") != "body" {
+		t.Error("invalid → body")
+	}
+}
+
+func TestFilterPosesByPlanType_FaceOnly(t *testing.T) {
+	all := catalog.GetFaceYogaPoseIDs()
+	faceOnly := filterPosesByPlanType(all, "face")
+	for _, id := range faceOnly {
+		pose, _ := catalog.GetPoseByID(id)
+		if pose.AnalysisKind != "face" {
+			t.Errorf("pose %q has kind %q, want face", id, pose.AnalysisKind)
+		}
+	}
+	if len(faceOnly) == 0 {
+		t.Fatal("expected face-only poses")
+	}
+}
+
+func TestFilterPosesByPlanType_FaceHandOnly(t *testing.T) {
+	all := catalog.GetFaceYogaPoseIDs()
+	faceHandOnly := filterPosesByPlanType(all, "face_hand")
+	for _, id := range faceHandOnly {
+		pose, _ := catalog.GetPoseByID(id)
+		if pose.AnalysisKind != "face_hand" {
+			t.Errorf("pose %q has kind %q, want face_hand", id, pose.AnalysisKind)
+		}
+	}
+	if len(faceHandOnly) == 0 {
+		t.Fatal("expected face_hand poses")
+	}
+}
+
+func TestPreValidation_FaceHandDomain(t *testing.T) {
+	count, _, err := preValidatePlanRequest("beginner", 19, "full_face", []string{}, "face_hand")
+	if err != nil {
+		t.Fatalf("face_hand pre-validation failed: %v (count=%d)", err, count)
+	}
+	if count < 3 {
+		t.Fatalf("expected at least 3 face_hand poses, got %d", count)
+	}
+}
+
+func TestValidateAndEnrich_RejectsWrongDomain(t *testing.T) {
+	raw := `{
+		"title_en": "Mixed Face",
+		"title_tr": "Karışık Yüz",
+		"focus_area": "full_face",
+		"difficulty": "Beginner",
+		"total_duration_min": 9,
+		"description_en": "Test.",
+		"description_tr": "Test.",
+		"exercises": [
+			{"pose_id": "face_jaw_open", "duration_min": 3, "benefit_en": "b", "benefit_tr": "b"},
+			{"pose_id": "face_brow_raise", "duration_min": 3, "benefit_en": "b", "benefit_tr": "b"},
+			{"pose_id": "face_hand_cheek_massage", "duration_min": 3, "benefit_en": "b", "benefit_tr": "b"}
+		]
+	}`
+
+	_, err := validateAndEnrich(raw, nil, "face")
+	if err == nil {
+		t.Fatal("expected error when face_hand pose in face-only plan")
+	}
+	t.Logf("[PASS] face plan rejected face_hand pose: %v", err)
+}
+
+func TestValidateAndEnrich_FaceHandOnly(t *testing.T) {
+	raw := `{
+		"title_en": "Hand Plan",
+		"title_tr": "El Planı",
+		"focus_area": "full_face",
+		"difficulty": "Beginner",
+		"total_duration_min": 9,
+		"description_en": "Test.",
+		"description_tr": "Test.",
+		"exercises": [
+			{"pose_id": "face_hand_cheek_massage", "duration_min": 3, "benefit_en": "b", "benefit_tr": "b"},
+			{"pose_id": "face_hand_forehead_smooth", "duration_min": 3, "benefit_en": "b", "benefit_tr": "b"},
+			{"pose_id": "face_hand_jaw_release", "duration_min": 3, "benefit_en": "b", "benefit_tr": "b"}
+		]
+	}`
+
+	plan, err := validateAndEnrich(raw, nil, "face_hand")
+	if err != nil {
+		t.Fatalf("face_hand plan failed: %v", err)
+	}
+	if len(plan.Exercises) != 3 {
+		t.Fatalf("expected 3 exercises, got %d", len(plan.Exercises))
+	}
+}
+
+func TestPosePlanDomain(t *testing.T) {
+	if posePlanDomain("face") != "face" {
+		t.Error("face")
+	}
+	if posePlanDomain("face_hand") != "face_hand" {
+		t.Error("face_hand")
+	}
+	if posePlanDomain("body") != "body" {
+		t.Error("body")
+	}
+	if posePlanDomain("") != "body" {
+		t.Error("empty → body")
+	}
 }

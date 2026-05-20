@@ -6,8 +6,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useCreatePlan } from "@/hooks/usePlans";
 import { useProfile } from "@/hooks/useProfile";
 import { useApp } from "@/components/layout/AppProvider";
-import { focusAreaKeys, faceFocusAreaKeys } from "@/lib/i18n";
-import type { GeneratePlanRequest } from "@/types/yoga";
+import { focusAreaKeys, faceFocusAreaKeys, type Translations } from "@/lib/i18n";
+import { isFacePlanType } from "@/lib/poseDomain";
+import type { GeneratePlanRequest, PlanType } from "@/types/yoga";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
@@ -34,19 +35,27 @@ function formatPlanErrorMessage(
   return lines.join(" · ");
 }
 
+function planCreatedToast(planType: PlanType, t: Translations): string {
+  if (planType === "face") return t.facePlanCreated;
+  if (planType === "face_hand") return t.faceHandPlanCreated;
+  return t.planCreated;
+}
+
 export type PlanGeneratorFormProps = {
   presetLevel?: string;
   presetDuration?: number;
   presetFocus?: string;
+  presetPlanType?: PlanType;
 };
 
 export default function PlanGeneratorForm({
   presetLevel,
   presetDuration,
   presetFocus,
+  presetPlanType,
 }: PlanGeneratorFormProps) {
   const [step, setStep] = useState(0);
-  const [planType, setPlanType] = useState<"body" | "face">("body");
+  const [planType, setPlanType] = useState<PlanType>("body");
   const router = useRouter();
   const createPlan = useCreatePlan();
   const { data: profile } = useProfile();
@@ -73,10 +82,16 @@ export default function PlanGeneratorForm({
     if (presetFocus && [...focusAreaKeys, ...faceFocusAreaKeys].some((a) => a.value === presetFocus)) {
       setValue("focus_area", presetFocus);
       if (faceFocusAreaKeys.some((a) => a.value === presetFocus)) {
-        setPlanType("face");
+        setPlanType(presetPlanType === "face_hand" ? "face_hand" : "face");
       }
     }
-  }, [presetLevel, presetDuration, presetFocus, setValue]);
+    if (presetPlanType === "face" || presetPlanType === "face_hand" || presetPlanType === "body") {
+      setPlanType(presetPlanType);
+      if (isFacePlanType(presetPlanType) && !presetDuration) {
+        setValue("duration", 10);
+      }
+    }
+  }, [presetLevel, presetDuration, presetFocus, presetPlanType, setValue]);
 
   const selectedLevel = watch("level");
   const selectedDuration = watch("duration");
@@ -95,18 +110,19 @@ export default function PlanGeneratorForm({
     { value: "advanced", label: t.advanced, desc: t.advancedDesc },
   ];
 
-  const domains: { value: "body" | "face"; label: string; desc: string; emoji: string }[] = [
+  const domains: { value: PlanType; label: string; desc: string; emoji: string }[] = [
     { value: "body", label: t.bodyYoga, desc: t.bodyYogaDesc, emoji: "🧘" },
     { value: "face", label: t.faceYoga, desc: t.faceYogaDesc, emoji: "✨" },
+    { value: "face_hand", label: t.faceHandYoga, desc: t.faceHandYogaDesc, emoji: "🤲" },
   ];
 
-  const currentFocusKeys = planType === "face" ? faceFocusAreaKeys : focusAreaKeys;
-  const currentDurations = planType === "face" ? faceDurations : bodyDurations;
+  const currentFocusKeys = isFacePlanType(planType) ? faceFocusAreaKeys : focusAreaKeys;
+  const currentDurations = isFacePlanType(planType) ? faceDurations : bodyDurations;
 
-  const handleDomainSelect = (d: "body" | "face") => {
+  const handleDomainSelect = (d: PlanType) => {
     setPlanType(d);
     setValue("focus_area", "");
-    setValue("duration", d === "face" ? 10 : 30);
+    setValue("duration", isFacePlanType(d) ? 10 : 30);
   };
 
   const handleGenerate = async () => {
@@ -118,7 +134,7 @@ export default function PlanGeneratorForm({
         plan_type: planType,
         injuries: profile?.injuries?.length ? [...profile.injuries] : undefined,
       });
-      toast.success(planType === "face" ? t.facePlanCreated : t.planCreated);
+      toast.success(planCreatedToast(planType, t));
       router.push("/dashboard");
     } catch (e) {
       const details = (e as Error & { apiDetails?: Record<string, unknown> }).apiDetails;
@@ -248,7 +264,7 @@ export default function PlanGeneratorForm({
             >
               <h2 className="text-lg font-semibold text-th-text">{t.sessionDuration}</h2>
               <p className="text-sm text-th-text-mut">{t.durationDesc}</p>
-              {planType === "face" && (
+              {isFacePlanType(planType) && (
                 <p className="text-xs text-purple-700 dark:text-purple-300">{t.faceSessionDuration}</p>
               )}
               <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">

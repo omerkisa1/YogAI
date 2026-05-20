@@ -9,7 +9,8 @@ import { useApp } from "@/components/layout/AppProvider";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import ConfirmDialog from "@/components/shared/ConfirmDialog";
 import BackLink from "@/components/shared/BackLink";
-import { getLocalizedPlanSafe } from "@/lib/planHelpers";
+import { getLocalizedPlanSafe, inferPlanType } from "@/lib/planHelpers";
+import { isFacePlanType } from "@/lib/poseDomain";
 import { useState } from "react";
 import { Camera, Pin, PinOff, Star, Trash2 } from "lucide-react";
 
@@ -25,6 +26,7 @@ export default function PlanDetailPage() {
   const [confirmDel, setConfirmDel] = useState(false);
 
   const detail = plan ? getLocalizedPlanSafe(plan, locale, t.yogaPlan) : null;
+  const planType = plan ? inferPlanType(plan) : "body";
 
   const handleStartTraining = async () => {
     if (!plan) return;
@@ -192,6 +194,10 @@ export default function PlanDetailPage() {
               ))}
             </ul>
           </div>
+
+          {isFacePlanType(planType) && (
+            <p className="mb-4 text-sm text-purple-800 dark:text-purple-200">{t.faceTrainingHint}</p>
+          )}
 
           <button
             type="button"

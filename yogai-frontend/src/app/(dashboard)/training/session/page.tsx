@@ -34,6 +34,11 @@ import {
   ruleOverlayClass,
 } from "@/lib/poseTestCameraTheme";
 import { aggregateAccuracyFromSamples } from "@/lib/trainingAccuracy";
+import {
+  useExerciseAnalysis,
+  resolveExerciseAnalysisKind,
+} from "@/hooks/useExerciseAnalysis";
+import FaceFeedbackBanner from "@/components/yoga/FaceFeedbackBanner";
 
 const FIXED_ACCURACY = 75;
 const DEV_TIMER = process.env.NODE_ENV === "development";
@@ -102,6 +107,29 @@ function TrainingSessionContent() {
     [poseRulesQuery.data?.landmark_rules],
   );
 
+  const analysisKind = useMemo(
+    () =>
+      analyzablePoseId
+        ? resolveExerciseAnalysisKind(
+            analyzablePoseId,
+            poseRulesQuery.data?.analysis_kind,
+          )
+        : "body",
+    [analyzablePoseId, poseRulesQuery.data?.analysis_kind],
+  );
+  const isBodyAnalyzable =
+    !!current?.is_analyzable && analysisKind === "body";
+  const isFaceAnalyzable =
+    !!current?.is_analyzable && (analysisKind === "face" || analysisKind === "face_hand");
+
+  const faceAnalysis = useExerciseAnalysis({
+    poseId: analyzablePoseId,
+    analysisKind,
+    repTarget: poseRulesQuery.data?.rep_target,
+    active: phase === "run" && isFaceAnalyzable && camPermission !== "denied",
+    videoRef,
+  });
+
   useEffect(() => {
     rulesRef.current = rules;
   }, [rules]);
@@ -124,6 +152,10 @@ function TrainingSessionContent() {
       setCamPermission("idle");
       return;
     }
+    if (isFaceAnalyzable) {
+      setCamPermission("checking");
+      return;
+    }
     let cancelled = false;
     setCamPermission("checking");
     void (async () => {
@@ -139,12 +171,28 @@ function TrainingSessionContent() {
     return () => {
       cancelled = true;
     };
-  }, [current?.pose_id, index, phase, current?.is_analyzable]);
+  }, [current?.pose_id, index, phase, current?.is_analyzable, isFaceAnalyzable]);
+
+  useEffect(() => {
+    if (!isFaceAnalyzable || phase !== "run") return;
+    if (faceAnalysis.cameraReady && !faceAnalysis.pipelineError) {
+      setCamPermission("granted");
+    }
+    if (faceAnalysis.pipelineError) {
+      setCamPermission("denied");
+    }
+  }, [
+    isFaceAnalyzable,
+    phase,
+    faceAnalysis.cameraReady,
+    faceAnalysis.pipelineError,
+  ]);
 
   const resolveSubmittedAccuracy = useCallback(() => {
     if (!current?.is_analyzable) return FIXED_ACCURACY;
+    if (isFaceAnalyzable) return faceAnalysis.repAccuracy();
     return aggregateAccuracyFromSamples(accuracySamplesRef.current, FIXED_ACCURACY);
-  }, [current?.is_analyzable]);
+  }, [current?.is_analyzable, isFaceAnalyzable, faceAnalysis]);
 
   const handleLandmarkFrame = useCallback((frame: MediapipeLandmarkFrame) => {
     const { landmarks } = frame;
@@ -186,12 +234,21 @@ function TrainingSessionContent() {
   const rulesReady = rules.length > 0;
   const mediapipeActive =
     phase === "run" &&
-    !!current?.is_analyzable &&
+    isBodyAnalyzable &&
     camPermission === "granted" &&
     !poseRulesLoading &&
     rulesReady &&
     !poseRulesError &&
     !modelPipelineError;
+
+  const facePipelineReady =
+    isFaceAnalyzable &&
+    camPermission === "granted" &&
+    !poseRulesLoading &&
+    !poseRulesError &&
+    faceAnalysis.cameraReady &&
+    !faceAnalysis.pipelineLoading &&
+    !faceAnalysis.pipelineError;
 
   const { fps } = useMediapipePoseCamera({
     active: mediapipeActive,
@@ -299,6 +356,27 @@ function TrainingSessionContent() {
     resolveSubmittedAccuracy,
   ]);
 
+  useEffect(() => {
+    if (phase !== "run" || !isFaceAnalyzable || !faceAnalysis.isRepComplete) return;
+    const key = `rep-${sessionId}-${current?.pose_id}-${index}`;
+    if (autoKeyRef.current === key) return;
+    autoKeyRef.current = key;
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    const elapsed = Math.max(1, allocated - timer);
+    void goNextOrFinish(faceAnalysis.repAccuracy(), elapsed);
+  }, [
+    phase,
+    isFaceAnalyzable,
+    faceAnalysis.isRepComplete,
+    faceAnalysis,
+    sessionId,
+    current?.pose_id,
+    index,
+    allocated,
+    timer,
+    goNextOrFinish,
+  ]);
+
   const formatTime = (s: number) => {
     const m = Math.floor(s / 60);
     const r = s % 60;
@@ -350,8 +428,8 @@ function TrainingSessionContent() {
     current?.is_analyzable &&
     camPermission === "granted" &&
     !poseRulesError &&
-    rulesReady &&
-    !modelPipelineError;
+    !modelPipelineError &&
+    (isBodyAnalyzable ? rulesReady : facePipelineReady);
 
   if (phase === "done") {
     const avg = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
@@ -389,8 +467,11 @@ function TrainingSessionContent() {
   }
 
   const analyzableFlow = !!current?.is_analyzable;
-  const accVal = lastAnalyzeResult?.overall_accuracy ?? liveAccuracy ?? 0;
+  const accVal = isFaceAnalyzable
+    ? faceAnalysis.repAccuracy()
+    : (lastAnalyzeResult?.overall_accuracy ?? liveAccuracy ?? 0);
   const ruleCount = lastAnalyzeResult?.rules?.length ?? 0;
+  const displayFps = isFaceAnalyzable ? faceAnalysis.faceFps : fps;
 
   return (
     <div
@@ -433,15 +514,39 @@ function TrainingSessionContent() {
                 videoRef={videoRef}
                 canvasRef={canvasRef}
                 className="absolute inset-0 h-full w-full"
+                mirrorVideo={isFaceAnalyzable}
               />
 
               <div className="pointer-events-none absolute left-3 top-3 z-20 md:left-4 md:top-4">
                 <div className="overlay-badge font-mono text-[11px] text-white md:text-xs">
-                  {fps} {t.fpsLabel.toLowerCase()} · {formatTime(timer)}
+                  {displayFps > 0 ? `${displayFps} ${t.fpsLabel.toLowerCase()} · ` : ""}
+                  {formatTime(timer)}
                 </div>
               </div>
 
-              {(lastAnalyzeResult || liveAccuracy != null) && (
+              {isFaceAnalyzable && faceAnalysis.repResult && !faceAnalysis.isRepComplete && (
+                <div className="pointer-events-none absolute inset-x-0 top-14 z-30 flex justify-center px-4">
+                  <FaceFeedbackBanner
+                    variant={analysisKind === "face_hand" ? "face_hand" : "face"}
+                    feedbackState={faceAnalysis.repResult.feedbackState}
+                    feedbackKey={faceAnalysis.repResult.feedbackKey}
+                  />
+                </div>
+              )}
+
+              {isFaceAnalyzable && faceAnalysis.repResult && (
+                <div className="pointer-events-none absolute right-3 top-16 z-20 rounded-2xl border border-white/20 bg-black/50 px-4 py-2 text-center backdrop-blur-md md:right-4">
+                  <p className="text-2xl font-bold tabular-nums text-white">
+                    {faceAnalysis.repResult.reps} / {faceAnalysis.effectiveRepTarget}
+                  </p>
+                  <p className="text-[10px] font-medium uppercase tracking-wide text-white/80">
+                    {t.reps}
+                  </p>
+                </div>
+              )}
+
+              {(isBodyAnalyzable && (lastAnalyzeResult || liveAccuracy != null)) ||
+              (isFaceAnalyzable && faceAnalysis.repResult) ? (
                 <div
                   className={`pointer-events-none absolute right-3 top-3 z-20 rounded-2xl border border-white/20 bg-gradient-to-br px-4 py-2.5 text-center shadow-lg backdrop-blur-md md:right-4 md:top-4 md:px-5 md:py-3 ${accuracyAccent(accVal)}`}
                 >
@@ -454,9 +559,9 @@ function TrainingSessionContent() {
                     {t.poseTestAccuracyLabel}
                   </p>
                 </div>
-              )}
+              ) : null}
 
-              {visibilityWarning && (
+              {isFaceAnalyzable && faceAnalysis.faceNotDetected && (
                 <div
                   className="absolute left-3 right-3 top-14 z-30 flex items-start gap-2 rounded-xl px-3 py-2.5 text-xs text-white backdrop-blur-md md:left-4 md:right-4 md:text-sm"
                   style={{ backgroundColor: "rgba(234, 179, 8, 0.38)" }}
@@ -466,7 +571,17 @@ function TrainingSessionContent() {
                 </div>
               )}
 
-              {rulesReady && !lastAnalyzeResult && !visibilityWarning ? (
+              {visibilityWarning && isBodyAnalyzable && (
+                <div
+                  className="absolute left-3 right-3 top-14 z-30 flex items-start gap-2 rounded-xl px-3 py-2.5 text-xs text-white backdrop-blur-md md:left-4 md:right-4 md:text-sm"
+                  style={{ backgroundColor: "rgba(234, 179, 8, 0.38)" }}
+                >
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-950/90 md:h-5 md:w-5" />
+                  <p>{t.notEnoughVisibility}</p>
+                </div>
+              )}
+
+              {isBodyAnalyzable && rulesReady && !lastAnalyzeResult && !visibilityWarning ? (
                 <div className="pointer-events-none absolute bottom-16 left-1/2 z-20 max-w-sm -translate-x-1/2 px-4 text-center">
                   <p className="rounded-xl bg-black/50 px-3 py-2 text-xs text-white/90 backdrop-blur-sm">
                     {t.waitingForData}
@@ -474,7 +589,7 @@ function TrainingSessionContent() {
                 </div>
               ) : null}
 
-              {lastAnalyzeResult && !visibilityWarning && (
+              {isBodyAnalyzable && lastAnalyzeResult && !visibilityWarning && (
                 <div className="pointer-events-none absolute bottom-[4.5rem] left-1/2 z-20 flex max-w-xs -translate-x-1/2 flex-wrap justify-center gap-x-3 gap-y-1 text-[10px] text-white/90 md:text-xs">
                   <span>
                     {t.targetScore}: {lastAnalyzeResult.target_score.toFixed(0)}%
@@ -485,12 +600,16 @@ function TrainingSessionContent() {
                 </div>
               )}
 
-              {lastAnalyzeResult && !lastAnalyzeResult.is_reliable && !visibilityWarning && (
+              {isBodyAnalyzable &&
+                lastAnalyzeResult &&
+                !lastAnalyzeResult.is_reliable &&
+                !visibilityWarning && (
                 <div className="pointer-events-none absolute bottom-28 left-1/2 z-20 max-w-sm -translate-x-1/2 px-4 text-center">
                   <p className="text-[10px] text-amber-200/95 md:text-xs">{t.lowReliability}</p>
                 </div>
               )}
 
+              {isBodyAnalyzable && (
               <div
                 className={`absolute bottom-0 left-0 right-0 z-40 transition-transform duration-300 ease-out ${
                   rulesOpen ? "translate-y-0" : "translate-y-[calc(100%-2.75rem)]"
@@ -572,6 +691,7 @@ function TrainingSessionContent() {
                   )}
                 </div>
               </div>
+              )}
             </>
           ) : (
             <div className="flex min-h-[min(50vh,400px)] w-full flex-col items-center justify-center bg-gradient-to-b from-th-subtle/10 to-black p-8">
@@ -632,6 +752,10 @@ function TrainingSessionContent() {
             {t.trainingRetryCamera}
           </button>
         </div>
+      )}
+
+      {current?.is_analyzable && isFaceAnalyzable && (
+        <p className="mb-4 text-sm text-purple-800 dark:text-purple-200">{t.faceTrainingHint}</p>
       )}
 
       {current?.is_analyzable && poseRulesError && (

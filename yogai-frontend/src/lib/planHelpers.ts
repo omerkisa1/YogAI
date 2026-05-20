@@ -1,4 +1,5 @@
-import type { YogaPlan } from "@/types/yoga";
+import type { YogaPlan, PlanType } from "@/types/yoga";
+import { resolveExerciseAnalysisKind } from "@/lib/poseDomain";
 
 export function getLocalizedField(locale: string, en: string, tr: string): string {
   return locale === "tr" ? (tr || en) : (en || tr);
@@ -57,4 +58,23 @@ export function emptyLocalizedPlan(plan: YogaPlan, yogaPlanLabel: string): Local
 
 export function getLocalizedPlanSafe(plan: YogaPlan, locale: string, yogaPlanLabel: string): LocalizedPlan {
   return getLocalizedPlan(plan, locale) ?? emptyLocalizedPlan(plan, yogaPlanLabel);
+}
+
+export function inferPlanType(
+  plan: YogaPlan,
+  catalogKindByPoseId?: (poseId: string) => PlanType | undefined,
+): PlanType {
+  if (plan.plan_type === "body" || plan.plan_type === "face" || plan.plan_type === "face_hand") {
+    return plan.plan_type;
+  }
+  const raw = plan.plan_en || plan.plan_tr;
+  const firstPoseId = raw?.exercises?.[0]?.pose_id;
+  if (firstPoseId && catalogKindByPoseId) {
+    const kind = catalogKindByPoseId(firstPoseId);
+    if (kind) return kind;
+  }
+  if (firstPoseId) {
+    return resolveExerciseAnalysisKind(firstPoseId);
+  }
+  return "body";
 }

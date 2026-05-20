@@ -8,8 +8,9 @@ import { useApp } from "@/components/layout/AppProvider";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { categoryBorder } from "@/lib/exploreMeta";
 import DifficultyDots from "@/components/shared/DifficultyDots";
-import type { Pose } from "@/types/yoga";
+import type { Pose, PlanType } from "@/types/yoga";
 import type { Translations } from "@/lib/i18n";
+import { poseAnalysisDomain } from "@/lib/poseDomain";
 import { Camera, Plus, Search } from "lucide-react";
 
 function catLabel(c: string, t: Translations): string {
@@ -56,10 +57,6 @@ function PoseGridCard({ pose, locale, t }: { pose: Pose; locale: string; t: Tran
   );
 }
 
-function analysisDomain(p: Pose): "body" | "face" {
-  return p.analysis_kind === "face" || p.analysis_kind === "face_hand" ? "face" : "body";
-}
-
 export default function ExplorePage() {
   const { t, locale } = useApp();
   const { data: poses = [], isLoading, error, refetch, isError } = useAllPoses();
@@ -67,7 +64,7 @@ export default function ExplorePage() {
   const [cat, setCat] = useState<string>("");
   const [diff, setDiff] = useState<number | "">("");
   const [area, setArea] = useState<string>("");
-  const [practiceDomain, setPracticeDomain] = useState<"" | "body" | "face">("");
+  const [practiceDomain, setPracticeDomain] = useState<"" | PlanType>("");
 
   const categories = useMemo(() => {
     const s = new Set<string>();
@@ -91,7 +88,7 @@ export default function ExplorePage() {
         const tr = p.name_tr.toLowerCase();
         if (!en.includes(ql) && !tr.includes(ql)) return false;
       }
-      if (practiceDomain && analysisDomain(p) !== practiceDomain) return false;
+      if (practiceDomain && poseAnalysisDomain(p) !== practiceDomain) return false;
       if (cat && p.category.toLowerCase() !== cat.toLowerCase()) return false;
       if (diff !== "" && p.difficulty !== diff) return false;
       if (area && p.target_area !== area) return false;
@@ -146,7 +143,14 @@ export default function ExplorePage() {
             onClick={() => setPracticeDomain("face")}
             className={`rounded-full px-3 py-1.5 text-xs font-medium ${practiceDomain === "face" ? "bg-purple-600 text-white dark:bg-purple-700" : "border border-th-border bg-th-card"}`}
           >
-            {t.categoryFace}
+            {t.faceYoga}
+          </button>
+          <button
+            type="button"
+            onClick={() => setPracticeDomain("face_hand")}
+            className={`rounded-full px-3 py-1.5 text-xs font-medium ${practiceDomain === "face_hand" ? "bg-purple-600 text-white dark:bg-purple-700" : "border border-th-border bg-th-card"}`}
+          >
+            {t.faceHandYoga}
           </button>
         </div>
       </div>
