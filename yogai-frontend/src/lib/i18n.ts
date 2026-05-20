@@ -78,8 +78,7 @@ const en = {
 
   chooseDomain: "Choose Yoga Type",
   bodyYogaDesc: "Poses for strength, flexibility & balance using full body movement.",
-  faceYogaDesc: "Facial muscle exercises using camera feedback — no hand contact.",
-  faceHandYogaDesc: "Gentle hand-guided facial massage and sculpting with camera guidance.",
+  faceYogaDesc: "Facial muscle exercises and gentle hand-guided massage — camera feedback for both.",
   faceFocusForehead: "Forehead",
   faceFocusEyes: "Eye Area",
   faceFocusCheeks: "Cheeks",
@@ -506,8 +505,7 @@ const tr: typeof en = {
 
   chooseDomain: "Yoga Türünü Seçin",
   bodyYogaDesc: "Tüm vücut hareketi ile güç, esneklik ve denge için pozlar.",
-  faceYogaDesc: "Kamera geri bildirimli yüz kası egzersizleri — el teması yok.",
-  faceHandYogaDesc: "Kamera rehberli nazik elle yüz masajı ve şekillendirme.",
+  faceYogaDesc: "Yüz kası egzersizleri ve nazik elle masaj — ikisi için kamera geri bildirimi.",
   faceFocusForehead: "Alın",
   faceFocusEyes: "Göz Çevresi",
   faceFocusCheeks: "Yanaklar",

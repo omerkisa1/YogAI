@@ -8,9 +8,9 @@ import { useApp } from "@/components/layout/AppProvider";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { categoryBorder } from "@/lib/exploreMeta";
 import DifficultyDots from "@/components/shared/DifficultyDots";
-import type { Pose, PlanType } from "@/types/yoga";
+import type { Pose } from "@/types/yoga";
 import type { Translations } from "@/lib/i18n";
-import { poseAnalysisDomain } from "@/lib/poseDomain";
+import { posePlanDomain, type PlanDomain } from "@/lib/poseDomain";
 import { Camera, Plus, Search } from "lucide-react";
 
 function catLabel(c: string, t: Translations): string {
@@ -64,7 +64,7 @@ export default function ExplorePage() {
   const [cat, setCat] = useState<string>("");
   const [diff, setDiff] = useState<number | "">("");
   const [area, setArea] = useState<string>("");
-  const [practiceDomain, setPracticeDomain] = useState<"" | PlanType>("");
+  const [practiceDomain, setPracticeDomain] = useState<"" | PlanDomain>("");
 
   const categories = useMemo(() => {
     const s = new Set<string>();
@@ -88,7 +88,7 @@ export default function ExplorePage() {
         const tr = p.name_tr.toLowerCase();
         if (!en.includes(ql) && !tr.includes(ql)) return false;
       }
-      if (practiceDomain && poseAnalysisDomain(p) !== practiceDomain) return false;
+      if (practiceDomain && posePlanDomain(p) !== practiceDomain) return false;
       if (cat && p.category.toLowerCase() !== cat.toLowerCase()) return false;
       if (diff !== "" && p.difficulty !== diff) return false;
       if (area && p.target_area !== area) return false;
@@ -144,13 +144,6 @@ export default function ExplorePage() {
             className={`rounded-full px-3 py-1.5 text-xs font-medium ${practiceDomain === "face" ? "bg-purple-600 text-white dark:bg-purple-700" : "border border-th-border bg-th-card"}`}
           >
             {t.faceYoga}
-          </button>
-          <button
-            type="button"
-            onClick={() => setPracticeDomain("face_hand")}
-            className={`rounded-full px-3 py-1.5 text-xs font-medium ${practiceDomain === "face_hand" ? "bg-purple-600 text-white dark:bg-purple-700" : "border border-th-border bg-th-card"}`}
-          >
-            {t.faceHandYoga}
           </button>
         </div>
       </div>

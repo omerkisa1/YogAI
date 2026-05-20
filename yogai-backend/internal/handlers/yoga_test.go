@@ -536,53 +536,44 @@ func TestNormalizePlanType(t *testing.T) {
 	if normalizePlanType("face") != "face" {
 		t.Error("face")
 	}
-	if normalizePlanType("face_hand") != "face_hand" {
-		t.Error("face_hand")
+	if normalizePlanType("face_hand") != "face" {
+		t.Error("face_hand → face")
 	}
 	if normalizePlanType("invalid") != "body" {
 		t.Error("invalid → body")
 	}
 }
 
-func TestFilterPosesByPlanType_FaceOnly(t *testing.T) {
+func TestFilterPosesByPlanType_FaceIncludesBothKinds(t *testing.T) {
 	all := catalog.GetFaceYogaPoseIDs()
-	faceOnly := filterPosesByPlanType(all, "face")
-	for _, id := range faceOnly {
+	facePool := filterPosesByPlanType(all, "face")
+	hasFace := false
+	hasFaceHand := false
+	for _, id := range facePool {
 		pose, _ := catalog.GetPoseByID(id)
-		if pose.AnalysisKind != "face" {
-			t.Errorf("pose %q has kind %q, want face", id, pose.AnalysisKind)
+		if pose.AnalysisKind == "face" {
+			hasFace = true
+		}
+		if pose.AnalysisKind == "face_hand" {
+			hasFaceHand = true
 		}
 	}
-	if len(faceOnly) == 0 {
-		t.Fatal("expected face-only poses")
+	if !hasFace || !hasFaceHand {
+		t.Fatalf("face plan pool should include both kinds: face=%v face_hand=%v", hasFace, hasFaceHand)
 	}
 }
 
-func TestFilterPosesByPlanType_FaceHandOnly(t *testing.T) {
-	all := catalog.GetFaceYogaPoseIDs()
-	faceHandOnly := filterPosesByPlanType(all, "face_hand")
-	for _, id := range faceHandOnly {
-		pose, _ := catalog.GetPoseByID(id)
-		if pose.AnalysisKind != "face_hand" {
-			t.Errorf("pose %q has kind %q, want face_hand", id, pose.AnalysisKind)
-		}
-	}
-	if len(faceHandOnly) == 0 {
-		t.Fatal("expected face_hand poses")
-	}
-}
-
-func TestPreValidation_FaceHandDomain(t *testing.T) {
-	count, _, err := preValidatePlanRequest("beginner", 19, "full_face", []string{}, "face_hand")
+func TestPreValidation_FaceDomain(t *testing.T) {
+	count, _, err := preValidatePlanRequest("advanced", 41, "full_face", []string{}, "face")
 	if err != nil {
-		t.Fatalf("face_hand pre-validation failed: %v (count=%d)", err, count)
+		t.Fatalf("face pre-validation failed: %v (count=%d)", err, count)
 	}
 	if count < 3 {
-		t.Fatalf("expected at least 3 face_hand poses, got %d", count)
+		t.Fatalf("expected at least 3 face-domain poses, got %d", count)
 	}
 }
 
-func TestValidateAndEnrich_RejectsWrongDomain(t *testing.T) {
+func TestValidateAndEnrich_FaceAllowsMixedKinds(t *testing.T) {
 	raw := `{
 		"title_en": "Mixed Face",
 		"title_tr": "Karışık Yüz",
@@ -598,32 +589,9 @@ func TestValidateAndEnrich_RejectsWrongDomain(t *testing.T) {
 		]
 	}`
 
-	_, err := validateAndEnrich(raw, nil, "face")
-	if err == nil {
-		t.Fatal("expected error when face_hand pose in face-only plan")
-	}
-	t.Logf("[PASS] face plan rejected face_hand pose: %v", err)
-}
-
-func TestValidateAndEnrich_FaceHandOnly(t *testing.T) {
-	raw := `{
-		"title_en": "Hand Plan",
-		"title_tr": "El Planı",
-		"focus_area": "full_face",
-		"difficulty": "Beginner",
-		"total_duration_min": 9,
-		"description_en": "Test.",
-		"description_tr": "Test.",
-		"exercises": [
-			{"pose_id": "face_hand_cheek_massage", "duration_min": 3, "benefit_en": "b", "benefit_tr": "b"},
-			{"pose_id": "face_hand_forehead_smooth", "duration_min": 3, "benefit_en": "b", "benefit_tr": "b"},
-			{"pose_id": "face_hand_jaw_release", "duration_min": 3, "benefit_en": "b", "benefit_tr": "b"}
-		]
-	}`
-
-	plan, err := validateAndEnrich(raw, nil, "face_hand")
+	plan, err := validateAndEnrich(raw, nil, "face")
 	if err != nil {
-		t.Fatalf("face_hand plan failed: %v", err)
+		t.Fatalf("face plan should allow face + face_hand: %v", err)
 	}
 	if len(plan.Exercises) != 3 {
 		t.Fatalf("expected 3 exercises, got %d", len(plan.Exercises))
@@ -634,13 +602,19 @@ func TestPosePlanDomain(t *testing.T) {
 	if posePlanDomain("face") != "face" {
 		t.Error("face")
 	}
-	if posePlanDomain("face_hand") != "face_hand" {
-		t.Error("face_hand")
+	if posePlanDomain("face_hand") != "face" {
+		t.Error("face_hand → face plan domain")
 	}
 	if posePlanDomain("body") != "body" {
 		t.Error("body")
 	}
-	if posePlanDomain("") != "body" {
-		t.Error("empty → body")
+}
+
+func TestPoseMatchesPlanType(t *testing.T) {
+	if !poseMatchesPlanType("face_hand", "face") {
+		t.Error("face_hand matches face plan")
+	}
+	if poseMatchesPlanType("mountain", "face") {
+		t.Error("body pose not face plan")
 	}
 }

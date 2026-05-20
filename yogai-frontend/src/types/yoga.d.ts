@@ -49,7 +49,8 @@ export interface YogaPlan {
   is_pinned?: boolean;
 }
 
-export type PlanType = "body" | "face" | "face_hand";
+/** Plan-level type stored on plans and sent when generating (face includes face_hand poses). */
+export type PlanType = "body" | "face";
 
 export interface GeneratePlanRequest {
   level: string;

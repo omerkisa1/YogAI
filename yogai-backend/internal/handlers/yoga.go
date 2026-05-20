@@ -94,32 +94,31 @@ func (h *YogaHandler) getUserID(c *gin.Context) (string, bool) {
 }
 
 func normalizePlanType(planType string) string {
-	switch planType {
-	case "face", "face_hand":
-		return planType
-	default:
-		return "body"
+	if planType == "face" || planType == "face_hand" {
+		return "face"
 	}
+	return "body"
 }
 
 func filterPosesByPlanType(poseIDs []string, planType string) []string {
-	switch planType {
-	case "face":
-		return catalog.FilterByAnalysisKind(poseIDs, "face")
-	case "face_hand":
-		return catalog.FilterByAnalysisKind(poseIDs, "face_hand")
-	default:
-		return catalog.FilterToBodyYoga(poseIDs)
+	if planType == "face" {
+		return catalog.FilterToFaceYoga(poseIDs)
 	}
+	return catalog.FilterToBodyYoga(poseIDs)
 }
 
 func posePlanDomain(analysisKind string) string {
-	switch analysisKind {
-	case "face", "face_hand":
-		return analysisKind
-	default:
-		return "body"
+	if analysisKind == "face" || analysisKind == "face_hand" {
+		return "face"
 	}
+	return "body"
+}
+
+func poseMatchesPlanType(analysisKind, planType string) bool {
+	if planType == "face" {
+		return analysisKind == "face" || analysisKind == "face_hand"
+	}
+	return analysisKind == "body"
 }
 
 func validateAndEnrich(raw string, userInjuries []string, expectedPlanType string) (*BilingualPlan, error) {
@@ -169,8 +168,8 @@ func validateAndEnrich(raw string, userInjuries []string, expectedPlanType strin
 			continue
 		}
 
-		if expectedPlanType != "" && pose.AnalysisKind != expectedPlanType {
-			log.Printf("[WARN] LLM returned pose_id %q with analysis_kind %q, expected %q — skipping", ex.PoseID, pose.AnalysisKind, expectedPlanType)
+		if expectedPlanType != "" && !poseMatchesPlanType(pose.AnalysisKind, expectedPlanType) {
+			log.Printf("[WARN] LLM returned pose_id %q with analysis_kind %q, expected plan_type %q — skipping", ex.PoseID, pose.AnalysisKind, expectedPlanType)
 			continue
 		}
 
@@ -606,22 +605,16 @@ func isContraindicated(pose *catalog.Pose, injuries []string) bool {
 
 func buildBilingualPlanPrompt(req GeneratePlanRequest, injuries []string, poseIDList string, planType string) string {
 	planKind := "body yoga"
-	switch planType {
-	case "face":
-		planKind = "face yoga (facial muscle exercises only, no hand-touch poses)"
-	case "face_hand":
-		planKind = "face yoga with hands (gentle hand-guided facial massage, face_hand poses only)"
+	if planType == "face" {
+		planKind = "face yoga"
 	}
 
 	prompt := "Generate a bilingual " + planKind + " plan with these parameters: " +
 		"Level: " + req.Level + ". " +
 		"Total duration: exactly " + fmt.Sprintf("%d", req.Duration) + " minutes."
 
-	switch planType {
-	case "face":
-		prompt += " IMPORTANT: This is a PURE FACE YOGA plan (blendshape facial exercises). All exercises target facial and neck muscles without hand contact. Duration per exercise should be 1-3 minutes. Focus on variety across face regions (forehead, eyes, cheeks, mouth, jawline, neck). Do NOT use face_hand_* pose_ids."
-	case "face_hand":
-		prompt += " IMPORTANT: This is a FACE+HAND YOGA plan. All exercises use gentle hand contact on the face (massage, sculpting, lymph flow). Duration per exercise should be 1-3 minutes. Focus on variety across face regions. Only use face_hand_* style poses from the allowed list."
+	if planType == "face" {
+		prompt += " IMPORTANT: This is a FACE YOGA plan. Combine facial muscle exercises (face_*) and optional gentle hand-guided massage (face_hand_*) from the allowed list. Never use full-body poses. Duration per exercise should be 1-3 minutes. Focus on variety across face regions (forehead, eyes, cheeks, mouth, jawline, neck)."
 	}
 
 	prompt += " ALLOWED POSE IDS (you MUST only pick from this list): [" + poseIDList + "]."
@@ -707,11 +700,7 @@ func (h *YogaHandler) CreateCustomPlan(c *gin.Context) {
 		if planDomain == "" {
 			planDomain = kind
 		} else if planDomain != kind {
-			if planDomain == "body" || kind == "body" {
-				models.ErrorResponse(c, http.StatusBadRequest, "Yüz yogası hareketleri ile normal yoga hareketleri aynı planda birleştirilemez. Lütfen tek bir tür seçin.")
-			} else {
-				models.ErrorResponse(c, http.StatusBadRequest, "Yüz yogası ile elle yüz yogası aynı planda birleştirilemez. Lütfen tek bir tür seçin.")
-			}
+			models.ErrorResponse(c, http.StatusBadRequest, "Yüz yogası hareketleri ile normal yoga hareketleri aynı planda birleştirilemez. Lütfen tek bir tür seçin.")
 			return
 		}
 	}

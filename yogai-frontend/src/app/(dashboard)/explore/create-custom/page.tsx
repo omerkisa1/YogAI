@@ -14,13 +14,13 @@ import { colors } from "@/lib/colors";
 import { categoryBorder } from "@/lib/exploreMeta";
 import type { Translations } from "@/lib/i18n";
 import { CheckSquare, Plus, Search, Square, Trash2 } from "lucide-react";
-import type { PlanType } from "@/types/yoga";
+import type { PlanDomain } from "@/lib/poseDomain";
 import {
   domainBadgeClass,
   domainBadgeLabel,
   domainsCompatible,
   mixDomainErrorMessage,
-  poseAnalysisDomain,
+  posePlanDomain,
 } from "@/lib/poseDomain";
 
 type Entry = { pose_id: string; duration_min: number };
@@ -54,10 +54,10 @@ export default function CreateCustomPlanPage() {
 
   const poseMap = useMemo(() => Object.fromEntries(poses.map((p) => [p.pose_id, p])), [poses]);
 
-  const planDomain = useMemo((): PlanType | null => {
+  const planDomain = useMemo((): PlanDomain | null => {
     for (const e of entries) {
       const p = poseMap[e.pose_id];
-      if (p) return poseAnalysisDomain(p);
+      if (p) return posePlanDomain(p);
     }
     return null;
   }, [entries, poseMap]);
@@ -72,7 +72,7 @@ export default function CreateCustomPlanPage() {
         const firstPose = poseMap[prev[0].pose_id];
         if (
           firstPose &&
-          !domainsCompatible(poseAnalysisDomain(firstPose), poseAnalysisDomain(pose))
+          !domainsCompatible(posePlanDomain(firstPose), posePlanDomain(pose))
         ) {
           return prev;
         }
@@ -101,7 +101,7 @@ export default function CreateCustomPlanPage() {
   const modalFiltered = useMemo(() => {
     const ql = mq.trim().toLowerCase();
     return poses.filter((p) => {
-      if (planDomain && poseAnalysisDomain(p) !== planDomain) return false;
+      if (planDomain && posePlanDomain(p) !== planDomain) return false;
       if (mcat && p.category.toLowerCase() !== mcat.toLowerCase()) return false;
       if (ql) {
         const en = p.name_en.toLowerCase();
@@ -114,15 +114,15 @@ export default function CreateCustomPlanPage() {
 
   const modalCategories = useMemo(() => {
     const filtered = planDomain
-      ? poses.filter((p) => poseAnalysisDomain(p) === planDomain)
+      ? poses.filter((p) => posePlanDomain(p) === planDomain)
       : poses;
     return Array.from(new Set(filtered.map((p) => p.category))).sort();
   }, [poses, planDomain]);
 
   const toggleSel = (id: string) => {
     const p = poseMap[id];
-    if (p && planDomain && !domainsCompatible(poseAnalysisDomain(p), planDomain)) {
-      toast.error(mixDomainErrorMessage(planDomain, poseAnalysisDomain(p), t));
+    if (p && planDomain && !domainsCompatible(posePlanDomain(p), planDomain)) {
+      toast.error(mixDomainErrorMessage(planDomain, posePlanDomain(p), t));
       return;
     }
     setSelectedIds((prev) => {
@@ -136,13 +136,10 @@ export default function CreateCustomPlanPage() {
   const addSelected = () => {
     const incompatible = Array.from(selectedIds).find((id) => {
       const p = poseMap[id];
-      return p && planDomain && !domainsCompatible(poseAnalysisDomain(p), planDomain);
+      return p && planDomain && !domainsCompatible(posePlanDomain(p), planDomain);
     });
     if (incompatible) {
-      const p = poseMap[incompatible];
-      if (p && planDomain) {
-        toast.error(mixDomainErrorMessage(planDomain, poseAnalysisDomain(p), t));
-      }
+      toast.error(t.cannotMixCategories);
       return;
     }
     setEntries((prev) => {
@@ -307,9 +304,7 @@ export default function CreateCustomPlanPage() {
                 )}
               </div>
               {planDomain && (
-                <p className="mt-1 text-xs text-th-text-mut">
-                  {planDomain === "body" ? t.cannotMixCategories : t.cannotMixFaceTypes}
-                </p>
+                <p className="mt-1 text-xs text-th-text-mut">{t.cannotMixCategories}</p>
               )}
               <div className="relative mt-3">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-th-text-mut" strokeWidth={2} aria-hidden />

@@ -40,10 +40,9 @@ type AIService interface {
 }
 
 type geminiService struct {
-	client        *genai.Client
-	bodyModel     *genai.GenerativeModel
-	faceModel     *genai.GenerativeModel
-	faceHandModel *genai.GenerativeModel
+	client    *genai.Client
+	bodyModel *genai.GenerativeModel
+	faceModel *genai.GenerativeModel
 }
 
 func newPlanModel(client *genai.Client, systemInstruction string) *genai.GenerativeModel {
@@ -72,47 +71,31 @@ func NewGeminiService(apiKey string) (AIService, error) {
 		"6. PERSONALIZATION: benefit_en and benefit_tr must explain why this specific pose helps this specific user's condition and goals. If user notes are provided, reflect them in every benefit. " +
 		"7. OUTPUT FORMAT: Respond ONLY with a valid JSON object. No conversational text, no markdown, no explanations."
 
-	faceInstruction := "You are an elite Face Yoga & Facial Wellness Specialist. You generate bilingual (English + Turkish) FACE-ONLY yoga plans in a SINGLE JSON response. " +
-		"Plans use facial muscle isolation exercises (blendshape-driven: eyes, cheeks, mouth, brow, jaw, neck) from the allowed list — NO hand-touch or massage poses (no face_hand_* ids). Never include conventional full-body poses. " +
+	faceInstruction := "You are an elite Face Yoga & Facial Wellness Specialist. You generate bilingual (English + Turkish) FACE yoga plans in a SINGLE JSON response. " +
+		"Plans may combine facial muscle isolation (face_* poses) and gentle hand-guided massage (face_hand_* poses) from the same allowed list — never conventional full-body poses. " +
 		"ABSOLUTE RULES: " +
-		"1. POSE SELECTION: ONLY use pose_id values from allowed_pose_ids — all are pure face exercises (typically face_* without hand contact). Inventing pose_ids is forbidden. " +
+		"1. POSE SELECTION: ONLY use pose_id values from allowed_pose_ids in the prompt — all are face-domain exercises. Inventing pose_ids is forbidden. " +
 		"2. BILINGUAL OUTPUT: Every text field has both _en and _tr variants. English in *_en fields, Turkish in *_tr fields. pose_id stays English identifiers. " +
 		"3. MINIMAL EXERCISE DATA per exercise: pose_id, duration_min, benefit_en, benefit_tr ONLY. No instructions, names, or focus_point (catalog supplies those). " +
 		"4. TIME: Face routines use SHORTER segments than body yoga — prefer roughly 1–3 minutes per exercise when the requested total permits. Sum of duration_min must equal total_duration_min exactly. " +
-		"5. SAFETY: Respect injury filtering already applied to allowed_pose_ids. Advise gentle technique for eyes/neck/jaw unless user notes say otherwise. " +
-		"6. PERSONALIZATION: benefit_en/TR must cite muscle groups targeted (nasalis, platysma, orbicularis, masseter relaxation, cervical stretch) aligned with user notes and requested focus_area. " +
-		"7. OUTPUT FORMAT: Valid JSON object only — no prose, markdown, or commentary."
-
-	faceHandInstruction := "You are an elite Face Yoga with Hands & Facial Massage Specialist. You generate bilingual (English + Turkish) FACE+HAND yoga plans in a SINGLE JSON response. " +
-		"Plans use gentle hand-guided facial massage and touch exercises (face_hand_* poses) from the allowed list — NO pure blendshape-only face poses and NO full-body yoga. " +
-		"ABSOLUTE RULES: " +
-		"1. POSE SELECTION: ONLY use pose_id values from allowed_pose_ids — all are face+hand exercises. Inventing pose_ids is forbidden. " +
-		"2. BILINGUAL OUTPUT: Every text field has both _en and _tr variants. English in *_en fields, Turkish in *_tr fields. pose_id stays English identifiers. " +
-		"3. MINIMAL EXERCISE DATA per exercise: pose_id, duration_min, benefit_en, benefit_tr ONLY. No instructions, names, or focus_point (catalog supplies those). " +
-		"4. TIME: Prefer roughly 1–3 minutes per exercise when the requested total permits. Sum of duration_min must equal total_duration_min exactly. " +
-		"5. SAFETY: Respect injury filtering. Mention light pressure, clean hands, and avoiding harsh pulling on delicate skin (under eyes, jaw, neck) in benefits. " +
-		"6. PERSONALIZATION: benefit_en/TR must explain lymph flow, muscle release, and region targeted (forehead, cheeks, jawline, temples, neck) per user focus_area and notes. " +
+		"5. SAFETY: Respect injury filtering already applied to allowed_pose_ids. Mention gentle technique for eyes/neck/jaw and light pressure for hand-touch poses unless user notes say otherwise. " +
+		"6. PERSONALIZATION: benefit_en/TR must cite targeted muscle groups and regions aligned with user notes and requested focus_area. " +
 		"7. OUTPUT FORMAT: Valid JSON object only — no prose, markdown, or commentary."
 
 	bodyModel := newPlanModel(client, bodyInstruction)
 	faceModel := newPlanModel(client, faceInstruction)
-	faceHandModel := newPlanModel(client, faceHandInstruction)
 
 	return &geminiService{
-		client:        client,
-		bodyModel:     bodyModel,
-		faceModel:     faceModel,
-		faceHandModel: faceHandModel,
+		client:    client,
+		bodyModel: bodyModel,
+		faceModel: faceModel,
 	}, nil
 }
 
 func (s *geminiService) GenerateYogaPlan(ctx context.Context, prompt string, planType string) (string, error) {
 	model := s.bodyModel
-	switch planType {
-	case "face":
+	if planType == "face" || planType == "face_hand" {
 		model = s.faceModel
-	case "face_hand":
-		model = s.faceHandModel
 	}
 	var lastErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {

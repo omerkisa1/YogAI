@@ -4,10 +4,16 @@ import {
 import {
   FACE_HAND_EXERCISE_CONFIGS,
 } from "@/lib/faceHandRepCounter";
-import type { Pose, PlanType } from "@/types/yoga";
+import type { Pose } from "@/types/yoga";
 import type { Translations } from "@/lib/i18n";
 
-export type ExerciseAnalysisKind = PlanType;
+/** Plan-level domain: body vs combined face yoga (face + face_hand poses). */
+export type PlanDomain = "body" | "face";
+
+/** Per-pose analysis pipeline kind (training / pose-test). */
+export type ExerciseAnalysisKind = "body" | "face" | "face_hand";
+
+export type PlanType = PlanDomain;
 
 export function resolveExerciseAnalysisKind(
   poseId: string,
@@ -19,39 +25,37 @@ export function resolveExerciseAnalysisKind(
   return "body";
 }
 
-export function poseAnalysisDomain(p: Pose): PlanType {
+export function posePlanDomain(p: Pose): PlanDomain {
   if (p.analysis_kind === "face" || p.analysis_kind === "face_hand") {
-    return p.analysis_kind;
+    return "face";
   }
   return "body";
 }
 
-export function domainsCompatible(a: PlanType, b: PlanType): boolean {
+export function domainsCompatible(a: PlanDomain, b: PlanDomain): boolean {
   return a === b;
 }
 
-export function mixDomainErrorMessage(
-  existing: PlanType,
-  incoming: PlanType,
-  t: Translations,
-): string {
-  const hasBody = existing === "body" || incoming === "body";
-  if (hasBody) return t.cannotMixCategories;
-  return t.cannotMixFaceTypes;
+export function mixDomainErrorMessage(_existing: PlanDomain, _incoming: PlanDomain, t: Translations): string {
+  return t.cannotMixCategories;
 }
 
-export function domainBadgeLabel(domain: PlanType, t: Translations): string {
+export function domainBadgeLabel(domain: PlanDomain, t: Translations): string {
   if (domain === "face") return t.faceYoga;
-  if (domain === "face_hand") return t.faceHandYoga;
   return t.bodyYoga;
 }
 
-export function isFacePlanType(planType: PlanType): boolean {
+export function isFacePlanType(planType: string): boolean {
   return planType === "face" || planType === "face_hand";
 }
 
-export function domainBadgeClass(domain: PlanType): string {
-  if (domain === "face" || domain === "face_hand") {
+export function normalizePlanType(planType?: string): PlanDomain {
+  if (planType === "face" || planType === "face_hand") return "face";
+  return "body";
+}
+
+export function domainBadgeClass(domain: PlanDomain): string {
+  if (domain === "face") {
     return "bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300";
   }
   return "bg-sage-100 text-sage-700 dark:bg-sage-950/40 dark:text-sage-300";

@@ -7,7 +7,7 @@ import { useCreatePlan } from "@/hooks/usePlans";
 import { useProfile } from "@/hooks/useProfile";
 import { useApp } from "@/components/layout/AppProvider";
 import { focusAreaKeys, faceFocusAreaKeys, type Translations } from "@/lib/i18n";
-import { isFacePlanType } from "@/lib/poseDomain";
+import { normalizePlanType } from "@/lib/poseDomain";
 import type { GeneratePlanRequest, PlanType } from "@/types/yoga";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
@@ -36,16 +36,14 @@ function formatPlanErrorMessage(
 }
 
 function planCreatedToast(planType: PlanType, t: Translations): string {
-  if (planType === "face") return t.facePlanCreated;
-  if (planType === "face_hand") return t.faceHandPlanCreated;
-  return t.planCreated;
+  return planType === "face" ? t.facePlanCreated : t.planCreated;
 }
 
 export type PlanGeneratorFormProps = {
   presetLevel?: string;
   presetDuration?: number;
   presetFocus?: string;
-  presetPlanType?: PlanType;
+  presetPlanType?: PlanType | "face_hand";
 };
 
 export default function PlanGeneratorForm({
@@ -82,12 +80,13 @@ export default function PlanGeneratorForm({
     if (presetFocus && [...focusAreaKeys, ...faceFocusAreaKeys].some((a) => a.value === presetFocus)) {
       setValue("focus_area", presetFocus);
       if (faceFocusAreaKeys.some((a) => a.value === presetFocus)) {
-        setPlanType(presetPlanType === "face_hand" ? "face_hand" : "face");
+        setPlanType("face");
       }
     }
-    if (presetPlanType === "face" || presetPlanType === "face_hand" || presetPlanType === "body") {
-      setPlanType(presetPlanType);
-      if (isFacePlanType(presetPlanType) && !presetDuration) {
+    if (presetPlanType) {
+      const normalized = normalizePlanType(presetPlanType);
+      setPlanType(normalized);
+      if (normalized === "face" && !presetDuration) {
         setValue("duration", 10);
       }
     }
@@ -110,19 +109,18 @@ export default function PlanGeneratorForm({
     { value: "advanced", label: t.advanced, desc: t.advancedDesc },
   ];
 
-  const domains: { value: PlanType; label: string; desc: string; emoji: string }[] = [
-    { value: "body", label: t.bodyYoga, desc: t.bodyYogaDesc, emoji: "🧘" },
-    { value: "face", label: t.faceYoga, desc: t.faceYogaDesc, emoji: "✨" },
-    { value: "face_hand", label: t.faceHandYoga, desc: t.faceHandYogaDesc, emoji: "🤲" },
+  const domains: { value: PlanType; label: string; desc: string }[] = [
+    { value: "body", label: t.bodyYoga, desc: t.bodyYogaDesc },
+    { value: "face", label: t.faceYoga, desc: t.faceYogaDesc },
   ];
 
-  const currentFocusKeys = isFacePlanType(planType) ? faceFocusAreaKeys : focusAreaKeys;
-  const currentDurations = isFacePlanType(planType) ? faceDurations : bodyDurations;
+  const currentFocusKeys = planType === "face" ? faceFocusAreaKeys : focusAreaKeys;
+  const currentDurations = planType === "face" ? faceDurations : bodyDurations;
 
   const handleDomainSelect = (d: PlanType) => {
     setPlanType(d);
     setValue("focus_area", "");
-    setValue("duration", isFacePlanType(d) ? 10 : 30);
+    setValue("duration", d === "face" ? 10 : 30);
   };
 
   const handleGenerate = async () => {
@@ -200,8 +198,7 @@ export default function PlanGeneratorForm({
                         : "border-th-border hover:border-th-muted"
                     }`}
                   >
-                    <span className="text-3xl">{d.emoji}</span>
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold text-th-text">{d.label}</p>
                       <p className="text-xs text-th-text-mut">{d.desc}</p>
                     </div>
@@ -264,7 +261,7 @@ export default function PlanGeneratorForm({
             >
               <h2 className="text-lg font-semibold text-th-text">{t.sessionDuration}</h2>
               <p className="text-sm text-th-text-mut">{t.durationDesc}</p>
-              {isFacePlanType(planType) && (
+              {planType === "face" && (
                 <p className="text-xs text-purple-700 dark:text-purple-300">{t.faceSessionDuration}</p>
               )}
               <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">

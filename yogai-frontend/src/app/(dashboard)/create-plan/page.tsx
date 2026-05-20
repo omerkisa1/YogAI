@@ -9,7 +9,8 @@ import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import type { PlanType } from "@/types/yoga";
 
 function parsePlanType(raw: string | null): PlanType | undefined {
-  if (raw === "body" || raw === "face" || raw === "face_hand") return raw;
+  if (raw === "body" || raw === "face") return raw;
+  if (raw === "face_hand") return "face";
   return undefined;
 }
 
