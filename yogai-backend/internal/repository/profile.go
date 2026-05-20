@@ -20,6 +20,7 @@ type UserProfile struct {
 	Injuries          []string  `json:"injuries" firestore:"injuries"`
 	Goals             []string  `json:"goals" firestore:"goals"`
 	PreferredDuration int       `json:"preferred_duration" firestore:"preferred_duration"`
+	PreferredLanguage string    `json:"preferred_language" firestore:"preferred_language"`
 	ProfileImageURL   string    `json:"profile_image_url" firestore:"profile_image_url"`
 	Platform          string    `json:"platform" firestore:"platform"`
 	LastLoginAt       string    `json:"last_login_at" firestore:"last_login_at"`

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/omerkisa/yogai-backend/internal/catalog"
 	"github.com/omerkisa/yogai-backend/internal/models"
 	"github.com/omerkisa/yogai-backend/internal/repository"
 )
@@ -15,6 +16,31 @@ type TrainingHandler struct {
 
 func NewTrainingHandler(repo repository.TrainingRepository) *TrainingHandler {
 	return &TrainingHandler{repo: repo}
+}
+
+func averageAccuracyFromResults(results []*models.PoseResult) float64 {
+	var accuracySum float64
+	var accuracyCount int
+
+	for _, result := range results {
+		pose, exists := catalog.GetPoseByID(result.PoseID)
+		if !exists {
+			continue
+		}
+
+		if pose.MetricType == "reps" {
+			accuracySum += 100.0
+			accuracyCount++
+		} else if result.Accuracy > 0 {
+			accuracySum += result.Accuracy
+			accuracyCount++
+		}
+	}
+
+	if accuracyCount == 0 {
+		return 0
+	}
+	return accuracySum / float64(accuracyCount)
 }
 
 func (h *TrainingHandler) getUserID(c *gin.Context) (string, bool) {
@@ -119,23 +145,13 @@ func (h *TrainingHandler) CompleteSession(c *gin.Context) {
 		return
 	}
 
-	var totalAcc float64
-	var totalDur int
-	var accCount int
 	poseCount := len(results)
-
+	var totalDur int
 	for _, r := range results {
-		if r.Accuracy > 0 {
-			totalAcc += r.Accuracy
-			accCount++
-		}
 		totalDur += r.DurationSeconds
 	}
 
-	avgAcc := 0.0
-	if accCount > 0 {
-		avgAcc = totalAcc / float64(accCount)
-	}
+	avgAcc := averageAccuracyFromResults(results)
 
 	now := time.Now()
 	valMap := map[string]interface{}{
@@ -172,20 +188,22 @@ func (h *TrainingHandler) GetSessions(c *gin.Context) {
 	}
 
 	type sessionResp struct {
-		ID              string     `json:"id"`
-		PlanID          string     `json:"plan_id"`
-		Status          string     `json:"status"`
-		StartedAt       time.Time  `json:"started_at"`
-		CompletedAt     *time.Time `json:"completed_at,omitempty"`
-		AverageAccuracy float64    `json:"average_accuracy"`
-		TotalDurationSec int       `json:"total_duration_sec"`
-		PoseCount       int        `json:"pose_count"`
+		ID               string     `json:"id"`
+		PlanID           string     `json:"plan_id"`
+		PlanTitle        string     `json:"plan_title"`
+		Status           string     `json:"status"`
+		StartedAt        time.Time  `json:"started_at"`
+		CompletedAt      *time.Time `json:"completed_at,omitempty"`
+		AverageAccuracy  float64    `json:"average_accuracy"`
+		TotalDurationSec int        `json:"total_duration_sec"`
+		PoseCount        int        `json:"pose_count"`
 	}
 	resp := make([]sessionResp, 0, len(sessions))
 	for _, s := range sessions {
 		resp = append(resp, sessionResp{
 			ID:               s.ID,
 			PlanID:           s.PlanID,
+			PlanTitle:        s.PlanTitle,
 			Status:           s.Status,
 			StartedAt:        s.StartedAt,
 			CompletedAt:      s.CompletedAt,
@@ -238,6 +256,7 @@ func (h *TrainingHandler) GetSessionByID(c *gin.Context) {
 	models.SuccessResponse(c, "session retrieved", gin.H{
 		"id":               session.ID,
 		"plan_id":          session.PlanID,
+		"plan_title":       session.PlanTitle,
 		"status":           session.Status,
 		"started_at":       session.StartedAt,
 		"completed_at":     session.CompletedAt,

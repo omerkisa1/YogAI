@@ -279,10 +279,11 @@ func TestPreValidation_ReTest2_Balance_Beginner_45min(t *testing.T) {
 	// balance poses: tree(diff=2), eagle(diff=3), half_moon(diff=3), warrior_3(diff=4), dancer(diff=4)
 	// beginner filter (max diff=2) → only tree
 	// 1 pose < 3 minimum → error
-	count, maxDur, err := preValidatePlanRequest("beginner", 45, "balance", []string{}, "body")
-	t.Logf("Re-Test 2 → available_poses=%d, max_duration=%d, error=%v", count, maxDur, err)
+	ids := filterSafePoseIDsForPlan("beginner", "balance", []string{}, "body")
+	count, err := preValidatePlanRequest(45, ids)
+	t.Logf("Re-Test 2 → available_poses=%d, error=%v", count, err)
 	if err == nil {
-		t.Errorf("❌ Re-Test 2 FAILED: expected error for balance+beginner+45min, got count=%d maxDur=%d", count, maxDur)
+		t.Errorf("❌ Re-Test 2 FAILED: expected error for balance+beginner+45min, got count=%d", count)
 	} else {
 		t.Logf("✅ Re-Test 2 PASSED: would return 400 Bad Request")
 		t.Logf("   Error message: %s", err.Error())
@@ -294,22 +295,23 @@ func TestPreValidation_Balance_Advanced_45min(t *testing.T) {
 	// balance poses: tree(2), eagle(3), half_moon(3), warrior_3(4), dancer(4) = 5 poses
 	// advanced → no difficulty filter → 5 poses
 	// maxDuration = 5*5 = 25 min → 45 > 25 → error
-	count, maxDur, err := preValidatePlanRequest("advanced", 45, "balance", []string{}, "body")
-	t.Logf("Balance+advanced+45min → available_poses=%d, max_duration=%d, error=%v", count, maxDur, err)
-	if err == nil {
-		t.Errorf("❌ expected error (max 25min), got no error")
+	ids := filterSafePoseIDsForPlan("advanced", "balance", []string{}, "body")
+	count, err := preValidatePlanRequest(45, ids)
+	t.Logf("Balance+advanced+45min → available_poses=%d, error=%v", count, err)
+	if err != nil {
+		t.Errorf("❌ expected no error for advanced+balance+45min, got: %v", err)
+	} else if count < 2 {
+		t.Errorf("expected at least 2 balance poses, got %d", count)
 	} else {
-		if maxDur != 25 {
-			t.Errorf("expected maxDur=25, got %d", maxDur)
-		}
-		t.Logf("✅ PASSED: %s", err.Error())
+		t.Logf("✅ PASSED: %d poses available for 45min plan", count)
 	}
 }
 
 // Valid request — must NOT return error
 func TestPreValidation_ValidRequest_Legs_Intermediate_30min(t *testing.T) {
-	count, maxDur, err := preValidatePlanRequest("intermediate", 30, "legs", []string{}, "body")
-	t.Logf("Valid request → available_poses=%d, max_duration=%d", count, maxDur)
+	ids := filterSafePoseIDsForPlan("intermediate", "legs", []string{}, "body")
+	count, err := preValidatePlanRequest(30, ids)
+	t.Logf("Valid request → available_poses=%d", count)
 	if err != nil {
 		t.Errorf("❌ expected no error for valid request, got: %v", err)
 	} else {
@@ -320,8 +322,9 @@ func TestPreValidation_ValidRequest_Legs_Intermediate_30min(t *testing.T) {
 // Re-Test 1 pre-validation: legs + knee + ankle (intermediate, 30min)
 func TestPreValidation_ReTest1_Legs_KneeAnkle_30min(t *testing.T) {
 	injuries := []string{"knee_injury", "ankle_injury"}
-	count, maxDur, err := preValidatePlanRequest("intermediate", 30, "legs", injuries, "body")
-	t.Logf("Re-Test 1 pre-validation → available_poses=%d, max_duration=%d, err=%v", count, maxDur, err)
+	ids := filterSafePoseIDsForPlan("intermediate", "legs", injuries, "body")
+	count, err := preValidatePlanRequest(30, ids)
+	t.Logf("Re-Test 1 pre-validation → available_poses=%d, err=%v", count, err)
 	if err != nil {
 		t.Logf("→ Would return 400: %s", err.Error())
 	} else {
@@ -336,13 +339,14 @@ func TestPreValidation_ReTest1_Legs_KneeAnkle_30min(t *testing.T) {
 // Re-Test 3: extreme filter — 7 injuries, full_body, beginner, 30min
 func TestPreValidation_ReTest3_ExtremeInjuries(t *testing.T) {
 	injuries := []string{"knee_injury", "ankle_injury", "herniated_disc", "low_back_pain", "shoulder_injury", "wrist_injury", "neck_injury"}
-	count, maxDur, err := preValidatePlanRequest("beginner", 30, "full_body", injuries, "body")
-	t.Logf("Re-Test 3 → available_poses=%d, max_duration=%d, err=%v", count, maxDur, err)
+	ids := filterSafePoseIDsForPlan("beginner", "full_body", injuries, "body")
+	count, err := preValidatePlanRequest(30, ids)
+	t.Logf("Re-Test 3 → available_poses=%d, err=%v", count, err)
 	if err != nil {
 		t.Logf("✅ Would return 400: %s", err.Error())
 	} else {
-		if count < 3 {
-			t.Errorf("❌ count=%d < 3 but no error returned", count)
+		if count < 2 {
+			t.Errorf("❌ count=%d < 2 but no error returned", count)
 		} else {
 			t.Logf("✅ %d safe poses found, would proceed to Gemini", count)
 			// List the safe poses
@@ -487,14 +491,14 @@ func TestValidateAndEnrich_DurationCapping(t *testing.T) {
 	}
 
 	for _, ex := range plan.Exercises {
-		if ex.DurationMin > 5 {
-			t.Errorf("❌ pose %q has duration %d > 5 min cap", ex.PoseID, ex.DurationMin)
+		if ex.DurationMin > 8 {
+			t.Errorf("❌ pose %q has duration %d > 8 min cap", ex.PoseID, ex.DurationMin)
 		}
 		if ex.DurationMin < 1 {
 			t.Errorf("❌ pose %q has duration %d < 1 min floor", ex.PoseID, ex.DurationMin)
 		}
 	}
-	t.Logf("✅ Duration capping passed: all poses within 1-5 min range")
+	t.Logf("✅ Duration capping passed: all poses within 1-8 min range")
 }
 
 // ─── Post-validation: IsAnalyzable populated ─────────────────────────────────
@@ -564,12 +568,13 @@ func TestFilterPosesByPlanType_FaceIncludesBothKinds(t *testing.T) {
 }
 
 func TestPreValidation_FaceDomain(t *testing.T) {
-	count, _, err := preValidatePlanRequest("advanced", 41, "full_face", []string{}, "face")
+	ids := filterSafePoseIDsForPlan("advanced", "full_face", []string{}, "face")
+	count, err := preValidatePlanRequest(41, ids)
 	if err != nil {
 		t.Fatalf("face pre-validation failed: %v (count=%d)", err, count)
 	}
-	if count < 3 {
-		t.Fatalf("expected at least 3 face-domain poses, got %d", count)
+	if count < 2 {
+		t.Fatalf("expected at least 2 face-domain poses, got %d", count)
 	}
 }
 

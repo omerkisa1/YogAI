@@ -34,3 +34,11 @@ func ErrorResponse(c *gin.Context, statusCode int, message string) {
 		Message: message,
 	})
 }
+
+func ErrorResponseWithData(c *gin.Context, statusCode int, message string, data interface{}) {
+	c.JSON(statusCode, APIResponse{
+		Status:  statusCode,
+		Message: message,
+		Data:    data,
+	})
+}

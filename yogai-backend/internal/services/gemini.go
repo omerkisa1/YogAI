@@ -18,6 +18,7 @@ const (
 type LLMExercise struct {
 	PoseID    string `json:"pose_id"`
 	Duration  int    `json:"duration_min"`
+	RepTarget int    `json:"rep_target"`
 	BenefitEN string `json:"benefit_en"`
 	BenefitTR string `json:"benefit_tr"`
 }
@@ -66,20 +67,21 @@ func NewGeminiService(apiKey string) (AIService, error) {
 		"1. POSE SELECTION: You may ONLY use pose_id values from the allowed_pose_ids list provided in the prompt. You MUST NOT invent or fabricate any pose_id. " +
 		"2. BILINGUAL OUTPUT: Every text field has both _en and _tr variants. Write English text in _en fields and Turkish text in _tr fields. pose_id values are always English identifiers. " +
 		"3. MINIMAL EXERCISE DATA: For each exercise, return ONLY pose_id, duration_min, benefit_en, and benefit_tr. Do NOT include instructions, name, or focus_point — those are provided by our catalog. " +
-		"4. TIME ADAPTATION: Adjust exercises and durations so total_duration_min exactly matches the requested duration. total_duration_min must equal the sum of all exercise duration_min values. " +
-		"5. SAFETY: The allowed_pose_ids list has already been pre-filtered for user injuries. Only pick from that list. Only suggest advanced poses if level is explicitly 'advanced'. " +
-		"6. PERSONALIZATION: benefit_en and benefit_tr must explain why this specific pose helps this specific user's condition and goals. If user notes are provided, reflect them in every benefit. " +
-		"7. OUTPUT FORMAT: Respond ONLY with a valid JSON object. No conversational text, no markdown, no explanations."
+		"4. TIME ADAPTATION: Adjust exercises and durations so total_duration_min is as close as possible to the requested duration (±2 minutes). total_duration_min must equal the sum of all exercise duration_min values. " +
+		"5. DURATION RULES: Each exercise duration_min must be between 1 and 8 minutes. Short workouts (5-15 min): 3-5 poses, 2-4 min each. Medium (15-30 min): 5-8 poses, 2-5 min each. Long (30-60 min): 8-15 poses, 3-6 min each. Very long (60+ min): 15-20 poses, 3-8 min each. Beginner: shorter holds (2-3 min). Intermediate: 3-4 min. Advanced: longer holds (4-6 min), fewer poses but denser. Start with warm-up poses, end with relaxation (e.g. corpse). Same pose_id at most twice. " +
+		"6. SAFETY: The allowed_pose_ids list has already been pre-filtered for user injuries. Only pick from that list. Only suggest advanced poses if level is explicitly 'advanced'. " +
+		"7. PERSONALIZATION: benefit_en and benefit_tr must explain why this specific pose helps this specific user's condition and goals. If user notes are provided, reflect them in every benefit. " +
+		"8. OUTPUT FORMAT: Respond ONLY with a valid JSON object. No conversational text, no markdown, no explanations."
 
 	faceInstruction := "You are an elite Face Yoga & Facial Wellness Specialist. You generate bilingual (English + Turkish) FACE yoga plans in a SINGLE JSON response. " +
 		"Plans may combine facial muscle isolation (face_* poses) and gentle hand-guided massage (face_hand_* poses) from the same allowed list — never conventional full-body poses. " +
 		"ABSOLUTE RULES: " +
 		"1. POSE SELECTION: ONLY use pose_id values from allowed_pose_ids in the prompt — all are face-domain exercises. Inventing pose_ids is forbidden. " +
 		"2. BILINGUAL OUTPUT: Every text field has both _en and _tr variants. English in *_en fields, Turkish in *_tr fields. pose_id stays English identifiers. " +
-		"3. MINIMAL EXERCISE DATA per exercise: pose_id, duration_min, benefit_en, benefit_tr ONLY. No instructions, names, or focus_point (catalog supplies those). " +
-		"4. TIME: Face routines use SHORTER segments than body yoga — prefer roughly 1–3 minutes per exercise when the requested total permits. Sum of duration_min must equal total_duration_min exactly. " +
-		"5. SAFETY: Respect injury filtering already applied to allowed_pose_ids. Mention gentle technique for eyes/neck/jaw and light pressure for hand-touch poses unless user notes say otherwise. " +
-		"6. PERSONALIZATION: benefit_en/TR must cite targeted muscle groups and regions aligned with user notes and requested focus_area. " +
+		"3. MINIMAL EXERCISE DATA per exercise: pose_id, duration_min (estimated minutes for scheduling), rep_target (repetition count), benefit_en, benefit_tr. No instructions or names. " +
+		"4. TIME AND REP RULES: Match total estimated time to requested duration. Each exercise estimated time ≈ (rep_target × 3 seconds) + 10 seconds rest. Short face yoga (5-10 min): 5-8 poses, 8-12 reps. Medium (10-20 min): 8-12 poses, 10-15 reps. Long (20+ min): 12-18 poses, 12-20 reps. Beginner: fewer reps (8-10). Intermediate: 10-15. Advanced: 15-20. face_hand poses: fewer reps (5-8). Warm up with easy face moves, finish with relaxation. " +
+		"5. SAFETY: Respect injury filtering already applied to allowed_pose_ids. Gentle technique for eyes/neck/jaw; light pressure for hand-touch poses. " +
+		"6. PERSONALIZATION: benefit_en/TR must cite targeted muscle groups and regions aligned with user notes and focus_area. " +
 		"7. OUTPUT FORMAT: Valid JSON object only — no prose, markdown, or commentary."
 
 	bodyModel := newPlanModel(client, bodyInstruction)

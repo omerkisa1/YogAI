@@ -60,7 +60,20 @@ func (h *CatalogHandler) GetPoses(c *gin.Context) {
 }
 
 func (h *CatalogHandler) GetAnalyzablePoses(c *gin.Context) {
+	kind := c.DefaultQuery("kind", "all")
+
 	poses := catalog.GetAnalyzablePoses()
+
+	if kind != "all" {
+		var filtered []catalog.Pose
+		for _, p := range poses {
+			if p.AnalysisKind == kind {
+				filtered = append(filtered, p)
+			}
+		}
+		poses = filtered
+	}
+
 	models.SuccessResponse(c, "analyzable poses retrieved", poses)
 }
 

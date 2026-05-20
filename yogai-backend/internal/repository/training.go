@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"cloud.google.com/go/firestore"
@@ -146,14 +147,38 @@ func (r *trainingRepository) GetPlanTitle(ctx context.Context, uid, planID strin
 	if err != nil {
 		return "", err
 	}
+
 	data := doc.Data()
+
 	if titleTR, ok := data["title_tr"].(string); ok && titleTR != "" {
 		return titleTR, nil
 	}
-	if titleEN, ok := data["title_en"].(string); ok {
-		return titleEN, nil
+
+	planENRaw, ok := data["plan_en"]
+	if !ok {
+		return "", nil
 	}
-	return "", nil
+
+	var planJSON string
+	switch v := planENRaw.(type) {
+	case string:
+		planJSON = v
+	default:
+		return "", nil
+	}
+
+	var parsed struct {
+		TitleTR string `json:"title_tr"`
+		TitleEN string `json:"title_en"`
+	}
+	if err := json.Unmarshal([]byte(planJSON), &parsed); err != nil {
+		return "", nil
+	}
+
+	if parsed.TitleTR != "" {
+		return parsed.TitleTR, nil
+	}
+	return parsed.TitleEN, nil
 }
 
 func (r *trainingRepository) GetSessions(ctx context.Context, uid string) ([]*models.TrainingSession, error) {

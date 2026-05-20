@@ -26,6 +26,7 @@ type SaveProfileRequest struct {
 	Injuries          *[]string `json:"injuries"`
 	Goals             *[]string `json:"goals"`
 	PreferredDuration *int      `json:"preferred_duration"`
+	PreferredLanguage *string   `json:"preferred_language"`
 	ProfileImageURL   *string   `json:"profile_image_url"`
 	Platform          *string   `json:"platform"`
 	LastLoginAt       *string   `json:"last_login_at"`
@@ -60,6 +61,7 @@ func (h *ProfileHandler) GetProfile(c *gin.Context) {
 		"injuries":           profile.Injuries,
 		"goals":              profile.Goals,
 		"preferred_duration": profile.PreferredDuration,
+		"preferred_language": profile.PreferredLanguage,
 		"profile_image_url":  profile.ProfileImageURL,
 		"platform":           profile.Platform,
 		"last_login_at":      profile.LastLoginAt,
@@ -132,6 +134,9 @@ func (h *ProfileHandler) SaveProfile(c *gin.Context) {
 	if req.AuthProvider != nil {
 		profile.AuthProvider = *req.AuthProvider
 	}
+	if req.PreferredLanguage != nil {
+		profile.PreferredLanguage = *req.PreferredLanguage
+	}
 
 	if profile.Injuries == nil {
 		profile.Injuries = []string{}
@@ -155,6 +160,7 @@ func (h *ProfileHandler) SaveProfile(c *gin.Context) {
 		"injuries":           profile.Injuries,
 		"goals":              profile.Goals,
 		"preferred_duration": profile.PreferredDuration,
+		"preferred_language": profile.PreferredLanguage,
 		"profile_image_url":  profile.ProfileImageURL,
 		"platform":           profile.Platform,
 		"last_login_at":      profile.LastLoginAt,
