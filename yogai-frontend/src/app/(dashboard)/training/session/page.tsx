@@ -15,7 +15,8 @@ import { usePlan } from "@/hooks/usePlans";
 import { usePose } from "@/hooks/usePoses";
 import { useSubmitPose, useCompleteSession } from "@/hooks/useTraining";
 import { useApp } from "@/components/layout/AppProvider";
-import { getLocalizedPlanSafe } from "@/lib/planHelpers";
+import { exerciseAllocatedSeconds, getLocalizedPlanSafe } from "@/lib/planHelpers";
+import toast from "react-hot-toast";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import ConfirmDialog from "@/components/shared/ConfirmDialog";
 import { PoseCameraStage } from "@/components/training/PoseCameraStage";
@@ -38,15 +39,10 @@ import {
   useExerciseAnalysis,
   resolveExerciseAnalysisKind,
 } from "@/hooks/useExerciseAnalysis";
-import FaceFeedbackBanner from "@/components/yoga/FaceFeedbackBanner";
+import { FaceTrainingOverlays } from "@/components/training/FaceTrainingOverlays";
 
 const FIXED_ACCURACY = 75;
 const DEV_TIMER = process.env.NODE_ENV === "development";
-
-function poseSeconds(durationMin: number): number {
-  if (DEV_TIMER) return 15;
-  return Math.max(1, Math.round(durationMin * 60));
-}
 
 type CamPermission = "idle" | "checking" | "granted" | "denied";
 
@@ -69,11 +65,15 @@ function TrainingSessionContent() {
   const exercises = detail?.exercises ?? [];
   const [index, setIndex] = useState(0);
   const [timer, setTimer] = useState(0);
+  const [sessionElapsed, setSessionElapsed] = useState(0);
+  const [poseElapsed, setPoseElapsed] = useState(0);
   const [phase, setPhase] = useState<"run" | "done">("run");
   const [cancelOpen, setCancelOpen] = useState(false);
   const [scores, setScores] = useState<number[]>([]);
   const autoKeyRef = useRef<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const sessionIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const poseIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [camPermission, setCamPermission] = useState<CamPermission>("idle");
   const [liveAccuracy, setLiveAccuracy] = useState<number | null>(null);
@@ -95,7 +95,8 @@ function TrainingSessionContent() {
 
   const current = exercises[index];
   const next = exercises[index + 1];
-  const allocated = current ? poseSeconds(current.duration_min) : 0;
+  const allocated = current ? exerciseAllocatedSeconds(current, DEV_TIMER) : 0;
+  const isRepMetric = current?.metric_type === "reps";
 
   const analyzablePoseId =
     current?.is_analyzable && current.pose_id ? current.pose_id : "";
@@ -125,7 +126,7 @@ function TrainingSessionContent() {
   const faceAnalysis = useExerciseAnalysis({
     poseId: analyzablePoseId,
     analysisKind,
-    repTarget: poseRulesQuery.data?.rep_target,
+    repTarget: current?.rep_target || poseRulesQuery.data?.rep_target,
     active: phase === "run" && isFaceAnalyzable && camPermission !== "denied",
     videoRef,
   });
@@ -190,7 +191,11 @@ function TrainingSessionContent() {
 
   const resolveSubmittedAccuracy = useCallback(() => {
     if (!current?.is_analyzable) return FIXED_ACCURACY;
-    if (isFaceAnalyzable) return faceAnalysis.repAccuracy();
+    if (isFaceAnalyzable) {
+      if (faceAnalysis.isRepComplete) return 100;
+      const acc = faceAnalysis.repAccuracy();
+      return acc > 0 ? acc : FIXED_ACCURACY;
+    }
     return aggregateAccuracyFromSamples(accuracySamplesRef.current, FIXED_ACCURACY);
   }, [current?.is_analyzable, isFaceAnalyzable, faceAnalysis]);
 
@@ -308,10 +313,10 @@ function TrainingSessionContent() {
           setIndex((i) => i + 1);
         }
       } catch {
-        router.push("/training");
+        toast.error(t.loadError);
       }
     },
-    [current, sessionId, submitPose, index, exercises.length, router, finishWorkout],
+    [current, sessionId, submitPose, index, exercises.length, finishWorkout, t.loadError],
   );
 
   useEffect(() => {
@@ -320,9 +325,38 @@ function TrainingSessionContent() {
     }
   }, [planId, sessionId, router]);
 
+  const hasRepWorkout = useMemo(
+    () => exercises.some((ex) => ex.metric_type === "reps"),
+    [exercises],
+  );
+
   useEffect(() => {
-    if (phase !== "run" || !current) return;
-    const sec = poseSeconds(current.duration_min);
+    if (phase !== "run" || !hasRepWorkout) return;
+    setSessionElapsed(0);
+    if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
+    sessionIntervalRef.current = setInterval(() => {
+      setSessionElapsed((s) => s + 1);
+    }, 1000);
+    return () => {
+      if (sessionIntervalRef.current) clearInterval(sessionIntervalRef.current);
+    };
+  }, [phase, hasRepWorkout, sessionId]);
+
+  useEffect(() => {
+    if (phase !== "run" || !isRepMetric) return;
+    setPoseElapsed(0);
+    if (poseIntervalRef.current) clearInterval(poseIntervalRef.current);
+    poseIntervalRef.current = setInterval(() => {
+      setPoseElapsed((s) => s + 1);
+    }, 1000);
+    return () => {
+      if (poseIntervalRef.current) clearInterval(poseIntervalRef.current);
+    };
+  }, [phase, index, isRepMetric, current?.pose_id]);
+
+  useEffect(() => {
+    if (phase !== "run" || !current || isRepMetric) return;
+    const sec = exerciseAllocatedSeconds(current, DEV_TIMER);
     setTimer(sec);
     if (intervalRef.current) clearInterval(intervalRef.current);
     intervalRef.current = setInterval(() => {
@@ -337,10 +371,10 @@ function TrainingSessionContent() {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [phase, index, current?.pose_id, current?.duration_min]);
+  }, [phase, index, current?.pose_id, current?.duration_min, current?.metric_type, isRepMetric]);
 
   useEffect(() => {
-    if (phase !== "run" || !current || timer > 0) return;
+    if (phase !== "run" || !current || timer > 0 || isRepMetric) return;
     const key = `${sessionId}-${current.pose_id}-${index}`;
     if (autoKeyRef.current === key) return;
     autoKeyRef.current = key;
@@ -354,6 +388,7 @@ function TrainingSessionContent() {
     allocated,
     goNextOrFinish,
     resolveSubmittedAccuracy,
+    isRepMetric,
   ]);
 
   useEffect(() => {
@@ -361,19 +396,16 @@ function TrainingSessionContent() {
     const key = `rep-${sessionId}-${current?.pose_id}-${index}`;
     if (autoKeyRef.current === key) return;
     autoKeyRef.current = key;
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    const elapsed = Math.max(1, allocated - timer);
-    void goNextOrFinish(faceAnalysis.repAccuracy(), elapsed);
+    if (poseIntervalRef.current) clearInterval(poseIntervalRef.current);
+    void goNextOrFinish(100, Math.max(1, poseElapsed));
   }, [
     phase,
     isFaceAnalyzable,
     faceAnalysis.isRepComplete,
-    faceAnalysis,
     sessionId,
     current?.pose_id,
     index,
-    allocated,
-    timer,
+    poseElapsed,
     goNextOrFinish,
   ]);
 
@@ -385,15 +417,18 @@ function TrainingSessionContent() {
 
   const onComplete = () => {
     if (!current) return;
-    const elapsed = Math.max(1, allocated - timer);
     if (intervalRef.current) clearInterval(intervalRef.current);
+    if (poseIntervalRef.current) clearInterval(poseIntervalRef.current);
+    const elapsed = isRepMetric
+      ? Math.max(1, poseElapsed)
+      : Math.max(1, allocated - timer);
     void goNextOrFinish(resolveSubmittedAccuracy(), elapsed);
   };
 
   const onSkip = () => {
     if (!current) return;
     if (intervalRef.current) clearInterval(intervalRef.current);
-    void goNextOrFinish(0, 1);
+    void goNextOrFinish(FIXED_ACCURACY, 1);
   };
 
   const onCancel = () => {
@@ -467,11 +502,16 @@ function TrainingSessionContent() {
   }
 
   const analyzableFlow = !!current?.is_analyzable;
-  const accVal = isFaceAnalyzable
-    ? faceAnalysis.repAccuracy()
-    : (lastAnalyzeResult?.overall_accuracy ?? liveAccuracy ?? 0);
+  const accVal = lastAnalyzeResult?.overall_accuracy ?? liveAccuracy ?? 0;
   const ruleCount = lastAnalyzeResult?.rules?.length ?? 0;
   const displayFps = isFaceAnalyzable ? faceAnalysis.faceFps : fps;
+  const sessionTotalSec =
+    detail.total_duration_min > 0 ? detail.total_duration_min * 60 : 0;
+  const timerBadge = isRepMetric
+    ? sessionTotalSec > 0
+      ? `${formatTime(sessionElapsed)} / ${formatTime(sessionTotalSec)}`
+      : formatTime(sessionElapsed)
+    : formatTime(timer);
 
   return (
     <div
@@ -520,33 +560,24 @@ function TrainingSessionContent() {
               <div className="pointer-events-none absolute left-3 top-3 z-20 md:left-4 md:top-4">
                 <div className="overlay-badge font-mono text-[11px] text-white md:text-xs">
                   {displayFps > 0 ? `${displayFps} ${t.fpsLabel.toLowerCase()} · ` : ""}
-                  {formatTime(timer)}
+                  {timerBadge}
                 </div>
               </div>
 
-              {isFaceAnalyzable && faceAnalysis.repResult && !faceAnalysis.isRepComplete && (
-                <div className="pointer-events-none absolute inset-x-0 top-14 z-30 flex justify-center px-4">
-                  <FaceFeedbackBanner
-                    variant={analysisKind === "face_hand" ? "face_hand" : "face"}
-                    feedbackState={faceAnalysis.repResult.feedbackState}
-                    feedbackKey={faceAnalysis.repResult.feedbackKey}
-                  />
-                </div>
+              {isFaceAnalyzable && (
+                <FaceTrainingOverlays
+                  analysisKind={analysisKind}
+                  faceRepResult={faceAnalysis.faceRepResult}
+                  faceHandRepResult={faceAnalysis.faceHandRepResult}
+                  repPulse={faceAnalysis.repPulse}
+                  handRepPulse={faceAnalysis.handRepPulse}
+                  faceEnterThreshold={faceAnalysis.faceEnterThreshold}
+                  pipelineLoading={faceAnalysis.pipelineLoading}
+                />
               )}
 
-              {isFaceAnalyzable && faceAnalysis.repResult && (
-                <div className="pointer-events-none absolute right-3 top-16 z-20 rounded-2xl border border-white/20 bg-black/50 px-4 py-2 text-center backdrop-blur-md md:right-4">
-                  <p className="text-2xl font-bold tabular-nums text-white">
-                    {faceAnalysis.repResult.reps} / {faceAnalysis.effectiveRepTarget}
-                  </p>
-                  <p className="text-[10px] font-medium uppercase tracking-wide text-white/80">
-                    {t.reps}
-                  </p>
-                </div>
-              )}
-
-              {(isBodyAnalyzable && (lastAnalyzeResult || liveAccuracy != null)) ||
-              (isFaceAnalyzable && faceAnalysis.repResult) ? (
+              {isBodyAnalyzable &&
+                (lastAnalyzeResult || liveAccuracy != null) && (
                 <div
                   className={`pointer-events-none absolute right-3 top-3 z-20 rounded-2xl border border-white/20 bg-gradient-to-br px-4 py-2.5 text-center shadow-lg backdrop-blur-md md:right-4 md:top-4 md:px-5 md:py-3 ${accuracyAccent(accVal)}`}
                 >
@@ -559,7 +590,7 @@ function TrainingSessionContent() {
                     {t.poseTestAccuracyLabel}
                   </p>
                 </div>
-              ) : null}
+              )}
 
               {isFaceAnalyzable && faceAnalysis.faceNotDetected && (
                 <div
@@ -567,7 +598,7 @@ function TrainingSessionContent() {
                   style={{ backgroundColor: "rgba(234, 179, 8, 0.38)" }}
                 >
                   <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-950/90 md:h-5 md:w-5" />
-                  <p>{t.notEnoughVisibility}</p>
+                  <p>{t.faceNotDetected}</p>
                 </div>
               )}
 
@@ -704,9 +735,11 @@ function TrainingSessionContent() {
             </div>
           )}
 
-          {!showCameraStage && (
+          {!showCameraStage && isRepMetric && (
             <div className="pointer-events-none absolute left-3 top-3 z-20 md:left-4 md:top-4">
-              <div className="overlay-badge font-mono text-[11px] text-white md:text-xs">{formatTime(timer)}</div>
+              <div className="overlay-badge font-mono text-[11px] text-white md:text-xs">
+                {timerBadge}
+              </div>
             </div>
           )}
         </div>
@@ -718,7 +751,9 @@ function TrainingSessionContent() {
             </div>
           </div>
           <div className="border-t border-th-border bg-th-card/80 px-4 py-3 text-center">
-            <p className="font-mono text-4xl font-bold tabular-nums text-th-text">{formatTime(timer)}</p>
+            <p className="font-mono text-4xl font-bold tabular-nums text-th-text">
+              {isRepMetric ? timerBadge : formatTime(timer)}
+            </p>
             {DEV_TIMER && (
               <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">{t.devTimerNote}</p>
             )}

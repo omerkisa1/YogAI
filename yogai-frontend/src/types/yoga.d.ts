@@ -16,6 +16,9 @@ export interface BilingualExercise {
   target_area: string;
   category: string;
   is_analyzable: boolean;
+  analysis_kind?: "body" | "face" | "face_hand";
+  metric_type?: "accuracy" | "reps";
+  rep_target?: number;
 }
 
 export interface BilingualPlan {

@@ -23,10 +23,15 @@ type CreatedPlanData = {
 };
 
 function normalizeCreatedPlan(d: CreatedPlanData): YogaPlan {
+  const content =
+    d.plan && Array.isArray(d.plan.exercises)
+      ? d.plan
+      : unwrapPlanPayload(d as unknown as Record<string, unknown>) ?? d.plan;
+
   return {
     id: d.id,
-    plan_en: d.plan,
-    plan_tr: d.plan,
+    plan_en: content,
+    plan_tr: content,
     created_at: d.created_at,
     level: d.level,
     duration: d.duration,
@@ -37,16 +42,45 @@ function normalizeCreatedPlan(d: CreatedPlanData): YogaPlan {
   };
 }
 
+function unwrapPlanPayload(raw: unknown): BilingualPlan | null {
+  if (!raw || typeof raw !== "object") return null;
+  const obj = raw as BilingualPlan & { plan?: BilingualPlan };
+  if (Array.isArray(obj.exercises)) return obj;
+  if (obj.plan && Array.isArray(obj.plan.exercises)) return obj.plan;
+  return null;
+}
+
+function normalizePlanFromApi(data: Record<string, unknown>): YogaPlan {
+  const planEn = unwrapPlanPayload(data.plan_en) ?? unwrapPlanPayload(data);
+  const planTr = unwrapPlanPayload(data.plan_tr) ?? planEn;
+  return {
+    id: String(data.id ?? ""),
+    plan_en: planEn ?? ({} as BilingualPlan),
+    plan_tr: planTr ?? planEn ?? ({} as BilingualPlan),
+    created_at: String(data.created_at ?? ""),
+    level: data.level as string | undefined,
+    duration: data.duration as number | undefined,
+    focus_area: data.focus_area as string | undefined,
+    plan_type: data.plan_type as YogaPlan["plan_type"],
+    source: data.source as YogaPlan["source"],
+    is_favorite: data.is_favorite as boolean | undefined,
+    is_pinned: data.is_pinned as boolean | undefined,
+  };
+}
+
 export const planService = {
   getPlans: async (): Promise<YogaPlan[]> => {
     const res = await api.get("/api/v1/yoga/plans") as APIResponse<PlansListData>;
-    return res.data?.plans ?? [];
+    const plans = res.data?.plans ?? [];
+    return plans.map((p) =>
+      normalizePlanFromApi(p as unknown as Record<string, unknown>),
+    );
   },
 
   getPlan: async (id: string): Promise<YogaPlan> => {
-    const res = await api.get(`/api/v1/yoga/plans/${id}`) as APIResponse<YogaPlan>;
+    const res = await api.get(`/api/v1/yoga/plans/${id}`) as APIResponse<Record<string, unknown>>;
     if (!res.data) throw new Error("Plan not found");
-    return res.data;
+    return normalizePlanFromApi(res.data);
   },
 
   createPlan: async (data: GeneratePlanRequest): Promise<YogaPlan> => {

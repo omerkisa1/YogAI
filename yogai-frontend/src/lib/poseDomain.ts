@@ -46,11 +46,23 @@ export function domainBadgeLabel(domain: PlanDomain, t: Translations): string {
 }
 
 export function isFacePlanType(planType: string): boolean {
-  return planType === "face" || planType === "face_hand";
+  return (
+    planType === "face" ||
+    planType === "face_hand" ||
+    planType === "face_yoga" ||
+    planType === "mixed"
+  );
 }
 
 export function normalizePlanType(planType?: string): PlanDomain {
-  if (planType === "face" || planType === "face_hand") return "face";
+  if (
+    planType === "face" ||
+    planType === "face_hand" ||
+    planType === "face_yoga" ||
+    planType === "mixed"
+  ) {
+    return "face";
+  }
   return "body";
 }
 

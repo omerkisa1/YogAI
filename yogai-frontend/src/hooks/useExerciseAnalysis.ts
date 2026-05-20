@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import {
   createFaceRepCounter,
+  FACE_EXERCISE_CONFIGS,
   type FaceRepResult,
 } from "@/lib/faceRepCounter";
 import {
@@ -61,6 +62,10 @@ export function useExerciseAnalysis({
   const [faceRepResult, setFaceRepResult] = useState<FaceRepResult | null>(null);
   const [faceHandRepResult, setFaceHandRepResult] = useState<FaceHandRepResult | null>(null);
   const [cameraReady, setCameraReady] = useState(false);
+  const [repPulse, setRepPulse] = useState(false);
+  const [handRepPulse, setHandRepPulse] = useState(false);
+  const prevRepsRef = useRef(0);
+  const prevHandRepsRef = useRef(0);
 
   const effectiveRepTarget =
     repTarget && repTarget > 0
@@ -201,7 +206,43 @@ export function useExerciseAnalysis({
     setFaceHandRepResult(r);
   }, [isFaceHand, faceFrame, handFrame]);
 
+  useEffect(() => {
+    if (!faceRepResult) {
+      prevRepsRef.current = 0;
+      return;
+    }
+    if (faceRepResult.reps < prevRepsRef.current) {
+      prevRepsRef.current = faceRepResult.reps;
+      return;
+    }
+    if (faceRepResult.reps > prevRepsRef.current) {
+      prevRepsRef.current = faceRepResult.reps;
+      setRepPulse(true);
+      const id = window.setTimeout(() => setRepPulse(false), 300);
+      return () => window.clearTimeout(id);
+    }
+  }, [faceRepResult]);
+
+  useEffect(() => {
+    if (!faceHandRepResult) {
+      prevHandRepsRef.current = 0;
+      return;
+    }
+    if (faceHandRepResult.reps < prevHandRepsRef.current) {
+      prevHandRepsRef.current = faceHandRepResult.reps;
+      return;
+    }
+    if (faceHandRepResult.reps > prevHandRepsRef.current) {
+      prevHandRepsRef.current = faceHandRepResult.reps;
+      setHandRepPulse(true);
+      const id = window.setTimeout(() => setHandRepPulse(false), 300);
+      return () => window.clearTimeout(id);
+    }
+  }, [faceHandRepResult]);
+
   const repResult = isFace ? faceRepResult : isFaceHand ? faceHandRepResult : null;
+  const faceConfig = isFace && poseId ? FACE_EXERCISE_CONFIGS[poseId] : undefined;
+  const faceEnterThreshold = faceConfig?.enterThreshold ?? 0.45;
 
   const repAccuracy = useCallback((): number => {
     if (!repResult) return 0;
@@ -230,5 +271,11 @@ export function useExerciseAnalysis({
     repAccuracy,
     isRepComplete,
     effectiveRepTarget: effectiveRepTarget ?? repResult?.target ?? 0,
+    repPulse,
+    handRepPulse,
+    faceConfig,
+    faceEnterThreshold,
+    faceLmLoading,
+    handLmLoading,
   };
 }

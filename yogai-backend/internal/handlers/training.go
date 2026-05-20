@@ -108,11 +108,16 @@ func (h *TrainingHandler) SavePose(c *gin.Context) {
 
 	var req struct {
 		PoseID          string  `json:"pose_id" binding:"required"`
-		Accuracy        float64 `json:"accuracy" binding:"required"`
-		DurationSeconds int     `json:"duration_seconds" binding:"required"`
+		Accuracy        float64 `json:"accuracy"`
+		DurationSeconds int     `json:"duration_seconds" binding:"required,min=0"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		models.ErrorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if req.Accuracy < 0 || req.Accuracy > 100 {
+		models.ErrorResponse(c, http.StatusBadRequest, "accuracy must be between 0 and 100")
 		return
 	}
 
