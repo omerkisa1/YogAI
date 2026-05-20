@@ -11,7 +11,7 @@ import ConfirmDialog from "@/components/shared/ConfirmDialog";
 import BackLink from "@/components/shared/BackLink";
 import { getLocalizedPlanSafe, inferPlanType } from "@/lib/planHelpers";
 import { isFacePlanType } from "@/lib/poseDomain";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Camera, Pin, PinOff, Star, Trash2 } from "lucide-react";
 
 export default function PlanDetailPage() {
@@ -24,17 +24,21 @@ export default function PlanDetailPage() {
   const updateMutation = useUpdatePlan();
   const startSession = useStartSession();
   const [confirmDel, setConfirmDel] = useState(false);
+  const startingRef = useRef(false);
 
   const detail = plan ? getLocalizedPlanSafe(plan, locale, t.yogaPlan) : null;
   const planType = plan ? inferPlanType(plan) : "body";
 
   const handleStartTraining = async () => {
-    if (!plan) return;
+    if (!plan || startingRef.current || startSession.isPending) return;
+    startingRef.current = true;
     try {
       const res = await startSession.mutateAsync(plan.id);
       router.push(`/training/session?planId=${plan.id}&sessionId=${encodeURIComponent(res.session_id)}`);
     } catch {
       toast.error(t.loadError);
+    } finally {
+      startingRef.current = false;
     }
   };
 

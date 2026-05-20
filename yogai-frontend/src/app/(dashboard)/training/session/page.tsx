@@ -1,6 +1,13 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -22,6 +29,8 @@ import ConfirmDialog from "@/components/shared/ConfirmDialog";
 import { PoseCameraStage } from "@/components/training/PoseCameraStage";
 import {
   useMediapipePoseCamera,
+  MEDIAPIPE_CAM_H,
+  MEDIAPIPE_CAM_W,
   type MediapipeLandmarkFrame,
 } from "@/hooks/useMediapipePoseCamera";
 import {
@@ -39,7 +48,8 @@ import {
   useExerciseAnalysis,
   resolveExerciseAnalysisKind,
 } from "@/hooks/useExerciseAnalysis";
-import { useTrainingCamera } from "@/hooks/useTrainingCamera";
+import { FACE_EXERCISE_CONFIGS } from "@/lib/faceRepCounter";
+import { FACE_HAND_EXERCISE_CONFIGS } from "@/lib/faceHandRepCounter";
 import { FaceTrainingOverlays } from "@/components/training/FaceTrainingOverlays";
 
 const FIXED_ACCURACY = 75;
@@ -76,7 +86,10 @@ function TrainingSessionContent() {
   const sessionIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const poseIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const [camPermission, setCamPermission] = useState<CamPermission>("idle");
+  const faceStreamRef = useRef<MediaStream | null>(null);
+  const [faceCameraReady, setFaceCameraReady] = useState(false);
+  const [faceCameraError, setFaceCameraError] = useState(false);
+  const [cameraRetryKey, setCameraRetryKey] = useState(0);
   const [liveAccuracy, setLiveAccuracy] = useState<number | null>(null);
   const [lastAnalyzeResult, setLastAnalyzeResult] = useState<AnalyzeResult | null>(
     null,
@@ -113,43 +126,87 @@ function TrainingSessionContent() {
     [poseRulesQuery.data?.landmark_rules],
   );
 
-  const analysisKind = useMemo(
-    () =>
-      analyzablePoseId
-        ? resolveExerciseAnalysisKind(
-            analyzablePoseId,
-            poseRulesQuery.data?.analysis_kind,
-          )
-        : "body",
-    [analyzablePoseId, poseRulesQuery.data?.analysis_kind],
-  );
+  const analysisKind = useMemo(() => {
+    if (!analyzablePoseId) return "body" as const;
+    if (FACE_HAND_EXERCISE_CONFIGS[analyzablePoseId]) return "face_hand" as const;
+    if (FACE_EXERCISE_CONFIGS[analyzablePoseId]) return "face" as const;
+    if (current?.analysis_kind) return current.analysis_kind;
+    return resolveExerciseAnalysisKind(
+      analyzablePoseId,
+      poseRulesQuery.data?.analysis_kind,
+    );
+  }, [analyzablePoseId, current?.analysis_kind, poseRulesQuery.data?.analysis_kind]);
   const isBodyAnalyzable =
     !!current?.is_analyzable && analysisKind === "body";
   const isFaceAnalyzable =
     !!current?.is_analyzable && (analysisKind === "face" || analysisKind === "face_hand");
 
-  const needsSharedCamera = phase === "run" && !!current?.is_analyzable;
-  const {
-    cameraReady: sharedCameraReady,
-    cameraError: sharedCameraError,
-    ensureCamera,
-    releaseCamera,
-  } = useTrainingCamera({
-    enabled: needsSharedCamera,
-    videoRef,
-  });
+  useEffect(() => {
+    if (phase !== "run" || !isFaceAnalyzable) {
+      faceStreamRef.current?.getTracks().forEach((tr) => tr.stop());
+      faceStreamRef.current = null;
+      const el = videoRef.current;
+      if (el) el.srcObject = null;
+      setFaceCameraReady(false);
+      setFaceCameraError(false);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        if (faceStreamRef.current && videoRef.current) {
+          if (!videoRef.current.srcObject) {
+            videoRef.current.srcObject = faceStreamRef.current;
+            await videoRef.current.play().catch(() => {});
+          }
+          if (!cancelled) {
+            setFaceCameraReady(true);
+            setFaceCameraError(false);
+          }
+          return;
+        }
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: MEDIAPIPE_CAM_W },
+            height: { ideal: MEDIAPIPE_CAM_H },
+          },
+          audio: false,
+        });
+        if (cancelled) {
+          stream.getTracks().forEach((tr) => tr.stop());
+          return;
+        }
+        const el = videoRef.current;
+        if (!el) {
+          stream.getTracks().forEach((tr) => tr.stop());
+          return;
+        }
+        faceStreamRef.current = stream;
+        el.srcObject = stream;
+        await el.play().catch(() => {});
+        if (!cancelled) {
+          setFaceCameraReady(true);
+          setFaceCameraError(false);
+        }
+      } catch {
+        if (!cancelled) {
+          setFaceCameraReady(false);
+          setFaceCameraError(true);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [phase, isFaceAnalyzable, cameraRetryKey]);
 
   const faceAnalysis = useExerciseAnalysis({
     poseId: analyzablePoseId,
     analysisKind,
     repTarget: current?.rep_target || poseRulesQuery.data?.rep_target,
-    active:
-      phase === "run" &&
-      isFaceAnalyzable &&
-      sharedCameraReady &&
-      camPermission !== "denied",
+    active: phase === "run" && isFaceAnalyzable,
     videoRef,
-    cameraReady: sharedCameraReady,
+    cameraReady: faceCameraReady,
   });
 
   useEffect(() => {
@@ -173,34 +230,6 @@ function TrainingSessionContent() {
   useEffect(() => {
     poseElapsedRef.current = poseElapsed;
   }, [poseElapsed]);
-
-  useEffect(() => {
-    if (phase !== "run" || !current?.is_analyzable) {
-      setCamPermission("idle");
-      return;
-    }
-    if (sharedCameraError || faceAnalysis.pipelineError) {
-      setCamPermission("denied");
-      return;
-    }
-    if (sharedCameraReady) {
-      setCamPermission("granted");
-      return;
-    }
-    setCamPermission("checking");
-  }, [
-    phase,
-    current?.is_analyzable,
-    sharedCameraReady,
-    sharedCameraError,
-    faceAnalysis.pipelineError,
-  ]);
-
-  useEffect(() => {
-    if (phase === "done") {
-      releaseCamera();
-    }
-  }, [phase, releaseCamera]);
 
   const resolveSubmittedAccuracy = useCallback(() => {
     if (!current?.is_analyzable) return FIXED_ACCURACY;
@@ -250,22 +279,31 @@ function TrainingSessionContent() {
   }, []);
 
   const rulesReady = rules.length > 0;
+
+  const camPermission: CamPermission =
+    phase !== "run" || !current?.is_analyzable
+      ? "idle"
+      : isFaceAnalyzable
+        ? faceCameraError
+          ? "denied"
+          : faceCameraReady
+            ? "granted"
+            : "checking"
+        : poseRulesError || modelPipelineError
+          ? "denied"
+          : poseRulesLoading
+            ? "checking"
+            : rulesReady
+              ? "granted"
+              : "checking";
+
   const mediapipeActive =
     phase === "run" &&
     isBodyAnalyzable &&
-    camPermission === "granted" &&
-    !poseRulesLoading &&
     rulesReady &&
+    !poseRulesLoading &&
     !poseRulesError &&
     !modelPipelineError;
-
-  const facePipelineReady =
-    isFaceAnalyzable &&
-    camPermission === "granted" &&
-    !poseRulesLoading &&
-    !poseRulesError &&
-    sharedCameraReady &&
-    !faceAnalysis.pipelineError;
 
   const { fps } = useMediapipePoseCamera({
     active: mediapipeActive,
@@ -278,13 +316,15 @@ function TrainingSessionContent() {
     onModelLoadError: handleModelError,
   });
 
-  const retryCamera = useCallback(async () => {
-    setCamPermission("checking");
-    releaseCamera();
-    await new Promise((r) => setTimeout(r, 100));
-    const ok = await ensureCamera();
-    setCamPermission(ok ? "granted" : "denied");
-  }, [releaseCamera, ensureCamera]);
+  const retryCamera = useCallback(() => {
+    faceStreamRef.current?.getTracks().forEach((tr) => tr.stop());
+    faceStreamRef.current = null;
+    const el = videoRef.current;
+    if (el) el.srcObject = null;
+    setFaceCameraReady(false);
+    setFaceCameraError(false);
+    setCameraRetryKey((k) => k + 1);
+  }, []);
 
   const retryModel = useCallback(() => {
     setModelPipelineError(false);
@@ -485,10 +525,11 @@ function TrainingSessionContent() {
 
   const showCameraStage =
     current?.is_analyzable &&
-    camPermission === "granted" &&
     !poseRulesError &&
     !modelPipelineError &&
-    (isBodyAnalyzable ? rulesReady : facePipelineReady);
+    (isFaceAnalyzable
+      ? faceCameraReady && !faceCameraError
+      : camPermission === "granted" && rulesReady);
 
   if (phase === "done") {
     const avg = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
@@ -566,28 +607,53 @@ function TrainingSessionContent() {
 
       {analyzableFlow ? (
         <div className="relative mb-3 flex min-h-[78vh] w-full flex-1 overflow-hidden rounded-2xl border border-th-border bg-black shadow-inner xl:min-h-[calc(100dvh-12.5rem)]">
-          {camPermission === "checking" ? (
-            <div className="flex min-h-[min(60vh,480px)] w-full flex-col items-center justify-center gap-3 p-8 text-center">
+          <PoseCameraStage
+            containerRef={cameraStageRef}
+            videoRef={videoRef}
+            canvasRef={canvasRef}
+            className="absolute inset-0 h-full w-full"
+            mirrorVideo={isFaceAnalyzable}
+          />
+
+          {isFaceAnalyzable && !faceCameraReady && !faceCameraError && (
+            <div className="absolute inset-0 z-10 flex min-h-[min(60vh,480px)] w-full flex-col items-center justify-center gap-3 bg-black p-8 text-center">
               <LoadingSpinner size="md" />
               <p className="max-w-sm text-sm text-white/85">{t.trainingCameraChecking}</p>
             </div>
-          ) : showCameraStage ? (
-            <>
-              <PoseCameraStage
-                containerRef={cameraStageRef}
-                videoRef={videoRef}
-                canvasRef={canvasRef}
-                className="absolute inset-0 h-full w-full"
-                mirrorVideo={isFaceAnalyzable}
-              />
+          )}
 
-              <div className="pointer-events-none absolute left-3 top-3 z-20 md:left-4 md:top-4">
+          {isFaceAnalyzable && faceCameraError && (
+            <div className="absolute inset-0 z-10 flex min-h-[min(50vh,400px)] w-full flex-col items-center justify-center gap-3 bg-black/90 p-8 text-center">
+              <AlertTriangle className="h-10 w-10 text-amber-400" aria-hidden />
+              <p className="max-w-sm text-sm text-white/85">{t.trainingCameraDeniedHint}</p>
+              <button
+                type="button"
+                onClick={() => void retryCamera()}
+                className="btn-ghost text-sm text-white"
+              >
+                {t.trainingRetryCamera}
+              </button>
+            </div>
+          )}
+
+          {!isFaceAnalyzable && camPermission === "checking" && (
+            <div className="absolute inset-0 z-10 flex min-h-[min(60vh,480px)] w-full flex-col items-center justify-center gap-3 bg-black p-8 text-center">
+              <LoadingSpinner size="md" />
+              <p className="max-w-sm text-sm text-white/85">{t.waitingForData}</p>
+            </div>
+          )}
+
+          {(showCameraStage || (isFaceAnalyzable && faceCameraReady)) && (
+            <div className="pointer-events-none absolute left-3 top-3 z-20 md:left-4 md:top-4">
                 <div className="overlay-badge font-mono text-[11px] text-white md:text-xs">
                   {displayFps > 0 ? `${displayFps} ${t.fpsLabel.toLowerCase()} · ` : ""}
                   {timerBadge}
                 </div>
-              </div>
+            </div>
+          )}
 
+          {showCameraStage ? (
+            <>
               {isFaceAnalyzable && (
                 <FaceTrainingOverlays
                   analysisKind={analysisKind}
@@ -638,7 +704,7 @@ function TrainingSessionContent() {
               )}
 
               {isFaceAnalyzable &&
-                sharedCameraReady &&
+                faceCameraReady &&
                 faceAnalysis.faceNotDetected && (
                 <div
                   className="absolute left-3 right-3 top-14 z-30 flex items-start gap-2 rounded-xl px-3 py-2.5 text-xs text-white backdrop-blur-md md:left-4 md:right-4 md:text-sm"
@@ -771,24 +837,7 @@ function TrainingSessionContent() {
               </div>
               )}
             </>
-          ) : (
-            <div className="flex min-h-[min(50vh,400px)] w-full flex-col items-center justify-center bg-gradient-to-b from-th-subtle/10 to-black p-8">
-              <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-2xl bg-white/10 text-white/90">
-                <PersonStanding className="h-12 w-12" strokeWidth={1.5} aria-hidden />
-              </div>
-              {poseRulesLoading && (
-                <p className="mt-6 text-sm text-white/80">{t.trainingCameraChecking}</p>
-              )}
-            </div>
-          )}
-
-          {!showCameraStage && isRepMetric && (
-            <div className="pointer-events-none absolute left-3 top-3 z-20 md:left-4 md:top-4">
-              <div className="overlay-badge font-mono text-[11px] text-white md:text-xs">
-                {timerBadge}
-              </div>
-            </div>
-          )}
+          ) : null}
         </div>
       ) : (
         <div className="mb-6 overflow-hidden rounded-3xl border border-th-border bg-gradient-to-b from-th-subtle to-th-card">

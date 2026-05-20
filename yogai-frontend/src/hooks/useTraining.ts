@@ -26,8 +26,13 @@ export function useTrainingStats() {
 }
 
 export function useStartSession() {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (planId: string) => trainingService.startSession(planId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["training-sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["training-stats"] });
+    },
   });
 }
 

@@ -71,6 +71,14 @@ func (h *TrainingHandler) StartSession(c *gin.Context) {
 		models.ErrorResponse(c, http.StatusInternalServerError, "failed to check active sessions")
 		return
 	}
+	if active != nil && active.PlanID == req.PlanID {
+		models.SuccessResponse(c, "session resumed", gin.H{
+			"session_id": active.ID,
+			"status":     active.Status,
+			"resumed":    true,
+		})
+		return
+	}
 	if active != nil {
 		_ = h.repo.UpdateSession(c.Request.Context(), uid, active.ID, map[string]interface{}{
 			"status": "expired",
@@ -205,6 +213,9 @@ func (h *TrainingHandler) GetSessions(c *gin.Context) {
 	}
 	resp := make([]sessionResp, 0, len(sessions))
 	for _, s := range sessions {
+		if s.Status == "expired" {
+			continue
+		}
 		resp = append(resp, sessionResp{
 			ID:               s.ID,
 			PlanID:           s.PlanID,
