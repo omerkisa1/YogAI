@@ -39,6 +39,7 @@ import {
   useExerciseAnalysis,
   resolveExerciseAnalysisKind,
 } from "@/hooks/useExerciseAnalysis";
+import { useTrainingCamera } from "@/hooks/useTrainingCamera";
 import { FaceTrainingOverlays } from "@/components/training/FaceTrainingOverlays";
 
 const FIXED_ACCURACY = 75;
@@ -84,8 +85,12 @@ function TrainingSessionContent() {
   const [rulesOpen, setRulesOpen] = useState(false);
   const [modelPipelineError, setModelPipelineError] = useState(false);
   const [pipelineRetryKey, setPipelineRetryKey] = useState(0);
+  const [completionCountdown, setCompletionCountdown] = useState<number | null>(
+    null,
+  );
 
   const accuracySamplesRef = useRef<number[]>([]);
+  const poseElapsedRef = useRef(0);
   const rulesRef = useRef<LandmarkRule[]>([]);
   const poseIdRef = useRef<string>("");
 
@@ -123,12 +128,28 @@ function TrainingSessionContent() {
   const isFaceAnalyzable =
     !!current?.is_analyzable && (analysisKind === "face" || analysisKind === "face_hand");
 
+  const needsSharedCamera = phase === "run" && !!current?.is_analyzable;
+  const {
+    cameraReady: sharedCameraReady,
+    cameraError: sharedCameraError,
+    ensureCamera,
+    releaseCamera,
+  } = useTrainingCamera({
+    enabled: needsSharedCamera,
+    videoRef,
+  });
+
   const faceAnalysis = useExerciseAnalysis({
     poseId: analyzablePoseId,
     analysisKind,
     repTarget: current?.rep_target || poseRulesQuery.data?.rep_target,
-    active: phase === "run" && isFaceAnalyzable && camPermission !== "denied",
+    active:
+      phase === "run" &&
+      isFaceAnalyzable &&
+      sharedCameraReady &&
+      camPermission !== "denied",
     videoRef,
+    cameraReady: sharedCameraReady,
   });
 
   useEffect(() => {
@@ -146,48 +167,40 @@ function TrainingSessionContent() {
     setVisibilityWarning(false);
     setRulesOpen(false);
     setModelPipelineError(false);
+    setCompletionCountdown(null);
   }, [index]);
+
+  useEffect(() => {
+    poseElapsedRef.current = poseElapsed;
+  }, [poseElapsed]);
 
   useEffect(() => {
     if (phase !== "run" || !current?.is_analyzable) {
       setCamPermission("idle");
       return;
     }
-    if (isFaceAnalyzable) {
-      setCamPermission("checking");
+    if (sharedCameraError || faceAnalysis.pipelineError) {
+      setCamPermission("denied");
       return;
     }
-    let cancelled = false;
-    setCamPermission("checking");
-    void (async () => {
-      try {
-        await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "user" },
-        });
-        if (!cancelled) setCamPermission("granted");
-      } catch {
-        if (!cancelled) setCamPermission("denied");
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [current?.pose_id, index, phase, current?.is_analyzable, isFaceAnalyzable]);
-
-  useEffect(() => {
-    if (!isFaceAnalyzable || phase !== "run") return;
-    if (faceAnalysis.cameraReady && !faceAnalysis.pipelineError) {
+    if (sharedCameraReady) {
       setCamPermission("granted");
+      return;
     }
-    if (faceAnalysis.pipelineError) {
-      setCamPermission("denied");
-    }
+    setCamPermission("checking");
   }, [
-    isFaceAnalyzable,
     phase,
-    faceAnalysis.cameraReady,
+    current?.is_analyzable,
+    sharedCameraReady,
+    sharedCameraError,
     faceAnalysis.pipelineError,
   ]);
+
+  useEffect(() => {
+    if (phase === "done") {
+      releaseCamera();
+    }
+  }, [phase, releaseCamera]);
 
   const resolveSubmittedAccuracy = useCallback(() => {
     if (!current?.is_analyzable) return FIXED_ACCURACY;
@@ -251,8 +264,7 @@ function TrainingSessionContent() {
     camPermission === "granted" &&
     !poseRulesLoading &&
     !poseRulesError &&
-    faceAnalysis.cameraReady &&
-    !faceAnalysis.pipelineLoading &&
+    sharedCameraReady &&
     !faceAnalysis.pipelineError;
 
   const { fps } = useMediapipePoseCamera({
@@ -268,15 +280,11 @@ function TrainingSessionContent() {
 
   const retryCamera = useCallback(async () => {
     setCamPermission("checking");
-    try {
-      await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user" },
-      });
-      setCamPermission("granted");
-    } catch {
-      setCamPermission("denied");
-    }
-  }, []);
+    releaseCamera();
+    await new Promise((r) => setTimeout(r, 100));
+    const ok = await ensureCamera();
+    setCamPermission(ok ? "granted" : "denied");
+  }, [releaseCamera, ensureCamera]);
 
   const retryModel = useCallback(() => {
     setModelPipelineError(false);
@@ -392,12 +400,29 @@ function TrainingSessionContent() {
   ]);
 
   useEffect(() => {
-    if (phase !== "run" || !isFaceAnalyzable || !faceAnalysis.isRepComplete) return;
+    if (phase !== "run" || !isFaceAnalyzable || !faceAnalysis.isRepComplete) {
+      setCompletionCountdown(null);
+      return;
+    }
     const key = `rep-${sessionId}-${current?.pose_id}-${index}`;
     if (autoKeyRef.current === key) return;
-    autoKeyRef.current = key;
-    if (poseIntervalRef.current) clearInterval(poseIntervalRef.current);
-    void goNextOrFinish(100, Math.max(1, poseElapsed));
+
+    setCompletionCountdown(5);
+    let remaining = 5;
+    const interval = setInterval(() => {
+      remaining -= 1;
+      if (remaining <= 0) {
+        clearInterval(interval);
+        autoKeyRef.current = key;
+        setCompletionCountdown(null);
+        if (poseIntervalRef.current) clearInterval(poseIntervalRef.current);
+        void goNextOrFinish(100, Math.max(1, poseElapsedRef.current));
+      } else {
+        setCompletionCountdown(remaining);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
   }, [
     phase,
     isFaceAnalyzable,
@@ -405,7 +430,6 @@ function TrainingSessionContent() {
     sessionId,
     current?.pose_id,
     index,
-    poseElapsed,
     goNextOrFinish,
   ]);
 
@@ -567,13 +591,34 @@ function TrainingSessionContent() {
               {isFaceAnalyzable && (
                 <FaceTrainingOverlays
                   analysisKind={analysisKind}
+                  faceDetected={faceAnalysis.faceDetected}
                   faceRepResult={faceAnalysis.faceRepResult}
                   faceHandRepResult={faceAnalysis.faceHandRepResult}
                   repPulse={faceAnalysis.repPulse}
                   handRepPulse={faceAnalysis.handRepPulse}
                   faceEnterThreshold={faceAnalysis.faceEnterThreshold}
+                  proximityThreshold={
+                    faceAnalysis.proximityThreshold > 0
+                      ? Math.min(
+                          1 - faceAnalysis.proximityThreshold / 0.2,
+                          0.85,
+                        )
+                      : 0.5
+                  }
                   pipelineLoading={faceAnalysis.pipelineLoading}
+                  completionCountdown={completionCountdown}
                 />
+              )}
+
+              {isFaceAnalyzable &&
+                faceAnalysis.faceDetected &&
+                !faceAnalysis.repResult &&
+                !faceAnalysis.pipelineLoading && (
+                <div className="pointer-events-none absolute bottom-16 left-1/2 z-20 max-w-sm -translate-x-1/2 px-4 text-center">
+                  <p className="rounded-xl bg-black/50 px-3 py-2 text-xs text-white/90 backdrop-blur-sm">
+                    {t.waitingForData}
+                  </p>
+                </div>
               )}
 
               {isBodyAnalyzable &&
@@ -592,7 +637,9 @@ function TrainingSessionContent() {
                 </div>
               )}
 
-              {isFaceAnalyzable && faceAnalysis.faceNotDetected && (
+              {isFaceAnalyzable &&
+                sharedCameraReady &&
+                faceAnalysis.faceNotDetected && (
                 <div
                   className="absolute left-3 right-3 top-14 z-30 flex items-start gap-2 rounded-xl px-3 py-2.5 text-xs text-white backdrop-blur-md md:left-4 md:right-4 md:text-sm"
                   style={{ backgroundColor: "rgba(234, 179, 8, 0.38)" }}

@@ -293,6 +293,8 @@ const en = {
   open: "Open",
   faceNotDetected: "Face not detected — look at the camera",
   tryAgain: "Try Again",
+  nextPoseIn: "Next pose in",
+  repTargetHint: "Target",
   faceCategory: "Face",
   bodyCategory: "Body",
 
@@ -719,6 +721,8 @@ const tr: typeof en = {
   open: "Açık",
   faceNotDetected: "Yüz algılanamıyor — kameraya bakın",
   tryAgain: "Tekrar Dene",
+  nextPoseIn: "Sonraki hareket",
+  repTargetHint: "Hedef",
   faceCategory: "Yüz",
   bodyCategory: "Vücut",
 
