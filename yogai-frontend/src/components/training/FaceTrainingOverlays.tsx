@@ -20,6 +20,8 @@ type Props = {
   proximityThreshold: number;
   pipelineLoading: boolean;
   completionCountdown: number | null;
+  repCompletionLatched?: boolean;
+  latchedTargetReps?: number;
   onRetry?: () => void;
 };
 
@@ -34,6 +36,8 @@ export function FaceTrainingOverlays({
   proximityThreshold,
   pipelineLoading,
   completionCountdown,
+  repCompletionLatched = false,
+  latchedTargetReps = 0,
   onRetry,
 }: Props) {
   const { t } = useApp();
@@ -54,20 +58,26 @@ export function FaceTrainingOverlays({
     return null;
   }
 
-  if (isFace && faceRepResult?.isComplete) {
+  const showFaceComplete =
+    isFace && (faceRepResult?.isComplete || repCompletionLatched);
+  if (showFaceComplete) {
+    const target = faceRepResult?.target ?? latchedTargetReps;
     return (
       <FaceYogaCompletionOverlay
-        targetReps={faceRepResult.target}
+        targetReps={target}
         countdown={completionCountdown}
         onRetry={completionCountdown === null ? onRetry : undefined}
       />
     );
   }
 
-  if (isFaceHand && faceHandRepResult?.isComplete) {
+  const showFaceHandComplete =
+    isFaceHand && (faceHandRepResult?.isComplete || repCompletionLatched);
+  if (showFaceHandComplete) {
+    const target = faceHandRepResult?.target ?? latchedTargetReps;
     return (
       <FaceYogaCompletionOverlay
-        targetReps={faceHandRepResult.target}
+        targetReps={target}
         countdown={completionCountdown}
         onRetry={completionCountdown === null ? onRetry : undefined}
       />

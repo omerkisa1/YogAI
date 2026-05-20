@@ -82,6 +82,11 @@ function TrainingSessionContent() {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [scores, setScores] = useState<number[]>([]);
   const autoKeyRef = useRef<string | null>(null);
+  const goNextOrFinishRef = useRef<
+    (accuracy: number, durationSeconds: number) => Promise<void>
+  >(() => Promise.resolve());
+  const countdownTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const repAdvanceScheduledRef = useRef<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const sessionIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const poseIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -101,11 +106,18 @@ function TrainingSessionContent() {
   const [completionCountdown, setCompletionCountdown] = useState<number | null>(
     null,
   );
+  const [repCompletionLatched, setRepCompletionLatched] = useState(false);
+  const [latchedTargetReps, setLatchedTargetReps] = useState(0);
 
   const accuracySamplesRef = useRef<number[]>([]);
   const poseElapsedRef = useRef(0);
   const rulesRef = useRef<LandmarkRule[]>([]);
   const poseIdRef = useRef<string>("");
+
+  const clearRepCountdownTimers = useCallback(() => {
+    countdownTimeoutsRef.current.forEach(clearTimeout);
+    countdownTimeoutsRef.current = [];
+  }, []);
 
   const cameraStageRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -226,8 +238,12 @@ function TrainingSessionContent() {
     setVisibilityWarning(false);
     setRulesOpen(false);
     setModelPipelineError(false);
+    setRepCompletionLatched(false);
+    setLatchedTargetReps(0);
     setCompletionCountdown(null);
-  }, [index]);
+    clearRepCountdownTimers();
+    repAdvanceScheduledRef.current = null;
+  }, [index, clearRepCountdownTimers]);
 
   useEffect(() => {
     poseElapsedRef.current = poseElapsed;
@@ -363,11 +379,15 @@ function TrainingSessionContent() {
           setIndex((i) => i + 1);
         }
       } catch {
+        repAdvanceScheduledRef.current = null;
+        autoKeyRef.current = null;
         toast.error(t.loadError);
       }
     },
     [current, sessionId, submitPose, index, exercises.length, finishWorkout, t.loadError],
   );
+
+  goNextOrFinishRef.current = goNextOrFinish;
 
   useEffect(() => {
     if (!planId || !sessionId) {
@@ -442,37 +462,62 @@ function TrainingSessionContent() {
   ]);
 
   useEffect(() => {
-    if (phase !== "run" || !isFaceAnalyzable || !faceAnalysis.isRepComplete) {
-      setCompletionCountdown(null);
-      return;
-    }
-    const key = `rep-${sessionId}-${current?.pose_id}-${index}`;
-    if (autoKeyRef.current === key) return;
+    if (!faceAnalysis.isRepComplete) return;
+    setRepCompletionLatched(true);
+    const target =
+      faceAnalysis.faceRepResult?.target ??
+      faceAnalysis.faceHandRepResult?.target ??
+      faceAnalysis.effectiveRepTarget;
+    if (target > 0) setLatchedTargetReps(target);
+  }, [
+    faceAnalysis.isRepComplete,
+    faceAnalysis.faceRepResult?.target,
+    faceAnalysis.faceHandRepResult?.target,
+    faceAnalysis.effectiveRepTarget,
+  ]);
+
+  useEffect(() => {
+    if (phase !== "run" || !isFaceAnalyzable || !repCompletionLatched) return;
+
+    const key = `${sessionId}-${analyzablePoseId}-${index}`;
+    if (repAdvanceScheduledRef.current === key) return;
+    repAdvanceScheduledRef.current = key;
 
     setCompletionCountdown(5);
     let remaining = 5;
-    const interval = setInterval(() => {
-      remaining -= 1;
-      if (remaining <= 0) {
-        clearInterval(interval);
-        autoKeyRef.current = key;
-        setCompletionCountdown(null);
-        if (poseIntervalRef.current) clearInterval(poseIntervalRef.current);
-        void goNextOrFinish(100, Math.max(1, poseElapsedRef.current));
-      } else {
-        setCompletionCountdown(remaining);
-      }
-    }, 1000);
 
-    return () => clearInterval(interval);
+    const tick = () => {
+      const id = setTimeout(() => {
+        remaining -= 1;
+        if (remaining <= 0) {
+          setCompletionCountdown(null);
+          autoKeyRef.current = `rep-done-${key}`;
+          if (poseIntervalRef.current) clearInterval(poseIntervalRef.current);
+          void goNextOrFinishRef.current(100, Math.max(1, poseElapsedRef.current));
+          return;
+        }
+        setCompletionCountdown(remaining);
+        tick();
+      }, 1000);
+      countdownTimeoutsRef.current.push(id);
+    };
+
+    tick();
+
+    return () => {
+      clearRepCountdownTimers();
+      if (repAdvanceScheduledRef.current === key) {
+        repAdvanceScheduledRef.current = null;
+      }
+    };
   }, [
     phase,
     isFaceAnalyzable,
-    faceAnalysis.isRepComplete,
+    repCompletionLatched,
     sessionId,
-    current?.pose_id,
+    analyzablePoseId,
     index,
-    goNextOrFinish,
+    clearRepCountdownTimers,
   ]);
 
   const formatTime = (s: number) => {
@@ -679,6 +724,16 @@ function TrainingSessionContent() {
               proximityThreshold={faceAnalysis.proximityThreshold}
               pipelineLoading={faceAnalysis.pipelineLoading}
               completionCountdown={completionCountdown}
+              repCompletionLatched={repCompletionLatched}
+              latchedTargetReps={latchedTargetReps}
+              onRetry={() => {
+                repAdvanceScheduledRef.current = null;
+                autoKeyRef.current = null;
+                clearRepCountdownTimers();
+                setCompletionCountdown(null);
+                setRepCompletionLatched(false);
+                queueMicrotask(() => setRepCompletionLatched(true));
+              }}
             />
           )}
 
