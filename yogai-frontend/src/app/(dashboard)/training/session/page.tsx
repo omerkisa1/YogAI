@@ -140,6 +140,8 @@ function TrainingSessionContent() {
     !!current?.is_analyzable && analysisKind === "body";
   const isFaceAnalyzable =
     !!current?.is_analyzable && (analysisKind === "face" || analysisKind === "face_hand");
+  const isFaceHandAnalyzable =
+    !!current?.is_analyzable && analysisKind === "face_hand";
 
   useEffect(() => {
     if (phase !== "run" || !isFaceAnalyzable) {
@@ -652,43 +654,37 @@ function TrainingSessionContent() {
             </div>
           )}
 
-          {showCameraStage ? (
+          {isFaceAnalyzable &&
+            faceCameraReady &&
+            !faceAnalysis.pipelineLoading &&
+            !faceAnalysis.faceDetected && (
+            <div
+              className="absolute left-3 right-3 top-14 z-30 flex items-start gap-2 rounded-xl px-3 py-2.5 text-xs text-white backdrop-blur-md md:left-4 md:right-4 md:text-sm"
+              style={{ backgroundColor: "rgba(234, 179, 8, 0.38)" }}
+            >
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-950/90 md:h-5 md:w-5" />
+              <p>{t.faceNotDetected}</p>
+            </div>
+          )}
+
+          {isFaceAnalyzable && faceCameraReady && (
+            <FaceTrainingOverlays
+              analysisKind={analysisKind}
+              faceDetected={faceAnalysis.faceDetected}
+              faceRepResult={faceAnalysis.faceRepResult}
+              faceHandRepResult={faceAnalysis.faceHandRepResult}
+              repPulse={faceAnalysis.repPulse}
+              handRepPulse={faceAnalysis.handRepPulse}
+              faceEnterThreshold={faceAnalysis.faceEnterThreshold}
+              proximityThreshold={faceAnalysis.proximityThreshold}
+              pipelineLoading={faceAnalysis.pipelineLoading}
+              completionCountdown={completionCountdown}
+            />
+          )}
+
+          {showCameraStage && isBodyAnalyzable ? (
             <>
-              {isFaceAnalyzable && (
-                <FaceTrainingOverlays
-                  analysisKind={analysisKind}
-                  faceDetected={faceAnalysis.faceDetected}
-                  faceRepResult={faceAnalysis.faceRepResult}
-                  faceHandRepResult={faceAnalysis.faceHandRepResult}
-                  repPulse={faceAnalysis.repPulse}
-                  handRepPulse={faceAnalysis.handRepPulse}
-                  faceEnterThreshold={faceAnalysis.faceEnterThreshold}
-                  proximityThreshold={
-                    faceAnalysis.proximityThreshold > 0
-                      ? Math.min(
-                          1 - faceAnalysis.proximityThreshold / 0.2,
-                          0.85,
-                        )
-                      : 0.5
-                  }
-                  pipelineLoading={faceAnalysis.pipelineLoading}
-                  completionCountdown={completionCountdown}
-                />
-              )}
-
-              {isFaceAnalyzable &&
-                faceAnalysis.faceDetected &&
-                !faceAnalysis.repResult &&
-                !faceAnalysis.pipelineLoading && (
-                <div className="pointer-events-none absolute bottom-16 left-1/2 z-20 max-w-sm -translate-x-1/2 px-4 text-center">
-                  <p className="rounded-xl bg-black/50 px-3 py-2 text-xs text-white/90 backdrop-blur-sm">
-                    {t.waitingForData}
-                  </p>
-                </div>
-              )}
-
-              {isBodyAnalyzable &&
-                (lastAnalyzeResult || liveAccuracy != null) && (
+              {(lastAnalyzeResult || liveAccuracy != null) && (
                 <div
                   className={`pointer-events-none absolute right-3 top-3 z-20 rounded-2xl border border-white/20 bg-gradient-to-br px-4 py-2.5 text-center shadow-lg backdrop-blur-md md:right-4 md:top-4 md:px-5 md:py-3 ${accuracyAccent(accVal)}`}
                 >
@@ -703,19 +699,7 @@ function TrainingSessionContent() {
                 </div>
               )}
 
-              {isFaceAnalyzable &&
-                faceCameraReady &&
-                faceAnalysis.faceNotDetected && (
-                <div
-                  className="absolute left-3 right-3 top-14 z-30 flex items-start gap-2 rounded-xl px-3 py-2.5 text-xs text-white backdrop-blur-md md:left-4 md:right-4 md:text-sm"
-                  style={{ backgroundColor: "rgba(234, 179, 8, 0.38)" }}
-                >
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-950/90 md:h-5 md:w-5" />
-                  <p>{t.faceNotDetected}</p>
-                </div>
-              )}
-
-              {visibilityWarning && isBodyAnalyzable && (
+              {visibilityWarning && (
                 <div
                   className="absolute left-3 right-3 top-14 z-30 flex items-start gap-2 rounded-xl px-3 py-2.5 text-xs text-white backdrop-blur-md md:left-4 md:right-4 md:text-sm"
                   style={{ backgroundColor: "rgba(234, 179, 8, 0.38)" }}
@@ -725,7 +709,7 @@ function TrainingSessionContent() {
                 </div>
               )}
 
-              {isBodyAnalyzable && rulesReady && !lastAnalyzeResult && !visibilityWarning ? (
+              {rulesReady && !lastAnalyzeResult && !visibilityWarning ? (
                 <div className="pointer-events-none absolute bottom-16 left-1/2 z-20 max-w-sm -translate-x-1/2 px-4 text-center">
                   <p className="rounded-xl bg-black/50 px-3 py-2 text-xs text-white/90 backdrop-blur-sm">
                     {t.waitingForData}
@@ -733,7 +717,7 @@ function TrainingSessionContent() {
                 </div>
               ) : null}
 
-              {isBodyAnalyzable && lastAnalyzeResult && !visibilityWarning && (
+              {lastAnalyzeResult && !visibilityWarning && (
                 <div className="pointer-events-none absolute bottom-[4.5rem] left-1/2 z-20 flex max-w-xs -translate-x-1/2 flex-wrap justify-center gap-x-3 gap-y-1 text-[10px] text-white/90 md:text-xs">
                   <span>
                     {t.targetScore}: {lastAnalyzeResult.target_score.toFixed(0)}%
@@ -744,8 +728,7 @@ function TrainingSessionContent() {
                 </div>
               )}
 
-              {isBodyAnalyzable &&
-                lastAnalyzeResult &&
+              {lastAnalyzeResult &&
                 !lastAnalyzeResult.is_reliable &&
                 !visibilityWarning && (
                 <div className="pointer-events-none absolute bottom-28 left-1/2 z-20 max-w-sm -translate-x-1/2 px-4 text-center">
@@ -753,7 +736,7 @@ function TrainingSessionContent() {
                 </div>
               )}
 
-              {isBodyAnalyzable && (
+              {(
               <div
                 className={`absolute bottom-0 left-0 right-0 z-40 transition-transform duration-300 ease-out ${
                   rulesOpen ? "translate-y-0" : "translate-y-[calc(100%-2.75rem)]"

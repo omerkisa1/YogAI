@@ -127,7 +127,7 @@ export function FaceTrainingOverlays({
             {faceHandRepResult.reps} / {faceHandRepResult.target}
           </div>
           <div className="mt-1 text-sm text-white/60">{t.reps}</div>
-          {faceHandRepResult.handNearFace && (
+          {faceHandRepResult.holdProgress > 0 && faceHandRepResult.holdProgress < 1 && (
             <div className="mt-3 h-2 w-48 rounded-full bg-white/10">
               <div
                 className="h-full rounded-full bg-blue-400"
@@ -135,6 +135,12 @@ export function FaceTrainingOverlays({
               />
             </div>
           )}
+          <div className="mt-2 h-1 w-48 rounded-full bg-white/10">
+            <div
+              className="h-full rounded-full bg-green-400/60"
+              style={{ width: `${faceHandRepResult.progress * 100}%` }}
+            />
+          </div>
         </div>
 
         <div className="pointer-events-none absolute bottom-24 left-1/2 z-20 max-w-[calc(100vw-2rem)] -translate-x-1/2">
